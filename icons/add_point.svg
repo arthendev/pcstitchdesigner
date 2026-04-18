@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Crosshair -->
+  <line x1="12" y1="4" x2="12" y2="20" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="4" y1="12" x2="20" y2="12" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Circle at center -->
+  <circle cx="12" cy="12" r="3" fill="none" stroke="#1a73e8" stroke-width="1.5"/>
+  <!-- Plus badge -->
+  <circle cx="19" cy="5" r="4.5" fill="#1a73e8"/>
+  <line x1="19" y1="3" x2="19" y2="7" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="17" y1="5" x2="21" y2="5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
