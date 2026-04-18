@@ -64,23 +64,34 @@ class StitchPattern:
         "big hoop": (689, 720),
     }
 
+    STITCH_RES_MM = 1/3  # 1 stitch = 0.333... mm
+
     def __init__(self):
         self.points = []  # list of (int, int)
         self.modified = False
         self._undo_stack = []
         self._redo_stack = []
         self.stitch_type = "9mm"  # "9mm" or "MAXI"
-        self.canvas_size = "9mm"  # "9mm", "MAXI", "small hoop", or "big hoop"
 
     @property
     def CANVAS_WIDTH(self):
         """Get canvas width based on current canvas size."""
-        return self.CANVAS_SIZES[self.canvas_size][0]
+        return self.CANVAS_SIZES[self.stitch_type][0]
 
     @property
     def CANVAS_HEIGHT(self):
         """Get canvas height based on current canvas size."""
-        return self.CANVAS_SIZES[self.canvas_size][1]
+        return self.CANVAS_SIZES[self.stitch_type][1]
+    
+    @property
+    def CANVAS_WIDTH_MM(self):
+        """Get canvas width based on current canvas size."""
+        return self.CANVAS_SIZES[self.stitch_type][0] * self.STITCH_RES_MM
+
+    @property
+    def CANVAS_HEIGHT_MM(self):
+        """Get canvas height based on current canvas size."""
+        return self.CANVAS_SIZES[self.stitch_type][1] * self.STITCH_RES_MM
 
     def _exec(self, cmd):
         cmd.redo(self)

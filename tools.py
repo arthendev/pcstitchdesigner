@@ -203,7 +203,7 @@ class DeletePointTool(BaseTool):
         if not pixmap.isNull():
             # Scale the pixmap to a reasonable cursor size (32x32)
             pixmap = pixmap.scaledToWidth(32, Qt.SmoothTransformation)
-            self.cursor = QCursor(pixmap, hotX=16, hotY=16)
+            self.cursor = QCursor(pixmap, hotX=11, hotY=27)
         else:
             # Fallback to CrossCursor if icon can't be loaded
             self.cursor = Qt.CrossCursor

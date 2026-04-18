@@ -22,7 +22,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PC Designer")
+        self.setWindowTitle("PC Stitch Designer")
         self.resize(1200, 700)
 
         # Load configuration
@@ -151,6 +151,10 @@ class MainWindow(QMainWindow):
                                        "Fit Screen", self)
         self._act_fit_screen.triggered.connect(self._zoom_fit_screen)
 
+        self._act_fit_pattern = QAction(QIcon(os.path.join(_icons, "fit_pattern.svg")),
+                                        "Fit Pattern", self)
+        self._act_fit_pattern.triggered.connect(self._fit_pattern)
+
         # Design (P-Design / M-Design)
         self._act_pdesign = QAction("P-Design", self)
         self._act_pdesign.setCheckable(True)
@@ -223,6 +227,7 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self._act_zoom_out)
         tools_menu.addAction(self._act_fit_height)
         tools_menu.addAction(self._act_fit_screen)
+        tools_menu.addAction(self._act_fit_pattern)
 
         design_menu = mb.addMenu("&Design")
         design_menu.addAction(self._act_pdesign)
@@ -251,6 +256,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_zoom_out)
         tb.addAction(self._act_fit_height)
         tb.addAction(self._act_fit_screen)
+        tb.addAction(self._act_fit_pattern)
 
     # ── Tool selection ──
 
@@ -300,7 +306,6 @@ class MainWindow(QMainWindow):
             self._act_maxi.setChecked(True)
             return
         self._pattern.stitch_type = "9mm"
-        self._pattern.canvas_size = "9mm"
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -315,7 +320,6 @@ class MainWindow(QMainWindow):
             self._act_9mm.setChecked(True)
             return
         self._pattern.stitch_type = "MAXI"
-        self._pattern.canvas_size = "MAXI"
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -376,24 +380,39 @@ class MainWindow(QMainWindow):
         try:
             pattern = file_io.load_pattern(path)
         except Exception as e:
-            QMessageBox.critical(self, "Open Error", str(e))
+            QMessageBox.critical(self, "Error opening file", str(e))
             return
         self._pattern = pattern
         self._canvas.pattern = pattern
         self._file_path = path
         self._add_recent_file(path)
+        
+        # Update stitch type selection based on loaded pattern
+        if self._pattern.stitch_type == "9mm":
+            self._act_9mm.setChecked(True)
+        if self._pattern.stitch_type == "MAXI":
+            self._act_maxi.setChecked(True)
+        else:
+            pass
+        
+        # Update canvas
+        self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+
         # Switch to Pan tool after opening
         self._act_pan.setChecked(True)
         self._on_tool_pan()
+
+        # Center the pattern in the view
+        self._fit_pattern()
 
     def _file_save(self):
         if self._file_path:
             try:
                 file_io.save_pattern(self._file_path, self._pattern)
             except Exception as e:
-                QMessageBox.critical(self, "Save Error", str(e))
+                QMessageBox.critical(self, "Error saving file", str(e))
                 return False
             self._update_title()
             return True
@@ -485,6 +504,50 @@ class MainWindow(QMainWindow):
         sx = (vw - margin2) / self._pattern.CANVAS_WIDTH
         sy = (vh - margin2) / self._pattern.CANVAS_HEIGHT
         self._canvas.set_scale(min(sx, sy))
+
+    def _fit_pattern(self):
+        """Fit the view to show only the designed stitch pattern."""
+        if not self._pattern.points:
+            return
+        
+        # Calculate bounding box of all points (using bottom-left reference)
+        xs = [x for x, y in self._pattern.points]
+        ys = [y for x, y in self._pattern.points]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        
+        # Add margins around the pattern
+        margin = 20
+        bounds_width = max_x - min_x + 2 * margin
+        bounds_height = max_y - min_y + 2 * margin
+        
+        # Calculate scale to fit bounds in viewport
+        vp = self._scroll.viewport()
+        vw, vh = vp.width(), vp.height()
+        if vw <= 0 or vh <= 0:
+            vw, vh = self.width() - 20, self.height() - 80
+        
+        scale_x = vw / bounds_width if bounds_width > 0 else 1
+        scale_y = vh / bounds_height if bounds_height > 0 else 1
+        new_scale = min(scale_x, scale_y)
+        
+        self._canvas.set_scale(new_scale)
+        
+        # Calculate center of pattern bounds (in pattern coordinates, bottom-left reference)
+        bounds_center_x = min_x + (max_x - min_x) / 2
+        bounds_center_y = min_y + (max_y - min_y) / 2
+        
+        # Convert pattern coordinates to canvas pixel coordinates (top-left reference)
+        # Pattern y is measured from bottom, canvas y is measured from top
+        canvas_center_x = bounds_center_x * new_scale + self._canvas.MARGIN
+        canvas_center_y = (self._pattern.CANVAS_HEIGHT - bounds_center_y) * new_scale + self._canvas.MARGIN
+        
+        # Scroll to center the pattern in the viewport
+        h_scroll = self._scroll.horizontalScrollBar()
+        v_scroll = self._scroll.verticalScrollBar()
+        
+        h_scroll.setValue(int(canvas_center_x - vw / 2))
+        v_scroll.setValue(int(canvas_center_y - vh / 2))
 
     # ── Help ──
 

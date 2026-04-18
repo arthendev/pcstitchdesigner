@@ -2,9 +2,9 @@
 
 File format (PCD/PCQ compatible):
   Header:  byte 0x32
-           byte 0x00 (9mm) or 0x01 (MAXI)
-           uint16 unknown
-           uint16 point count
+           byte 0x00 (9mm) or 0x01 (MAXI) or 0x02 (small hoop) or 0x03 (large hoop)
+           uint16 color count
+           uint16 stitch count
   Body:    N × (byte unk, uint16 x, byte unk, byte unk, uint16 y, uint16 unk)
 
 All values are little-endian.
@@ -13,20 +13,31 @@ All values are little-endian.
 import struct
 from model import StitchPattern
 
-HEADER_FMT = '<BBHH'  # header_byte(1) + stitch_type(1) + unk1(2) + count(2) = 6 bytes
-POINT_FMT = '<BHBBHH'  # unk3(1) + x(2) + unk4(1) + unk5(1) + y(2) + unk6(2) = 9 bytes
+HEADER_FMT = '<BBHH'  # header_byte(1) + stitch_type(1) + color_count(2) + stitch_count(2) = 6 bytes
+POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
 
 def save_pattern(path, pattern):
     """Save a StitchPattern to a binary file."""
-    stitch_type_byte = 0x01 if pattern.stitch_type == "MAXI" else 0x00
+    if pattern.stitch_type == "9mm":
+        stitch_type_byte = 0x00
+    elif pattern.stitch_type == "MAXI":
+        stitch_type_byte = 0x01
+    elif pattern.stitch_type == "small hoop":
+        stitch_type_byte = 0x02
+    elif pattern.stitch_type == "large hoop":
+        stitch_type_byte = 0x03
+    else:
+        raise ValueError("Invalid/unsupported stitch type")
     
     with open(path, 'wb') as f:
         # Write header: 0x32, stitch_type, unk1=0, count
         f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, 0, len(pattern.points)))
-        # Write points: unk3=0, x, unk4=0, unk5=0, y, unk6=0
+        # Write points: c0=0, x(3 bytes LE), c1=0, y(3 bytes LE), control_byte=0
         for x, y in pattern.points:
-            f.write(struct.pack(POINT_FMT, 0, x, 0, 0, y, 0))
+            x_bytes = x.to_bytes(3, 'little')
+            y_bytes = y.to_bytes(3, 'little')
+            f.write(struct.pack(POINT_FMT, 0, x_bytes, 0, y_bytes, 0))
     pattern.modified = False
 
 
@@ -40,28 +51,32 @@ def load_pattern(path):
         if len(header_data) < header_size:
             raise ValueError("File too short")
         
-        magic_number, stitch_type_byte, unk1, count = struct.unpack(HEADER_FMT, header_data)
+        magic_number, stitch_type_byte, color_count, stitch_count = struct.unpack(HEADER_FMT, header_data)
         
         if magic_number != 0x32:
             raise ValueError("Invalid file format")
-        if stitch_type_byte not in (0x00, 0x01):
-            raise ValueError("Invalid/unsupported stitch type")
         
         # Set stitch type
         if stitch_type_byte == 0x00:
             pattern.stitch_type = "9mm"
         elif stitch_type_byte == 0x01:
             pattern.stitch_type = "MAXI"
+        elif stitch_type_byte == 0x02:
+            pattern.stitch_type = "small hoop"
+        elif stitch_type_byte == 0x03:
+            pattern.stitch_type = "large hoop"
         else:
             raise ValueError("Invalid/unsupported stitch type")
         
         # Read points
         point_size = struct.calcsize(POINT_FMT)
-        for _ in range(count):
+        for _ in range(stitch_count):
             point_data = f.read(point_size)
             if len(point_data) < point_size:
                 raise ValueError("Unexpected end of file")
-            unk3, x, unk4, unk5, y, unk6 = struct.unpack(POINT_FMT, point_data)
+            c0, x_bytes, c1, y_bytes, control_byte = struct.unpack(POINT_FMT, point_data)
+            x = int.from_bytes(x_bytes, 'little')
+            y = int.from_bytes(y_bytes, 'little')
             pattern.points.append((x, y))
     
     pattern.modified = False

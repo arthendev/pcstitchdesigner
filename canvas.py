@@ -23,9 +23,9 @@ class StitchCanvas(QWidget):
 
     # Colors
     COLOR_GRID = QColor(220, 220, 220)
-    COLOR_BORDER = QColor(0, 0, 0)
-    COLOR_POINT = QColor(0, 80, 200)
-    COLOR_LINE = QColor(0, 80, 200)
+    COLOR_BORDER = QColor(0, 80, 200)  # Blue frame
+    COLOR_POINT = QColor(0, 0, 0)      # Black points
+    COLOR_LINE = QColor(0, 0, 0)       # Black lines
     COLOR_BG = QColor(255, 255, 255)
     COLOR_FIRST_POINT = QColor(0, 200, 0)  # Green for first point
     COLOR_LAST_POINT = QColor(200, 0, 0)   # Red for last point
