@@ -121,25 +121,41 @@ class StitchCanvas(QWidget):
                 sx2, sy2 = self.canvas_to_screen(x2, y2)
                 painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
-        # Stitch points
+        # Stitch points (draw in layers to ensure first and last are on top)
         painter.setPen(Qt.NoPen)
         r = self.POINT_RADIUS
         num_points = len(self.pattern.points)
+        
+        # First layer: draw all regular points (not first, not last)
         for i, (x, y) in enumerate(self.pattern.points):
-            # Choose color based on position and selection
-            # Priority: Last point (red) > First point (green) > Selected (blue) > Default (black)
-            if num_points > 1 and i == num_points - 1:
-                # Last point is red (highest priority)
-                painter.setBrush(QBrush(self.COLOR_LAST_POINT))
-            elif num_points > 1 and i == 0:
-                # First point is green
-                painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-            elif i == self._selected_point_index:
-                # Selected point is blue
+            if num_points > 1 and (i == 0 or i == num_points - 1):
+                continue  # Skip first and last, draw them later
+            
+            # Determine color for non-first/non-last points
+            if i == self._selected_point_index:
                 painter.setBrush(QBrush(QColor(0, 80, 200)))
             else:
-                # Other points are black
                 painter.setBrush(QBrush(self.COLOR_POINT))
+            sx, sy = self.canvas_to_screen(x, y)
+            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+        
+        # Second layer: draw first and last points on top
+        if num_points > 1:
+            # Draw first point (green)
+            x, y = self.pattern.points[0]
+            painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
+            sx, sy = self.canvas_to_screen(x, y)
+            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+            
+            # Draw last point (red)
+            x, y = self.pattern.points[num_points - 1]
+            painter.setBrush(QBrush(self.COLOR_LAST_POINT))
+            sx, sy = self.canvas_to_screen(x, y)
+            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+        elif num_points == 1:
+            # Single point: draw in green
+            x, y = self.pattern.points[0]
+            painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 

@@ -373,6 +373,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard():
             return
         self._pattern.clear()
+        self._canvas.set_selected_point(None)
         self._file_path = None
         self._canvas.update()
         self._on_pattern_changed()
@@ -397,6 +398,7 @@ class MainWindow(QMainWindow):
             return
         self._pattern = pattern
         self._canvas.pattern = pattern
+        self._canvas.set_selected_point(None)
         self._file_path = path
         self._add_recent_file(path)
         
