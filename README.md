@@ -20,7 +20,7 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 ## Hardware requirements
 
 - Compatible sewing machine
-  - recently only PFAFF Creative 7570
+  - currently only PFAFF Creative 7570 is supported
 - Interface cable
   - aftermarket USB-PFAFF cable
   - original COM cable should eventually work but was not tested yet
