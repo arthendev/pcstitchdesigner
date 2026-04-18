@@ -35,7 +35,9 @@ class StitchCanvas(QWidget):
         self.pattern = pattern
         self._scale = 10.0  # pixels per canvas unit
         self._tool = None
+        self._selected_point_index = None  # Index of currently selected point
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
 
     def set_tool(self, tool):
@@ -52,6 +54,14 @@ class StitchCanvas(QWidget):
         self._scale = max(1.0, scale)
         self._update_size()
         self.update()
+
+    def get_selected_point(self):
+        """Get the index of the selected point, or None."""
+        return self._selected_point_index
+
+    def set_selected_point(self, index):
+        """Set the selected point index. Pass None to deselect."""
+        self._selected_point_index = index
 
     def _update_size(self):
         w = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
@@ -116,15 +126,19 @@ class StitchCanvas(QWidget):
         r = self.POINT_RADIUS
         num_points = len(self.pattern.points)
         for i, (x, y) in enumerate(self.pattern.points):
-            # Choose color based on position
-            if num_points > 1 and i == 0:
+            # Choose color based on position and selection
+            # Priority: Last point (red) > First point (green) > Selected (blue) > Default (black)
+            if num_points > 1 and i == num_points - 1:
+                # Last point is red (highest priority)
+                painter.setBrush(QBrush(self.COLOR_LAST_POINT))
+            elif num_points > 1 and i == 0:
                 # First point is green
                 painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-            elif num_points > 1 and i == num_points - 1:
-                # Last point is red
-                painter.setBrush(QBrush(self.COLOR_LAST_POINT))
+            elif i == self._selected_point_index:
+                # Selected point is blue
+                painter.setBrush(QBrush(QColor(0, 80, 200)))
             else:
-                # Other points are blue
+                # Other points are black
                 painter.setBrush(QBrush(self.COLOR_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
@@ -150,6 +164,38 @@ class StitchCanvas(QWidget):
     def mouseReleaseEvent(self, event):
         if self._tool:
             self._tool.mouse_release(self, event)
+
+    def keyPressEvent(self, event):
+        """Handle keyboard events for moving selected point."""
+        if self._selected_point_index is not None and not event.isAutoRepeat():
+            idx = self._selected_point_index
+            x, y = self.pattern.points[idx]
+            moved = False
+            
+            if event.key() == Qt.Key_Up:
+                y += 1
+                moved = True
+            elif event.key() == Qt.Key_Down:
+                y -= 1
+                moved = True
+            elif event.key() == Qt.Key_Left:
+                x -= 1
+                moved = True
+            elif event.key() == Qt.Key_Right:
+                x += 1
+                moved = True
+            
+            if moved:
+                # Clamp to canvas bounds
+                x = max(0, min(self.pattern.CANVAS_WIDTH, x))
+                y = max(0, min(self.pattern.CANVAS_HEIGHT, y))
+                self.pattern.move_point(idx, x, y)
+                self.update()
+                self.notify_change()
+                event.accept()
+                return
+        
+        super().keyPressEvent(event)
 
     # ── Notifications ──
 

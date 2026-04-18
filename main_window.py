@@ -12,7 +12,7 @@ from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern
 from canvas import StitchCanvas
-from tools import PanTool, AddPointTool, EditPointTool, DeletePointTool
+from tools import PanTool, AddPointTool, MovePointTool, DeletePointTool, SelectPointTool
 import file_io
 from config import Config
 from version import APP_VERSION
@@ -37,8 +37,9 @@ class MainWindow(QMainWindow):
 
         # Tools
         self._pan_tool = PanTool()
+        self._select_tool = SelectPointTool()
         self._add_tool = AddPointTool()
-        self._edit_tool = EditPointTool()
+        self._move_tool = MovePointTool()
         self._delete_tool = DeletePointTool()
 
         # Scroll area as central widget
@@ -111,15 +112,20 @@ class MainWindow(QMainWindow):
         self._act_pan.setCheckable(True)
         self._act_pan.triggered.connect(self._on_tool_pan)
 
+        self._act_select = QAction(QIcon(os.path.join(_icons, "select_point.svg")),
+                                   "Select Stitch Point", self)
+        self._act_select.setCheckable(True)
+        self._act_select.triggered.connect(self._on_tool_select)
+
         self._act_add = QAction(QIcon(os.path.join(_icons, "add_point.svg")),
                                 "Add Stitch Point", self)
         self._act_add.setCheckable(True)
         self._act_add.triggered.connect(self._on_tool_add)
 
-        self._act_edit = QAction(QIcon(os.path.join(_icons, "edit_point.svg")),
-                                "Edit Stitch Point", self)
-        self._act_edit.setCheckable(True)
-        self._act_edit.triggered.connect(self._on_tool_edit)
+        self._act_move = QAction(QIcon(os.path.join(_icons, "move_point.svg")),
+                                "Move Stitch Point", self)
+        self._act_move.setCheckable(True)
+        self._act_move.triggered.connect(self._on_tool_move)
 
         self._act_delete = QAction(QIcon(os.path.join(_icons, "delete_point.svg")),
                                    "Delete Stitch Point", self)
@@ -129,8 +135,9 @@ class MainWindow(QMainWindow):
         self._tool_group = QActionGroup(self)
         self._tool_group.setExclusive(True)
         self._tool_group.addAction(self._act_pan)
+        self._tool_group.addAction(self._act_select)
         self._tool_group.addAction(self._act_add)
-        self._tool_group.addAction(self._act_edit)
+        self._tool_group.addAction(self._act_move)
         self._tool_group.addAction(self._act_delete)
 
         self._act_zoom_in = QAction(QIcon(os.path.join(_icons, "zoom_in.svg")),
@@ -219,8 +226,9 @@ class MainWindow(QMainWindow):
 
         tools_menu = mb.addMenu("&Tools")
         tools_menu.addAction(self._act_pan)
+        tools_menu.addAction(self._act_select)
         tools_menu.addAction(self._act_add)
-        tools_menu.addAction(self._act_edit)
+        tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
         tools_menu.addSeparator()
         tools_menu.addAction(self._act_zoom_in)
@@ -248,8 +256,9 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, tb)
 
         tb.addAction(self._act_pan)
+        tb.addAction(self._act_select)
         tb.addAction(self._act_add)
-        tb.addAction(self._act_edit)
+        tb.addAction(self._act_move)
         tb.addAction(self._act_delete)
         tb.addSeparator()
         tb.addAction(self._act_zoom_in)
@@ -264,13 +273,17 @@ class MainWindow(QMainWindow):
         self._canvas.set_tool(self._pan_tool)
         self._tool_label.setText("Tool: Pan")
 
+    def _on_tool_select(self):
+        self._canvas.set_tool(self._select_tool)
+        self._tool_label.setText("Tool: Select Stitch Point")
+
     def _on_tool_add(self):
         self._canvas.set_tool(self._add_tool)
         self._tool_label.setText("Tool: Add Stitch Point")
 
-    def _on_tool_edit(self):
-        self._canvas.set_tool(self._edit_tool)
-        self._tool_label.setText("Tool: Edit Stitch Point")
+    def _on_tool_move(self):
+        self._canvas.set_tool(self._move_tool)
+        self._tool_label.setText("Tool: Move Stitch Point")
 
     def _on_tool_delete(self):
         self._canvas.set_tool(self._delete_tool)
@@ -585,7 +598,9 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         """Handle keyboard events."""
         if event.key() == Qt.Key_Escape:
-            # Switch to Pan tool when Escape is pressed
+            # Deselect any selected point
+            self._canvas.set_selected_point(None)
+            # Switch to Pan tool
             self._act_pan.setChecked(True)
             self._on_tool_pan()
             event.accept()

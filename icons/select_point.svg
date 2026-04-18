@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Arrow cursor -->
+  <path d="M6 3 L6 18 L10 14.5 L14 21 L16 20 L12 13.5 L17 13 Z"
+        fill="#333" stroke="#333" stroke-width="0.5" stroke-linejoin="round"/>
+  <!-- Selection rectangle badge with dashed line -->
+  <rect x="16" y="3" width="7" height="7" fill="none" stroke="#1a73e8" stroke-width="1.0" stroke-dasharray="1,1"/>
+</svg>

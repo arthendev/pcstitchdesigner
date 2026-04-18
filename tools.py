@@ -24,6 +24,46 @@ class BaseTool:
         pass
 
 
+class SelectPointTool(BaseTool):
+    """Select a stitch point for manipulation. Arrow keys move it on the grid."""
+
+    name = "Select Stitch Point"
+    cursor = Qt.CrossCursor
+    HIT_RADIUS_CANVAS = 2  # in canvas units
+
+    def __init__(self):
+        """Initialize the tool with a custom cursor from the icon."""
+        # Create custom cursor from the select_point icon
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", "select_point.svg")
+        pixmap = QPixmap(icon_path)
+        if not pixmap.isNull():
+            self.cursor = QCursor(pixmap, hotX=6, hotY=3)
+        else:
+            # Fallback to CrossCursor if icon can't be loaded
+            self.cursor = Qt.CrossCursor
+
+    def _find_nearest(self, canvas, cx, cy):
+        """Return index of the nearest point within hit radius, or None."""
+        best_idx = None
+        best_dist_sq = float('inf')
+        for i, (px, py) in enumerate(canvas.pattern.points):
+            d = (px - cx) ** 2 + (py - cy) ** 2
+            if d < best_dist_sq:
+                best_dist_sq = d
+                best_idx = i
+        if best_idx is not None and best_dist_sq <= self.HIT_RADIUS_CANVAS ** 2:
+            return best_idx
+        return None
+
+    def mouse_press(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        idx = self._find_nearest(canvas, cx, cy)
+        canvas.set_selected_point(idx)
+        canvas.update()
+
+
 class PanTool(BaseTool):
     """Pan/move the canvas view."""
 
@@ -88,7 +128,16 @@ class AddPointTool(BaseTool):
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         cx, cy = int(round(cx)), int(round(cy))
         if 0 <= cx <= canvas.pattern.CANVAS_WIDTH and 0 <= cy <= canvas.pattern.CANVAS_HEIGHT:
-            canvas.pattern.add_point(cx, cy)
+            # If a point is selected, insert after it; otherwise append
+            selected_idx = canvas.get_selected_point()
+            if selected_idx is not None:
+                insert_idx = selected_idx + 1
+                canvas.pattern.add_point(cx, cy, index=insert_idx)
+                canvas.set_selected_point(insert_idx)  # Select the newly added point
+            else:
+                insert_idx = len(canvas.pattern.points)
+                canvas.pattern.add_point(cx, cy)
+                canvas.set_selected_point(insert_idx)  # Select the newly added point
             canvas.update()
             canvas.notify_change()
 
@@ -110,15 +159,29 @@ class AddPointTool(BaseTool):
         cx = max(0, min(canvas.pattern.CANVAS_WIDTH, self._cursor_x))
         cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, self._cursor_y))
         
-        # Draw faint line to previous point
-        if len(canvas.pattern.points) > 0:
+        # Draw faint lines connecting to cursor
+        line_pen = QPen(QColor(0, 80, 200, 100), 1)  # Faint blue line
+        painter.setPen(line_pen)
+        
+        selected_idx = canvas.get_selected_point()
+        cursor_sx, cursor_sy = canvas.canvas_to_screen(cx, cy)
+        
+        if selected_idx is not None and selected_idx < len(canvas.pattern.points):
+            # Draw line from selected point to cursor
+            prev_x, prev_y = canvas.pattern.points[selected_idx]
+            sx1, sy1 = canvas.canvas_to_screen(prev_x, prev_y)
+            painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
+            
+            # Draw line from cursor to the following point (if it exists)
+            if selected_idx + 1 < len(canvas.pattern.points):
+                next_x, next_y = canvas.pattern.points[selected_idx + 1]
+                sx2, sy2 = canvas.canvas_to_screen(next_x, next_y)
+                painter.drawLine(int(cursor_sx), int(cursor_sy), int(sx2), int(sy2))
+        elif len(canvas.pattern.points) > 0:
+            # Fallback: draw line from last point to cursor (when no point is selected)
             prev_x, prev_y = canvas.pattern.points[-1]
             sx1, sy1 = canvas.canvas_to_screen(prev_x, prev_y)
-            sx2, sy2 = canvas.canvas_to_screen(cx, cy)
-            
-            line_pen = QPen(QColor(0, 80, 200, 100), 1)  # Faint blue line
-            painter.setPen(line_pen)
-            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+            painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
         
         # Draw preview point
         sx, sy = canvas.canvas_to_screen(cx, cy)
@@ -129,10 +192,10 @@ class AddPointTool(BaseTool):
         painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
 
-class EditPointTool(BaseTool):
+class MovePointTool(BaseTool):
     """Click and drag to move an existing stitch point."""
 
-    name = "Edit Stitch Point"
+    name = "Move Stitch Point"
     cursor = Qt.CrossCursor
     HIT_RADIUS_CANVAS = 2  # in canvas units
 
@@ -159,6 +222,8 @@ class EditPointTool(BaseTool):
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
         if idx is not None:
+            # make point selected and start dragging
+            canvas.set_selected_point(idx)
             self._dragging_index = idx
             self._orig_pos = canvas.pattern.points[idx]
             canvas.setCursor(Qt.CrossCursor)
@@ -192,7 +257,7 @@ class DeletePointTool(BaseTool):
     """Click to delete a stitch point."""
 
     name = "Delete Stitch Point"
-    cursor = Qt.CrossCursor
+    # cursor = Qt.CrossCursor
     HIT_RADIUS_CANVAS = 2  # in canvas units
 
     def __init__(self):
@@ -201,9 +266,7 @@ class DeletePointTool(BaseTool):
         icon_path = os.path.join(os.path.dirname(__file__), "icons", "delete_point.svg")
         pixmap = QPixmap(icon_path)
         if not pixmap.isNull():
-            # Scale the pixmap to a reasonable cursor size (32x32)
-            pixmap = pixmap.scaledToWidth(32, Qt.SmoothTransformation)
-            self.cursor = QCursor(pixmap, hotX=11, hotY=27)
+            self.cursor = QCursor(pixmap, hotX=8, hotY=21)
         else:
             # Fallback to CrossCursor if icon can't be loaded
             self.cursor = Qt.CrossCursor
