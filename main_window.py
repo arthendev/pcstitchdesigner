@@ -379,6 +379,9 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
 
+        # Center the pattern in the view
+        self._fit_pattern()
+
     # ── Status bar updates ──
 
     def _on_cursor_moved(self, cx, cy):
@@ -495,12 +498,28 @@ class MainWindow(QMainWindow):
         return self._file_save_as()
 
     def _file_save_as(self):
+        # Determine file filter and extension based on stitch type
+        if self._pattern.stitch_type == "9mm":
+            file_filter = "9mm Stitch Files (*.pcd);;All Files (*)"
+            default_ext = ".pcd"
+        elif self._pattern.stitch_type == "MAXI":
+            file_filter = "MAXI Stitch Files (*.pcq);;All Files (*)"
+            default_ext = ".pcq"
+        else:
+            file_filter = "Stitch Files (*);;All Files (*)"
+            default_ext = ""
+        
         path, _ = QFileDialog.getSaveFileName(
             self, "Save Stitch Pattern", "",
-            "Stitch Files (*.pcd);;All Files (*)",
+            file_filter,
         )
         if not path:
             return False
+        
+        # Add extension if not already present
+        if default_ext and not path.endswith(default_ext):
+            path += default_ext
+        
         self._file_path = path
         result = self._file_save()
         if result:
