@@ -114,10 +114,10 @@ class MainWindow(QMainWindow):
         self._act_select_all.triggered.connect(self._edit_select_all)
 
         self._act_clear_selection = QAction("Clear Selection", self)
-        self._act_clear_selection.setShortcut("Escape")
+        # self._act_clear_selection.setShortcut("Escape") # We handle Escape key globally in keyPressEvent, so no shortcut here
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
-        self._act_delete_selection = QAction("Delete Selection", self)
+        self._act_delete_selection = QAction("Delete Selected", self)
         self._act_delete_selection.setShortcut("Delete")
         self._act_delete_selection.triggered.connect(self._edit_delete_selection)
 
@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
         self._act_pan.triggered.connect(self._on_tool_pan)
 
         self._act_select = QAction(QIcon(os.path.join(_icons, "select_point.svg")),
-                                   "Select Stitch Point", self)
+                                   "Select Stitch Points", self)
         self._act_select.setCheckable(True)
         self._act_select.triggered.connect(self._on_tool_select)
 
@@ -298,7 +298,7 @@ class MainWindow(QMainWindow):
 
     def _on_tool_select(self):
         self._canvas.set_tool(self._select_tool)
-        self._tool_label.setText("Tool: Select Stitch Point")
+        self._tool_label.setText("Tool: Select Stitch Points")
 
     def _on_tool_add(self):
         self._canvas.set_tool(self._add_tool)
@@ -655,11 +655,13 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         """Handle keyboard events."""
         if event.key() == Qt.Key_Escape:
-            # Deselect any selected point
-            self._canvas.set_selected_point(None)
-            # Switch to Pan tool
-            self._act_pan.setChecked(True)
-            self._on_tool_pan()
+            # If no points selected, switch to Pan tool
+            if (self._canvas.get_selection() == (None, None)):
+                self._act_pan.setChecked(True)
+                self._on_tool_pan()
+            else:
+                # Default: clear selection
+                self._canvas.set_selection(None, None)
             event.accept()
         else:
             super().keyPressEvent(event)

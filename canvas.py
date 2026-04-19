@@ -243,7 +243,13 @@ class StitchCanvas(QWidget):
             self._tool.mouse_release(self, event)
 
     def keyPressEvent(self, event):
-        """Handle keyboard events for moving selected points."""
+        """Handle keyboard events for moving selected points or tool-specific actions."""
+        # First, check if the current tool handles this key
+        if self._tool and hasattr(self._tool, 'key_press'):
+            if self._tool.key_press(self, event):
+                return
+        
+        # Then handle arrow keys for moving selected points
         if self._selection_start is not None and not event.isAutoRepeat():
             moved = False
             dx, dy = 0, 0

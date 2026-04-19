@@ -17,12 +17,18 @@ class AddPointCommand(Command):
         self.index = index
         self.x = x
         self.y = y
+        self.actual_index = None  # Track where point was actually inserted
 
     def redo(self, pattern):
-        pattern.points.insert(self.index, (self.x, self.y))
+        # Clamp index to valid range [0, len(points)] and track actual index
+        self.actual_index = max(0, min(self.index, len(pattern.points)))
+        pattern.points.insert(self.actual_index, (self.x, self.y))
 
     def undo(self, pattern):
-        pattern.points.pop(self.index)
+        # Use actual_index if available, otherwise fall back to self.index
+        idx = self.actual_index if self.actual_index is not None else self.index
+        if 0 <= idx < len(pattern.points):
+            pattern.points.pop(idx)
 
 
 class MovePointCommand(Command):
@@ -34,10 +40,14 @@ class MovePointCommand(Command):
         self.new_y = new_y
 
     def redo(self, pattern):
-        pattern.points[self.index] = (self.new_x, self.new_y)
+        # Only modify if index is within valid range
+        if 0 <= self.index < len(pattern.points):
+            pattern.points[self.index] = (self.new_x, self.new_y)
 
     def undo(self, pattern):
-        pattern.points[self.index] = (self.old_x, self.old_y)
+        # Only modify if index is within valid range
+        if 0 <= self.index < len(pattern.points):
+            pattern.points[self.index] = (self.old_x, self.old_y)
 
 
 class DeletePointCommand(Command):
@@ -45,12 +55,19 @@ class DeletePointCommand(Command):
         self.index = index
         self.x = x
         self.y = y
+        self.actual_index = None  # Track where point was actually deleted from
 
     def redo(self, pattern):
-        pattern.points.pop(self.index)
+        # Only redo if index is within valid range, track actual deletion
+        if 0 <= self.index < len(pattern.points):
+            self.actual_index = self.index
+            pattern.points.pop(self.index)
 
     def undo(self, pattern):
-        pattern.points.insert(self.index, (self.x, self.y))
+        # Use actual_index if available, otherwise fall back to self.index
+        idx = self.actual_index if self.actual_index is not None else self.index
+        idx = max(0, min(idx, len(pattern.points)))
+        pattern.points.insert(idx, (self.x, self.y))
 
 
 class StitchPattern:

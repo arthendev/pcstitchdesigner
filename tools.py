@@ -4,6 +4,8 @@ import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap
 
+from model import AddPointCommand, DeletePointCommand, MovePointCommand
+
 
 class BaseTool:
     """Abstract base for canvas tools."""
@@ -19,6 +21,10 @@ class BaseTool:
 
     def mouse_release(self, canvas, event):
         pass
+
+    def key_press(self, canvas, event):
+        """Handle keyboard events. Return True if event is handled, False otherwise."""
+        return False
 
     def paint_overlay(self, canvas, painter):
         pass
@@ -156,22 +162,43 @@ class AddPointTool(BaseTool):
         self._cursor_x = None
         self._cursor_y = None
 
+    def key_press(self, canvas, event):
+        """Handle keyboard events. Backspace triggers Undo only if last action was AddPointCommand."""
+        if event.key() == Qt.Key_Backspace and not event.isAutoRepeat():
+            # Only undo if the last command in undo stack is an AddPointCommand
+            if canvas.pattern._undo_stack and isinstance(canvas.pattern._undo_stack[-1], AddPointCommand):
+                canvas.pattern.undo()
+                canvas.update()
+                canvas.notify_change()
+                event.accept()
+                return True
+        return False
+
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         cx, cy = int(round(cx)), int(round(cy))
         if 0 <= cx <= canvas.pattern.CANVAS_WIDTH and 0 <= cy <= canvas.pattern.CANVAS_HEIGHT:
-            # If a point is selected, insert after it; otherwise append
-            selected_idx = canvas.get_selected_point()
-            if selected_idx is not None:
-                insert_idx = selected_idx + 1
+            # If points are selected, insert after the end of selection; otherwise append
+            start, end = canvas.get_selection()
+            if start is not None and end is not None:
+                # Use end index for range selection
+                insert_idx = end + 1
                 canvas.pattern.add_point(cx, cy, index=insert_idx)
                 canvas.set_selected_point(insert_idx)  # Select the newly added point
             else:
-                insert_idx = len(canvas.pattern.points)
-                canvas.pattern.add_point(cx, cy)
-                canvas.set_selected_point(insert_idx)  # Select the newly added point
+                # Fallback: use start of selection if only single point selected
+                selected_idx = canvas.get_selected_point()
+                if selected_idx is not None:
+                    insert_idx = selected_idx + 1
+                    canvas.pattern.add_point(cx, cy, index=insert_idx)
+                    canvas.set_selected_point(insert_idx)  # Select the newly added point
+                else:
+                    # No selection: append to end
+                    insert_idx = len(canvas.pattern.points)
+                    canvas.pattern.add_point(cx, cy)
+                    canvas.set_selected_point(insert_idx)  # Select the newly added point
             canvas.update()
             canvas.notify_change()
 
@@ -197,18 +224,25 @@ class AddPointTool(BaseTool):
         line_pen = QPen(QColor(0, 80, 200, 100), 1)  # Faint blue line
         painter.setPen(line_pen)
         
-        selected_idx = canvas.get_selected_point()
         cursor_sx, cursor_sy = canvas.canvas_to_screen(cx, cy)
         
-        if selected_idx is not None and selected_idx < len(canvas.pattern.points):
-            # Draw line from selected point to cursor
-            prev_x, prev_y = canvas.pattern.points[selected_idx]
+        # Get reference point: use end of selection if range selected, otherwise start point
+        start, end = canvas.get_selection()
+        ref_idx = None
+        if start is not None and end is not None:
+            ref_idx = end
+        else:
+            ref_idx = canvas.get_selected_point()
+        
+        if ref_idx is not None and ref_idx < len(canvas.pattern.points):
+            # Draw line from reference point to cursor
+            prev_x, prev_y = canvas.pattern.points[ref_idx]
             sx1, sy1 = canvas.canvas_to_screen(prev_x, prev_y)
             painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
             
             # Draw line from cursor to the following point (if it exists)
-            if selected_idx + 1 < len(canvas.pattern.points):
-                next_x, next_y = canvas.pattern.points[selected_idx + 1]
+            if ref_idx + 1 < len(canvas.pattern.points):
+                next_x, next_y = canvas.pattern.points[ref_idx + 1]
                 sx2, sy2 = canvas.canvas_to_screen(next_x, next_y)
                 painter.drawLine(int(cursor_sx), int(cursor_sy), int(sx2), int(sy2))
         elif len(canvas.pattern.points) > 0:
@@ -236,8 +270,21 @@ class MovePointTool(BaseTool):
     def __init__(self):
         self._dragging_indices = []  # List of indices being dragged
         self._orig_positions = []    # Original positions of dragged points
+        self._clicked_idx = None     # Index of the point that was clicked
         self._offset_x = 0
         self._offset_y = 0
+
+    def key_press(self, canvas, event):
+        """Handle keyboard events. Backspace triggers Undo only if last action was MovePointCommand."""
+        if event.key() == Qt.Key_Backspace and not event.isAutoRepeat():
+            # Only undo if the last command in undo stack is a MovePointCommand
+            if canvas.pattern._undo_stack and isinstance(canvas.pattern._undo_stack[-1], MovePointCommand):
+                canvas.pattern.undo()
+                canvas.update()
+                canvas.notify_change()
+                event.accept()
+                return True
+        return False
 
     def _find_nearest(self, canvas, cx, cy):
         """Return index of the nearest point within hit radius, or None."""
@@ -258,6 +305,8 @@ class MovePointTool(BaseTool):
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
         if idx is not None:
+            # Store the clicked point index
+            self._clicked_idx = idx
             # Check if clicked point is in current selection
             start, end = canvas.get_selection()
             if start is not None and start <= idx <= end:
@@ -280,10 +329,20 @@ class MovePointTool(BaseTool):
             cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
             cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, int(round(cy))))
             
-            # Calculate offset from original positions
-            first_orig = self._orig_positions[0]
-            self._offset_x = cx - first_orig[0]
-            self._offset_y = cy - first_orig[1]
+            # Calculate offset from the clicked point's original position
+            if self._clicked_idx is not None:
+                # Find the clicked point in the dragging indices to get its original position
+                try:
+                    clicked_pos_idx = self._dragging_indices.index(self._clicked_idx)
+                    clicked_orig = self._orig_positions[clicked_pos_idx]
+                except (ValueError, IndexError):
+                    # Fallback to first point if clicked point not found
+                    clicked_orig = self._orig_positions[0]
+            else:
+                clicked_orig = self._orig_positions[0]
+            
+            self._offset_x = cx - clicked_orig[0]
+            self._offset_y = cy - clicked_orig[1]
             
             # Live preview: temporarily update positions
             for i, idx in enumerate(self._dragging_indices):
@@ -307,6 +366,7 @@ class MovePointTool(BaseTool):
             
             self._dragging_indices = []
             self._orig_positions = []
+            self._clicked_idx = None
             self._offset_x = 0
             self._offset_y = 0
             canvas.setCursor(self.cursor)
@@ -331,6 +391,18 @@ class DeletePointTool(BaseTool):
         else:
             # Fallback to CrossCursor if icon can't be loaded
             self.cursor = Qt.CrossCursor
+
+    def key_press(self, canvas, event):
+        """Handle keyboard events. Backspace triggers Undo only if last action was DeletePointCommand."""
+        if event.key() == Qt.Key_Backspace and not event.isAutoRepeat():
+            # Only undo if the last command in undo stack is a DeletePointCommand
+            if canvas.pattern._undo_stack and isinstance(canvas.pattern._undo_stack[-1], DeletePointCommand):
+                canvas.pattern.undo()
+                canvas.update()
+                canvas.notify_change()
+                event.accept()
+                return True
+        return False
 
     def _find_nearest(self, canvas, cx, cy):
         """Return index of the nearest point within hit radius, or None."""
