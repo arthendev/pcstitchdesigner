@@ -35,6 +35,9 @@ class MainWindow(QMainWindow):
         self._canvas.changed.connect(self._on_pattern_changed)
         self._canvas.cursor_moved.connect(self._on_cursor_moved)
         self._canvas.selection_changed.connect(self._update_selection_action_state)
+        
+        # View orientation state
+        self._view_orientation = "default"  # "default" or "sewing_direction"
 
         # Tools
         self._pan_tool = PanTool()
@@ -115,7 +118,7 @@ class MainWindow(QMainWindow):
         self._act_select_all.triggered.connect(self._edit_select_all)
 
         self._act_clear_selection = QAction("Clear Selection", self)
-        # self._act_clear_selection.setShortcut("Escape") # We handle Escape key globally in keyPressEvent, so no shortcut here
+        self._act_clear_selection.setShortcut("Ctrl+D")
         self._act_clear_selection.setEnabled(False)
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
@@ -173,7 +176,7 @@ class MainWindow(QMainWindow):
 
         self._act_zoom_in = QAction(QIcon(os.path.join(_icons, "zoom_in.svg")),
                                     "Zoom In", self)
-        self._act_zoom_in.setShortcut("Ctrl+=")
+        self._act_zoom_in.setShortcut("Ctrl++")
         self._act_zoom_in.triggered.connect(self._zoom_in)
 
         self._act_zoom_out = QAction(QIcon(os.path.join(_icons, "zoom_out.svg")),
@@ -192,6 +195,21 @@ class MainWindow(QMainWindow):
         self._act_fit_pattern = QAction(QIcon(os.path.join(_icons, "fit_pattern.svg")),
                                         "Fit Pattern", self)
         self._act_fit_pattern.triggered.connect(self._fit_pattern)
+
+        # View orientation
+        self._act_orientation_default = QAction("Default", self)
+        self._act_orientation_default.setCheckable(True)
+        self._act_orientation_default.setChecked(True)
+        self._act_orientation_default.triggered.connect(self._on_orientation_default)
+
+        self._act_orientation_sewing = QAction("Sewing Direction", self)
+        self._act_orientation_sewing.setCheckable(True)
+        self._act_orientation_sewing.triggered.connect(self._on_orientation_sewing)
+
+        self._orientation_group = QActionGroup(self)
+        self._orientation_group.setExclusive(True)
+        self._orientation_group.addAction(self._act_orientation_default)
+        self._orientation_group.addAction(self._act_orientation_sewing)
 
         # Design (P-Design / M-Design)
         self._act_pdesign = QAction("P-Design", self)
@@ -269,12 +287,18 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self._act_add)
         tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
-        tools_menu.addSeparator()
-        tools_menu.addAction(self._act_zoom_in)
-        tools_menu.addAction(self._act_zoom_out)
-        tools_menu.addAction(self._act_fit_height)
-        tools_menu.addAction(self._act_fit_screen)
-        tools_menu.addAction(self._act_fit_pattern)
+
+        view_menu = mb.addMenu("&View")
+        orientation_menu = view_menu.addMenu("View &Orientation")
+        orientation_menu.addAction(self._act_orientation_default)
+        orientation_menu.addAction(self._act_orientation_sewing)
+        view_menu.addSeparator()
+        view_menu.addAction(self._act_zoom_in)
+        view_menu.addAction(self._act_zoom_out)
+        view_menu.addSeparator()
+        view_menu.addAction(self._act_fit_height)
+        view_menu.addAction(self._act_fit_screen)
+        view_menu.addAction(self._act_fit_pattern)
 
         design_menu = mb.addMenu("&Design")
         design_menu.addAction(self._act_pdesign)
@@ -340,6 +364,18 @@ class MainWindow(QMainWindow):
     def _on_mdesign_selected(self):
         self._act_9mm.setVisible(False)
         self._act_maxi.setVisible(False)
+
+    # ── View orientation ──
+
+    def _on_orientation_default(self):
+        self._view_orientation = "default"
+        self._canvas.set_view_orientation("default")
+        self._fit_pattern()
+
+    def _on_orientation_sewing(self):
+        self._view_orientation = "sewing_direction"
+        self._canvas.set_view_orientation("sewing_direction")
+        self._fit_pattern()
 
     # ── Stitch type selection ──
 
@@ -639,10 +675,17 @@ class MainWindow(QMainWindow):
         self._canvas.set_scale(self._canvas.get_scale() / 1.25)
 
     def _zoom_fit_height(self):
-        viewport_h = self._scroll.viewport().height()
-        if viewport_h <= 0:
-            viewport_h = self.height() - 80  # rough estimate before show
-        scale = (viewport_h - 2 * self._canvas.MARGIN) / self._pattern.CANVAS_HEIGHT
+        if self._view_orientation == "sewing_direction":
+            # In sewing direction, "Fit Height" actually fits the width of the canvas
+            viewport_w = self._scroll.viewport().width()
+            if viewport_w <= 0:
+                viewport_w = self.width() - 20  # rough estimate before show
+            scale = (viewport_w - 2 * self._canvas.MARGIN) / self._pattern.CANVAS_HEIGHT
+        else:
+            viewport_h = self._scroll.viewport().height()
+            if viewport_h <= 0:
+                viewport_h = self.height() - 80  # rough estimate before show
+            scale = (viewport_h - 2 * self._canvas.MARGIN) / self._pattern.CANVAS_HEIGHT
         self._canvas.set_scale(scale)
 
     def _zoom_fit_screen(self):
@@ -651,8 +694,13 @@ class MainWindow(QMainWindow):
         if vw <= 0 or vh <= 0:
             vw, vh = self.width() - 20, self.height() - 80
         margin2 = 2 * self._canvas.MARGIN
-        sx = (vw - margin2) / self._pattern.CANVAS_WIDTH
-        sy = (vh - margin2) / self._pattern.CANVAS_HEIGHT
+        # In sewing_direction, displayed width is CANVAS_HEIGHT and displayed height is CANVAS_WIDTH
+        if self._view_orientation == "sewing_direction":
+            sx = (vw - margin2) / self._pattern.CANVAS_HEIGHT
+            sy = (vh - margin2) / self._pattern.CANVAS_WIDTH
+        else:
+            sx = (vw - margin2) / self._pattern.CANVAS_WIDTH
+            sy = (vh - margin2) / self._pattern.CANVAS_HEIGHT
         self._canvas.set_scale(min(sx, sy))
 
     def _fit_pattern(self):
@@ -677,8 +725,13 @@ class MainWindow(QMainWindow):
         if vw <= 0 or vh <= 0:
             vw, vh = self.width() - 20, self.height() - 80
         
-        scale_x = vw / bounds_width if bounds_width > 0 else 1
-        scale_y = vh / bounds_height if bounds_height > 0 else 1
+        # In sewing_direction, swap width/height for scale calculation
+        if self._view_orientation == "sewing_direction":
+            scale_x = vw / bounds_height if bounds_height > 0 else 1
+            scale_y = vh / bounds_width if bounds_width > 0 else 1
+        else:
+            scale_x = vw / bounds_width if bounds_width > 0 else 1
+            scale_y = vh / bounds_height if bounds_height > 0 else 1
         new_scale = min(scale_x, scale_y)
         
         self._canvas.set_scale(new_scale)
@@ -687,10 +740,16 @@ class MainWindow(QMainWindow):
         bounds_center_x = min_x + (max_x - min_x) / 2
         bounds_center_y = min_y + (max_y - min_y) / 2
         
-        # Convert pattern coordinates to canvas pixel coordinates (top-left reference)
-        # Pattern y is measured from bottom, canvas y is measured from top
-        canvas_center_x = bounds_center_x * new_scale + self._canvas.MARGIN
-        canvas_center_y = (self._pattern.CANVAS_HEIGHT - bounds_center_y) * new_scale + self._canvas.MARGIN
+        # Convert pattern coordinates to canvas pixel coordinates, accounting for orientation
+        if self._view_orientation == "sewing_direction":
+            # canvas_to_screen: sx = MARGIN + (CANVAS_HEIGHT - cy) * scale
+            #                   sy = MARGIN + (CANVAS_WIDTH - cx) * scale
+            canvas_center_x = (self._pattern.CANVAS_HEIGHT - bounds_center_y) * new_scale + self._canvas.MARGIN
+            canvas_center_y = (self._pattern.CANVAS_WIDTH - bounds_center_x) * new_scale + self._canvas.MARGIN
+        else:
+            # Default: pattern y is measured from bottom, canvas y is measured from top
+            canvas_center_x = bounds_center_x * new_scale + self._canvas.MARGIN
+            canvas_center_y = (self._pattern.CANVAS_HEIGHT - bounds_center_y) * new_scale + self._canvas.MARGIN
         
         # Scroll to center the pattern in the viewport
         h_scroll = self._scroll.horizontalScrollBar()

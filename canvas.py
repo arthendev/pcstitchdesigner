@@ -38,6 +38,7 @@ class StitchCanvas(QWidget):
         self._tool = None
         self._selection_start = None  # Start index of selection range
         self._selection_end = None    # End index of selection range (inclusive)
+        self._view_orientation = "default"  # "default" or "sewing_direction"
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -54,6 +55,12 @@ class StitchCanvas(QWidget):
 
     def set_scale(self, scale):
         self._scale = max(1.0, scale)
+        self._update_size()
+        self.update()
+
+    def set_view_orientation(self, orientation):
+        """Set view orientation: 'default' or 'sewing_direction' (90° CCW)."""
+        self._view_orientation = orientation
         self._update_size()
         self.update()
 
@@ -101,21 +108,43 @@ class StitchCanvas(QWidget):
         return list(range(self._selection_start, self._selection_end + 1))
 
     def _update_size(self):
-        w = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
-        h = int(self.pattern.CANVAS_HEIGHT * self._scale + 2 * self.MARGIN)
+        if self._view_orientation == "default":
+            w = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
+            h = int(self.pattern.CANVAS_HEIGHT * self._scale + 2 * self.MARGIN)
+        else:  # sewing_direction - swap dimensions
+            w = int(self.pattern.CANVAS_HEIGHT * self._scale + 2 * self.MARGIN)
+            h = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
         self.setMinimumSize(QSize(w, h))
         self.setFixedSize(QSize(w, h))
 
     # ── Coordinate transforms ──
 
     def canvas_to_screen(self, cx, cy):
-        sx = self.MARGIN + cx * self._scale
-        sy = self.MARGIN + (self.pattern.CANVAS_HEIGHT - cy) * self._scale
+        """Transform canvas coordinates to screen coordinates."""
+        if self._view_orientation == "default":
+            sx = self.MARGIN + cx * self._scale
+            sy = self.MARGIN + (self.pattern.CANVAS_HEIGHT - cy) * self._scale
+        else:  # sewing_direction (90° CCW rotation)
+            # After 90° CCW: (0,0) moves to bottom-right
+            # cx maps to height - cy, cy maps to cx
+            rotated_x = self.pattern.CANVAS_HEIGHT - cy
+            rotated_y = cx
+            sx = self.MARGIN + rotated_x * self._scale
+            sy = self.MARGIN + (self.pattern.CANVAS_WIDTH - rotated_y) * self._scale
         return sx, sy
 
     def screen_to_canvas(self, sx, sy):
-        cx = (sx - self.MARGIN) / self._scale
-        cy = self.pattern.CANVAS_HEIGHT - (sy - self.MARGIN) / self._scale
+        """Transform screen coordinates to canvas coordinates."""
+        if self._view_orientation == "default":
+            cx = (sx - self.MARGIN) / self._scale
+            cy = self.pattern.CANVAS_HEIGHT - (sy - self.MARGIN) / self._scale
+        else:  # sewing_direction (90° CCW rotation)
+            # Reverse the rotation
+            rotated_x = (sx - self.MARGIN) / self._scale
+            rotated_y = self.pattern.CANVAS_WIDTH - (sy - self.MARGIN) / self._scale
+            # Reverse: x = rotated_y, y = rotated_x - height
+            cy = self.pattern.CANVAS_HEIGHT - rotated_x
+            cx = rotated_y
         return cx, cy
 
     # ── Painting ──
@@ -131,13 +160,13 @@ class StitchCanvas(QWidget):
         grid_pen = QPen(self.COLOR_GRID, 1)
         painter.setPen(grid_pen)
         for x in range(self.pattern.CANVAS_WIDTH + 1):
-            sx, sy_top = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
-            _, sy_bot = self.canvas_to_screen(x, 0)
-            painter.drawLine(int(sx), int(sy_top), int(sx), int(sy_bot))
+            sx1, sy1 = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
+            sx2, sy2 = self.canvas_to_screen(x, 0)
+            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
         for y in range(self.pattern.CANVAS_HEIGHT + 1):
-            sx_left, sy = self.canvas_to_screen(0, y)
-            sx_right, _ = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, y)
-            painter.drawLine(int(sx_left), int(sy), int(sx_right), int(sy))
+            sx1, sy1 = self.canvas_to_screen(0, y)
+            sx2, sy2 = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, y)
+            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
         # Border rectangle
         border_pen = QPen(self.COLOR_BORDER, 2)
