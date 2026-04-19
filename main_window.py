@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         self._canvas = StitchCanvas(self._pattern)
         self._canvas.changed.connect(self._on_pattern_changed)
         self._canvas.cursor_moved.connect(self._on_cursor_moved)
+        self._canvas.selection_changed.connect(self._update_selection_action_state)
 
         # Tools
         self._pan_tool = PanTool()
@@ -115,11 +116,25 @@ class MainWindow(QMainWindow):
 
         self._act_clear_selection = QAction("Clear Selection", self)
         # self._act_clear_selection.setShortcut("Escape") # We handle Escape key globally in keyPressEvent, so no shortcut here
+        self._act_clear_selection.setEnabled(False)
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
         self._act_delete_selection = QAction("Delete Selected", self)
         self._act_delete_selection.setShortcut("Delete")
+        self._act_delete_selection.setEnabled(False)
         self._act_delete_selection.triggered.connect(self._edit_delete_selection)
+
+        self._act_invert_selection = QAction("&Invert Selection", self)
+        self._act_invert_selection.setEnabled(False)
+        self._act_invert_selection.triggered.connect(self._edit_invert_selection)
+
+        self._act_mirror_vertical = QAction("Mirror &Vertically", self)
+        self._act_mirror_vertical.setEnabled(False)
+        self._act_mirror_vertical.triggered.connect(self._edit_mirror_vertical)
+
+        self._act_mirror_horizontal = QAction("Mirror &Horizontally", self)
+        self._act_mirror_horizontal.setEnabled(False)
+        self._act_mirror_horizontal.triggered.connect(self._edit_mirror_horizontal)
 
         # Tools (checkable, exclusive)
 
@@ -243,6 +258,10 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_select_all)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addAction(self._act_delete_selection)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self._act_invert_selection)
+        edit_menu.addAction(self._act_mirror_vertical)
+        edit_menu.addAction(self._act_mirror_horizontal)
 
         tools_menu = mb.addMenu("&Tools")
         tools_menu.addAction(self._act_pan)
@@ -371,11 +390,24 @@ class MainWindow(QMainWindow):
         self._count_label.setText(f"Points: {len(self._pattern.points)}")
         self._update_title()
         self._update_undo_redo_state()
+        self._update_selection_action_state()
 
     def _update_undo_redo_state(self):
         """Enable/disable undo and redo actions based on stack availability."""
         self._act_undo.setEnabled(len(self._pattern._undo_stack) > 0)
         self._act_redo.setEnabled(len(self._pattern._redo_stack) > 0)
+
+    def _update_selection_action_state(self):
+        """Enable/disable selection-dependent actions based on whether points are selected."""
+        start, end = self._canvas.get_selection()
+        has_selection = start is not None and end is not None
+        has_multiple_selection = has_selection and end > start
+        
+        self._act_clear_selection.setEnabled(has_selection)
+        self._act_delete_selection.setEnabled(has_selection)
+        self._act_invert_selection.setEnabled(has_multiple_selection)
+        self._act_mirror_vertical.setEnabled(has_multiple_selection)
+        self._act_mirror_horizontal.setEnabled(has_multiple_selection)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
@@ -550,6 +582,35 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
 
+    def _edit_invert_selection(self):
+        """Invert the order of selected stitch points."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return  # No selection
+        
+        self._pattern.invert_selection(start, end)
+        self._canvas.update()
+        self._on_pattern_changed()
+
+    def _edit_mirror_vertical(self):
+        """Mirror selected points vertically around the center of selection."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return  # No selection
+        
+        self._pattern.mirror_vertical(start, end)
+        self._canvas.update()
+        self._on_pattern_changed()
+
+    def _edit_mirror_horizontal(self):
+        """Mirror selected points horizontally around the center of selection."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return  # No selection
+        
+        self._pattern.mirror_horizontal(start, end)
+        self._canvas.update()
+        self._on_pattern_changed()
     # ── Zoom actions ──
 
     def _zoom_in(self):

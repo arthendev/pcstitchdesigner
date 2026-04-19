@@ -70,6 +70,89 @@ class DeletePointCommand(Command):
         pattern.points.insert(idx, (self.x, self.y))
 
 
+class InvertSelectionCommand(Command):
+    """Inverts the order of points within a selection."""
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        self.original_points = None
+
+    def redo(self, pattern):
+        # Store original points if not already stored
+        if self.original_points is None:
+            self.original_points = [pattern.points[i] for i in range(self.start, self.end + 1)]
+        # Reverse the order
+        reversed_points = list(reversed(self.original_points))
+        for i, point in enumerate(reversed_points):
+            pattern.points[self.start + i] = point
+
+    def undo(self, pattern):
+        # Restore original order
+        if self.original_points:
+            for i, point in enumerate(self.original_points):
+                pattern.points[self.start + i] = point
+
+
+class MirrorVerticalCommand(Command):
+    """Mirrors selected points vertically around the center of selection."""
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        self.original_points = None
+
+    def redo(self, pattern):
+        # Store original points if not already stored
+        if self.original_points is None:
+            self.original_points = [pattern.points[i] for i in range(self.start, self.end + 1)]
+        
+        # Calculate center Y using min and max
+        y_coords = [y for x, y in self.original_points]
+        min_y = min(y_coords)
+        max_y = max(y_coords)
+        center_y = (min_y + max_y) / 2
+        
+        # Mirror vertically (flip Y coordinates around center)
+        for i, (x, y) in enumerate(self.original_points):
+            mirrored_y = int(round(2 * center_y - y))
+            pattern.points[self.start + i] = (x, mirrored_y)
+
+    def undo(self, pattern):
+        # Restore original positions
+        if self.original_points:
+            for i, point in enumerate(self.original_points):
+                pattern.points[self.start + i] = point
+
+
+class MirrorHorizontalCommand(Command):
+    """Mirrors selected points horizontally around the center of selection."""
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        self.original_points = None
+
+    def redo(self, pattern):
+        # Store original points if not already stored
+        if self.original_points is None:
+            self.original_points = [pattern.points[i] for i in range(self.start, self.end + 1)]
+        
+        # Calculate center X using min and max
+        x_coords = [x for x, y in self.original_points]
+        min_x = min(x_coords)
+        max_x = max(x_coords)
+        center_x = (min_x + max_x) / 2
+        
+        # Mirror horizontally (flip X coordinates around center)
+        for i, (x, y) in enumerate(self.original_points):
+            mirrored_x = int(round(2 * center_x - x))
+            pattern.points[self.start + i] = (mirrored_x, y)
+
+    def undo(self, pattern):
+        # Restore original positions
+        if self.original_points:
+            for i, point in enumerate(self.original_points):
+                pattern.points[self.start + i] = point
+
+
 class StitchPattern:
     """Ordered list of stitch points with undo/redo."""
 
@@ -135,6 +218,24 @@ class StitchPattern:
     def delete_point(self, index):
         x, y = self.points[index]
         self._exec(DeletePointCommand(index, x, y))
+
+    def invert_selection(self, start, end):
+        """Invert the order of points within the selection."""
+        if start is None or end is None or start > end:
+            return
+        self._exec(InvertSelectionCommand(start, end))
+
+    def mirror_vertical(self, start, end):
+        """Mirror selected points vertically around the center of selection."""
+        if start is None or end is None or start > end:
+            return
+        self._exec(MirrorVerticalCommand(start, end))
+
+    def mirror_horizontal(self, start, end):
+        """Mirror selected points horizontally around the center of selection."""
+        if start is None or end is None or start > end:
+            return
+        self._exec(MirrorHorizontalCommand(start, end))
 
     def clear(self):
         self.points.clear()

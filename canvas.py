@@ -17,6 +17,7 @@ class StitchCanvas(QWidget):
 
     changed = pyqtSignal()  # emitted when pattern data changes
     cursor_moved = pyqtSignal(float, float)  # canvas x, y under cursor
+    selection_changed = pyqtSignal()  # emitted when selection changes
 
     MARGIN = 20  # pixel margin around the drawing area
     POINT_RADIUS = 4  # pixels
@@ -69,6 +70,7 @@ class StitchCanvas(QWidget):
             self._selection_start = index
             self._selection_end = index
         self.update()  # Redraw canvas to reflect selection change
+        self.selection_changed.emit()
 
     def get_selection(self):
         """Get selection range as (start, end) or (None, None) if no selection."""
@@ -84,6 +86,7 @@ class StitchCanvas(QWidget):
             self._selection_start = min(start, end)
             self._selection_end = max(start, end)
         self.update()
+        self.selection_changed.emit()
 
     def is_point_selected(self, idx):
         """Check if a point index is within the selection range."""
