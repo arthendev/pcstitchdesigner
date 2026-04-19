@@ -68,16 +68,33 @@ def load_pattern(path):
         else:
             raise ValueError("Invalid/unsupported stitch type")
         
+        # Read colors
+        for _ in range(color_count):
+            color_data = f.read(3)  # RGB
+            if len(color_data) < 3:
+                raise ValueError("Unexpected end of file while reading colors")
+            r, g, b = struct.unpack('BBB', color_data)
+            pattern.colors.append((r, g, b))
+
         # Read points
         point_size = struct.calcsize(POINT_FMT)
         for _ in range(stitch_count):
             point_data = f.read(point_size)
             if len(point_data) < point_size:
-                raise ValueError("Unexpected end of file")
+                raise ValueError("Unexpected end of file while reading stitch points")
             c0, x_bytes, c1, y_bytes, control_byte = struct.unpack(POINT_FMT, point_data)
-            x = int.from_bytes(x_bytes, 'little')
-            y = int.from_bytes(y_bytes, 'little')
-            pattern.points.append((x, y))
+            if control_byte == 0x00:
+                # Normal stitch point
+                x = int.from_bytes(x_bytes, 'little')
+                y = int.from_bytes(y_bytes, 'little')
+                pattern.points.append((x, y))
+            elif control_byte & 0x01:
+                # color change
+                pass  # For now, we ignore color changes since our model doesn't support them
+            elif control_byte & 0x04:
+                # jump stitch
+                pass  # For now, we ignore jump stitches since our model doesn't support them
+
     
     pattern.modified = False
     return pattern

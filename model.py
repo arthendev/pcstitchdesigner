@@ -68,6 +68,7 @@ class StitchPattern:
 
     def __init__(self):
         self.points = []  # list of (int, int)
+        self.colors = []  # list of (r, g, b) tuples representing thread colors
         self.modified = False
         self._undo_stack = []
         self._redo_stack = []
@@ -120,6 +121,7 @@ class StitchPattern:
 
     def clear(self):
         self.points.clear()
+        self.colors.clear()
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = False
