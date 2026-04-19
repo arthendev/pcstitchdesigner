@@ -25,7 +25,7 @@ class BaseTool:
 
 
 class SelectPointTool(BaseTool):
-    """Select a stitch point for manipulation. Arrow keys move it on the grid."""
+    """Select stitch points. Click to select single point. Click and drag to select range."""
 
     name = "Select Stitch Point"
     cursor = Qt.CrossCursor
@@ -41,6 +41,9 @@ class SelectPointTool(BaseTool):
         else:
             # Fallback to CrossCursor if icon can't be loaded
             self.cursor = Qt.CrossCursor
+        
+        self._dragging = False
+        self._drag_start_idx = None  # Index of point where drag started
 
     def _find_nearest(self, canvas, cx, cy):
         """Return index of the nearest point within hit radius, or None."""
@@ -60,8 +63,39 @@ class SelectPointTool(BaseTool):
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
-        canvas.set_selected_point(idx)
+        if idx is not None:
+            # Start drag from this point
+            self._dragging = True
+            self._drag_start_idx = idx
+            canvas.set_selected_point(idx)
+        else:
+            # Clicked on empty space, deselect
+            canvas.set_selected_point(None)
         canvas.update()
+
+    def mouse_move(self, canvas, event):
+        if not self._dragging or self._drag_start_idx is None:
+            return
+        
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        # Find the nearest point to current cursor position
+        current_idx = self._find_nearest(canvas, cx, cy)
+        
+        if current_idx is not None:
+            # Extend selection from drag_start_idx to current_idx
+            start = min(self._drag_start_idx, current_idx)
+            end = max(self._drag_start_idx, current_idx)
+            canvas.set_selection(start, end)
+        else:
+            # If no point is near cursor, keep the original single-point selection
+            canvas.set_selected_point(self._drag_start_idx)
+        canvas.update()
+
+    def mouse_release(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        self._dragging = False
+        self._drag_start_idx = None
 
 
 class PanTool(BaseTool):
@@ -193,15 +227,17 @@ class AddPointTool(BaseTool):
 
 
 class MovePointTool(BaseTool):
-    """Click and drag to move an existing stitch point."""
+    """Click and drag to move existing stitch point(s)."""
 
     name = "Move Stitch Point"
     cursor = Qt.CrossCursor
     HIT_RADIUS_CANVAS = 2  # in canvas units
 
     def __init__(self):
-        self._dragging_index = None
-        self._orig_pos = None
+        self._dragging_indices = []  # List of indices being dragged
+        self._orig_positions = []    # Original positions of dragged points
+        self._offset_x = 0
+        self._offset_y = 0
 
     def _find_nearest(self, canvas, cx, cy):
         """Return index of the nearest point within hit radius, or None."""
@@ -222,32 +258,57 @@ class MovePointTool(BaseTool):
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
         if idx is not None:
-            # make point selected and start dragging
-            canvas.set_selected_point(idx)
-            self._dragging_index = idx
-            self._orig_pos = canvas.pattern.points[idx]
+            # Check if clicked point is in current selection
+            start, end = canvas.get_selection()
+            if start is not None and start <= idx <= end:
+                # Clicked point is in selection: drag all selected points
+                self._dragging_indices = canvas.get_selected_indices()
+            else:
+                # Clicked point is not in selection: select only this point and drag it
+                canvas.set_selected_point(idx)
+                self._dragging_indices = [idx]
+            
+            # Store original positions
+            self._orig_positions = [canvas.pattern.points[i] for i in self._dragging_indices]
+            self._offset_x = 0
+            self._offset_y = 0
             canvas.setCursor(Qt.CrossCursor)
 
     def mouse_move(self, canvas, event):
-        if self._dragging_index is not None:
+        if self._dragging_indices:
             cx, cy = canvas.screen_to_canvas(event.x(), event.y())
             cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
             cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, int(round(cy))))
-            # Live preview: temporarily set position (not via command)
-            canvas.pattern.points[self._dragging_index] = (cx, cy)
+            
+            # Calculate offset from original positions
+            first_orig = self._orig_positions[0]
+            self._offset_x = cx - first_orig[0]
+            self._offset_y = cy - first_orig[1]
+            
+            # Live preview: temporarily update positions
+            for i, idx in enumerate(self._dragging_indices):
+                orig_x, orig_y = self._orig_positions[i]
+                new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
+                new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
+                canvas.pattern.points[idx] = (new_x, new_y)
             canvas.update()
 
     def mouse_release(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
-        if self._dragging_index is not None:
-            idx = self._dragging_index
-            final_pos = canvas.pattern.points[idx]
-            # Restore original so move_point command captures the diff correctly
-            canvas.pattern.points[idx] = self._orig_pos
-            canvas.pattern.move_point(idx, final_pos[0], final_pos[1])
-            self._dragging_index = None
-            self._orig_pos = None
+        if self._dragging_indices:
+            # Restore originals and apply move commands
+            for i, idx in enumerate(self._dragging_indices):
+                canvas.pattern.points[idx] = self._orig_positions[i]
+                orig_x, orig_y = self._orig_positions[i]
+                new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
+                new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
+                canvas.pattern.move_point(idx, new_x, new_y)
+            
+            self._dragging_indices = []
+            self._orig_positions = []
+            self._offset_x = 0
+            self._offset_y = 0
             canvas.setCursor(self.cursor)
             canvas.update()
             canvas.notify_change()

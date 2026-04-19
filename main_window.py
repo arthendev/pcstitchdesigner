@@ -67,6 +67,8 @@ class MainWindow(QMainWindow):
         self._zoom_fit_height()
         # Initialize design menu visibility (P-Design is default)
         self._on_pdesign_selected()
+        # Initialize undo/redo button state
+        self._update_undo_redo_state()
 
     # ── Actions ──
 
@@ -95,17 +97,31 @@ class MainWindow(QMainWindow):
         self._act_exit.setShortcut("Alt+F4")
         self._act_exit.triggered.connect(self.close)
 
+        # Icons path (needed for undo/redo icons)
+        _icons = os.path.join(os.path.dirname(__file__), "icons")
+
         # Edit
-        self._act_undo = QAction("&Undo", self)
+        self._act_undo = QAction(QIcon(os.path.join(_icons, "undo.svg")), "&Undo", self)
         self._act_undo.setShortcut("Ctrl+Z")
         self._act_undo.triggered.connect(self._edit_undo)
 
-        self._act_redo = QAction("&Redo", self)
+        self._act_redo = QAction(QIcon(os.path.join(_icons, "redo.svg")), "&Redo", self)
         self._act_redo.setShortcut("Ctrl+Y")
         self._act_redo.triggered.connect(self._edit_redo)
 
+        self._act_select_all = QAction("Select &All", self)
+        self._act_select_all.setShortcut("Ctrl+A")
+        self._act_select_all.triggered.connect(self._edit_select_all)
+
+        self._act_clear_selection = QAction("Clear Selection", self)
+        self._act_clear_selection.setShortcut("Escape")
+        self._act_clear_selection.triggered.connect(self._edit_clear_selection)
+
+        self._act_delete_selection = QAction("Delete Selection", self)
+        self._act_delete_selection.setShortcut("Delete")
+        self._act_delete_selection.triggered.connect(self._edit_delete_selection)
+
         # Tools (checkable, exclusive)
-        _icons = os.path.join(os.path.dirname(__file__), "icons")
 
         self._act_pan = QAction(QIcon(os.path.join(_icons, "pan.svg")),
                                  "Pan", self)
@@ -223,6 +239,10 @@ class MainWindow(QMainWindow):
         edit_menu = mb.addMenu("&Edit")
         edit_menu.addAction(self._act_undo)
         edit_menu.addAction(self._act_redo)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self._act_select_all)
+        edit_menu.addAction(self._act_clear_selection)
+        edit_menu.addAction(self._act_delete_selection)
 
         tools_menu = mb.addMenu("&Tools")
         tools_menu.addAction(self._act_pan)
@@ -255,6 +275,9 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         self.addToolBar(Qt.TopToolBarArea, tb)
 
+        tb.addAction(self._act_undo)
+        tb.addAction(self._act_redo)
+        tb.addSeparator()
         tb.addAction(self._act_pan)
         tb.addAction(self._act_select)
         tb.addAction(self._act_add)
@@ -347,6 +370,12 @@ class MainWindow(QMainWindow):
     def _on_pattern_changed(self):
         self._count_label.setText(f"Points: {len(self._pattern.points)}")
         self._update_title()
+        self._update_undo_redo_state()
+
+    def _update_undo_redo_state(self):
+        """Enable/disable undo and redo actions based on stack availability."""
+        self._act_undo.setEnabled(len(self._pattern._undo_stack) > 0)
+        self._act_redo.setEnabled(len(self._pattern._redo_stack) > 0)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
@@ -492,6 +521,32 @@ class MainWindow(QMainWindow):
 
     def _edit_redo(self):
         self._pattern.redo()
+        self._canvas.update()
+        self._on_pattern_changed()
+
+    def _edit_select_all(self):
+        """Select all stitch points in the pattern."""
+        if len(self._pattern.points) > 0:
+            self._canvas.set_selection(0, len(self._pattern.points) - 1)
+        else:
+            self._canvas.set_selection(None, None)
+
+    def _edit_clear_selection(self):
+        """Clear all selected stitch points."""
+        self._canvas.set_selection(None, None)
+
+    def _edit_delete_selection(self):
+        """Delete all selected stitch points."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return  # No selection
+        
+        # Delete from highest to lowest index to avoid index shifting
+        for idx in range(end, start - 1, -1):
+            self._pattern.delete_point(idx)
+        
+        # Clear selection and update
+        self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
 

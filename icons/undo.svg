@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g transform="scale(1,-1) translate(0,-24)">
+    <!-- Curved arrow going counter-clockwise -->
+    <path d="M6 10 C6 6 10 3 14 3 C18 3 21 6 21 10 C21 14 18 17 14 17 L9 17"
+          fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- Arrowhead pointing left -->
+    <polyline points="12,14 9,17 12,20" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

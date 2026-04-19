@@ -35,7 +35,8 @@ class StitchCanvas(QWidget):
         self.pattern = pattern
         self._scale = 10.0  # pixels per canvas unit
         self._tool = None
-        self._selected_point_index = None  # Index of currently selected point
+        self._selection_start = None  # Start index of selection range
+        self._selection_end = None    # End index of selection range (inclusive)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -56,12 +57,45 @@ class StitchCanvas(QWidget):
         self.update()
 
     def get_selected_point(self):
-        """Get the index of the selected point, or None."""
-        return self._selected_point_index
+        """Get the first selected point index, or None if no selection."""
+        return self._selection_start
 
     def set_selected_point(self, index):
-        """Set the selected point index. Pass None to deselect."""
-        self._selected_point_index = index
+        """Set selection to a single point. Pass None to deselect."""
+        if index is None:
+            self._selection_start = None
+            self._selection_end = None
+        else:
+            self._selection_start = index
+            self._selection_end = index
+        self.update()  # Redraw canvas to reflect selection change
+
+    def get_selection(self):
+        """Get selection range as (start, end) or (None, None) if no selection."""
+        return (self._selection_start, self._selection_end)
+
+    def set_selection(self, start, end):
+        """Set selection range. Swap if start > end. Pass (None, None) to deselect."""
+        if start is None or end is None:
+            self._selection_start = None
+            self._selection_end = None
+        else:
+            # Ensure start <= end
+            self._selection_start = min(start, end)
+            self._selection_end = max(start, end)
+        self.update()
+
+    def is_point_selected(self, idx):
+        """Check if a point index is within the selection range."""
+        if self._selection_start is None or self._selection_end is None:
+            return False
+        return self._selection_start <= idx <= self._selection_end
+
+    def get_selected_indices(self):
+        """Get list of all selected point indices."""
+        if self._selection_start is None or self._selection_end is None:
+            return []
+        return list(range(self._selection_start, self._selection_end + 1))
 
     def _update_size(self):
         w = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
@@ -119,45 +153,72 @@ class StitchCanvas(QWidget):
                 x2, y2 = self.pattern.points[i + 1]
                 sx1, sy1 = self.canvas_to_screen(x1, y1)
                 sx2, sy2 = self.canvas_to_screen(x2, y2)
+                
+                # Draw blue dashed line if both points in selection and multiple selected
+                if (self._selection_start is not None and self._selection_end is not None and
+                    self._selection_end - self._selection_start >= 1 and
+                    i >= self._selection_start and i < self._selection_end):
+                    dashed_pen = QPen(QColor(0, 80, 200), 2)
+                    dashed_pen.setDashPattern([4, 4])
+                    painter.setPen(dashed_pen)
+                else:
+                    painter.setPen(line_pen)
                 painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
-        # Stitch points (draw in layers to ensure first and last are on top)
+        # Stitch points (draw in layers to ensure first, last, and selected are on top)
         painter.setPen(Qt.NoPen)
         r = self.POINT_RADIUS
         num_points = len(self.pattern.points)
         
-        # First layer: draw all regular points (not first, not last)
+        # First layer: draw all regular points (not first, not last, not selected)
         for i, (x, y) in enumerate(self.pattern.points):
+            # Skip first, last, and selected points (draw them in the top layer)
             if num_points > 1 and (i == 0 or i == num_points - 1):
-                continue  # Skip first and last, draw them later
+                continue
+            if self.is_point_selected(i):
+                continue
             
-            # Determine color for non-first/non-last points
-            if i == self._selected_point_index:
-                painter.setBrush(QBrush(QColor(0, 80, 200)))
-            else:
-                painter.setBrush(QBrush(self.COLOR_POINT))
+            # Draw regular point
+            painter.setBrush(QBrush(self.COLOR_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
         
-        # Second layer: draw first and last points on top
+        # Second layer: draw first, last, and selected points on top
         if num_points > 1:
-            # Draw first point (green)
+            # Draw first point (green unless selected)
             x, y = self.pattern.points[0]
-            painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
+            if self.is_point_selected(0):
+                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+            else:
+                painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
             
-            # Draw last point (red)
+            # Draw last point (red unless selected)
             x, y = self.pattern.points[num_points - 1]
-            painter.setBrush(QBrush(self.COLOR_LAST_POINT))
+            if self.is_point_selected(num_points - 1):
+                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+            else:
+                painter.setBrush(QBrush(self.COLOR_LAST_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
         elif num_points == 1:
-            # Single point: draw in green
+            # Single point: draw in green unless selected
             x, y = self.pattern.points[0]
-            painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
+            if self.is_point_selected(0):
+                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+            else:
+                painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+        
+        # Draw all other selected points (not first, not last) on top in blue
+        for i in range(1, num_points - 1):
+            if self.is_point_selected(i):
+                x, y = self.pattern.points[i]
+                painter.setBrush(QBrush(QColor(0, 80, 200)))
+                sx, sy = self.canvas_to_screen(x, y)
+                painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
         # Tool overlay
         if self._tool:
@@ -182,30 +243,35 @@ class StitchCanvas(QWidget):
             self._tool.mouse_release(self, event)
 
     def keyPressEvent(self, event):
-        """Handle keyboard events for moving selected point."""
-        if self._selected_point_index is not None and not event.isAutoRepeat():
-            idx = self._selected_point_index
-            x, y = self.pattern.points[idx]
+        """Handle keyboard events for moving selected points."""
+        if self._selection_start is not None and not event.isAutoRepeat():
             moved = False
+            dx, dy = 0, 0
             
             if event.key() == Qt.Key_Up:
-                y += 1
+                dy = 1
                 moved = True
             elif event.key() == Qt.Key_Down:
-                y -= 1
+                dy = -1
                 moved = True
             elif event.key() == Qt.Key_Left:
-                x -= 1
+                dx = -1
                 moved = True
             elif event.key() == Qt.Key_Right:
-                x += 1
+                dx = 1
                 moved = True
             
             if moved:
-                # Clamp to canvas bounds
-                x = max(0, min(self.pattern.CANVAS_WIDTH, x))
-                y = max(0, min(self.pattern.CANVAS_HEIGHT, y))
-                self.pattern.move_point(idx, x, y)
+                # Move all selected points
+                selected_indices = self.get_selected_indices()
+                for idx in selected_indices:
+                    x, y = self.pattern.points[idx]
+                    x += dx
+                    y += dy
+                    # Clamp to canvas bounds
+                    x = max(0, min(self.pattern.CANVAS_WIDTH, x))
+                    y = max(0, min(self.pattern.CANVAS_HEIGHT, y))
+                    self.pattern.move_point(idx, x, y)
                 self.update()
                 self.notify_change()
                 event.accept()
