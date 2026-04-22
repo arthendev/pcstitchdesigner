@@ -772,10 +772,10 @@ class MainWindow(QMainWindow):
             "A stitch pattern editor for PFAFF machines.<br><br>"
             "<b>Project:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner">'
-            "github.com/art-hen/pcstitchdesigner</a><br>"
+            "github.com/arthendev/pcstitchdesigner</a><br>"
             "<b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
-            "github.com/art-hen/pcstitchdesigner/releases</a>"
+            "github.com/arthendev/pcstitchdesigner/releases</a>"
         )
         label.setOpenExternalLinks(True)
         label.setTextFormat(Qt.RichText)
