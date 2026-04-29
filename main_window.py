@@ -91,8 +91,8 @@ class MainWindow(QMainWindow):
                     and not event.isAutoRepeat()):
                 if self._canvas._tool is self._add_tool:
                     self._ctrl_select_active = True
-                    self._act_select.setChecked(True)
-                    self._on_tool_select()
+                    self._act_move.setChecked(True)
+                    self._on_tool_move()
                 elif self._canvas._tool is self._select_tool:
                     self._ctrl_move_active = True
                     self._act_move.setChecked(True)
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
                     and not event.isAutoRepeat()):
                 if self._ctrl_select_active:
                     self._ctrl_select_active = False
-                    if self._canvas._tool is self._select_tool:
+                    if self._canvas._tool is self._move_tool:
                         self._act_add.setChecked(True)
                         self._on_tool_add()
                 elif self._ctrl_move_active:

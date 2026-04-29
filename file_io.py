@@ -31,7 +31,7 @@ def save_pattern(path, pattern):
         raise ValueError("Invalid/unsupported stitch type")
     
     with open(path, 'wb') as f:
-        # Write header: 0x32, stitch_type, unk1=0, count
+        # Write header: 0x32, stitch_type, color_count, stitch_count
         f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, 0, len(pattern.points)))
         # Write points: c0=0, x(3 bytes LE), c1=0, y(3 bytes LE), control_byte=0
         for x, y in pattern.points:
