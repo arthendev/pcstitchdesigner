@@ -1,8 +1,10 @@
 """Custom canvas widget for drawing stitch patterns."""
 
+import os
+
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap
 
 from model import StitchPattern
 
@@ -43,6 +45,18 @@ class StitchCanvas(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
 
+        # Temporary right-button panning state
+        self._temp_panning = False
+        self._pan_last_global_pos = None
+        self._pan_scroll_area = None
+        # Load pan cursor from icon
+        _pan_icon = os.path.join(os.path.dirname(__file__), "icons", "pan.svg")
+        _pan_pixmap = QPixmap(_pan_icon)
+        if not _pan_pixmap.isNull():
+            self._pan_cursor = QCursor(_pan_pixmap)
+        else:
+            self._pan_cursor = QCursor(Qt.OpenHandCursor)
+
     def set_tool(self, tool):
         # Deselect the old tool if it has a deselect method
         if self._tool and hasattr(self._tool, 'on_deselect'):
@@ -57,6 +71,33 @@ class StitchCanvas(QWidget):
         self._scale = max(1.0, scale)
         self._update_size()
         self.update()
+
+    def zoom_at(self, new_scale, widget_pos):
+        """Zoom to new_scale keeping the canvas point under widget_pos stationary."""
+        new_scale = max(1.0, new_scale)
+        if new_scale == self._scale:
+            return
+        scroll_area = self._get_pan_scroll_area()
+        if scroll_area is None:
+            self.set_scale(new_scale)
+            return
+        sx, sy = widget_pos.x(), widget_pos.y()
+        h = scroll_area.horizontalScrollBar().value()
+        v = scroll_area.verticalScrollBar().value()
+        # Cursor position in viewport coordinates
+        vx = sx - h
+        vy = sy - v
+        # Canvas-space point under the cursor (before scale change)
+        cx, cy = self.screen_to_canvas(sx, sy)
+        # Apply new scale
+        self._scale = new_scale
+        self._update_size()
+        self.update()
+        # New pixel position of the same canvas point
+        new_sx, new_sy = self.canvas_to_screen(cx, cy)
+        # Adjust scroll bars so the canvas point stays under the cursor
+        scroll_area.horizontalScrollBar().setValue(int(new_sx - vx))
+        scroll_area.verticalScrollBar().setValue(int(new_sy - vy))
 
     def set_view_orientation(self, orientation):
         """Set view orientation: 'default' or 'sewing_direction' (90° CCW)."""
@@ -258,21 +299,69 @@ class StitchCanvas(QWidget):
 
         painter.end()
 
+    def _get_pan_scroll_area(self):
+        """Return the scroll area containing this canvas, caching the result."""
+        if self._pan_scroll_area is None:
+            viewport = self.parent()
+            if viewport:
+                scroll_area = viewport.parent()
+                if scroll_area and hasattr(scroll_area, 'horizontalScrollBar'):
+                    self._pan_scroll_area = scroll_area
+        return self._pan_scroll_area
+
     # ── Mouse events ──
 
     def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self._temp_panning = True
+            self._pan_last_global_pos = event.globalPos()
+            self.setCursor(self._pan_cursor)
+            event.accept()
+            return
         if self._tool:
             self._tool.mouse_press(self, event)
 
     def mouseMoveEvent(self, event):
         cx, cy = self.screen_to_canvas(event.x(), event.y())
         self.cursor_moved.emit(cx, cy)
+        if self._temp_panning and self._pan_last_global_pos is not None:
+            current_pos = event.globalPos()
+            delta = self._pan_last_global_pos - current_pos
+            scroll_area = self._get_pan_scroll_area()
+            if scroll_area:
+                scroll_area.horizontalScrollBar().setValue(
+                    scroll_area.horizontalScrollBar().value() + delta.x())
+                scroll_area.verticalScrollBar().setValue(
+                    scroll_area.verticalScrollBar().value() + delta.y())
+            self._pan_last_global_pos = current_pos
+            return
         if self._tool:
             self._tool.mouse_move(self, event)
 
     def mouseReleaseEvent(self, event):
+        if event.button() == Qt.RightButton and self._temp_panning:
+            self._temp_panning = False
+            self._pan_last_global_pos = None
+            # Restore the cursor for the active tool
+            if self._tool:
+                self.setCursor(self._tool.cursor)
+            else:
+                self.setCursor(Qt.ArrowCursor)
+            event.accept()
+            return
         if self._tool:
             self._tool.mouse_release(self, event)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoom_at(self._scale * 1.25, event.pos())
+            elif delta < 0:
+                self.zoom_at(self._scale / 1.25, event.pos())
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     def keyPressEvent(self, event):
         """Handle keyboard events for moving selected points or tool-specific actions."""

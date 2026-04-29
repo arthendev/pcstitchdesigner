@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu,
 )
-from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtGui import QIcon, QKeyEvent
+from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent
+from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
 from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern
@@ -65,6 +65,14 @@ class MainWindow(QMainWindow):
         self._build_menus()
         self._build_toolbar()
 
+        # Temporary Ctrl→SelectPoint state (while AddPointTool is active)
+        self._ctrl_select_active = False
+        # Temporary Ctrl→MovePoint state (while SelectPointTool is active)
+        self._ctrl_move_active = False
+
+        # Install event filter to watch Ctrl key on the canvas
+        self._canvas.installEventFilter(self)
+
         # Default tool & zoom
         self._act_add.setChecked(True)
         self._on_tool_add()
@@ -73,6 +81,36 @@ class MainWindow(QMainWindow):
         self._on_pdesign_selected()
         # Initialize undo/redo button state
         self._update_undo_redo_state()
+
+    # ── Ctrl temporary tool switch ──
+
+    def eventFilter(self, obj, event):
+        if obj is self._canvas:
+            if (event.type() == QEvent.KeyPress
+                    and event.key() == Qt.Key_Control
+                    and not event.isAutoRepeat()):
+                if self._canvas._tool is self._add_tool:
+                    self._ctrl_select_active = True
+                    self._act_select.setChecked(True)
+                    self._on_tool_select()
+                elif self._canvas._tool is self._select_tool:
+                    self._ctrl_move_active = True
+                    self._act_move.setChecked(True)
+                    self._on_tool_move()
+            elif (event.type() == QEvent.KeyRelease
+                    and event.key() == Qt.Key_Control
+                    and not event.isAutoRepeat()):
+                if self._ctrl_select_active:
+                    self._ctrl_select_active = False
+                    if self._canvas._tool is self._select_tool:
+                        self._act_add.setChecked(True)
+                        self._on_tool_add()
+                elif self._ctrl_move_active:
+                    self._ctrl_move_active = False
+                    if self._canvas._tool is self._move_tool:
+                        self._act_select.setChecked(True)
+                        self._on_tool_select()
+        return super().eventFilter(obj, event)
 
     # ── Actions ──
 
@@ -186,6 +224,7 @@ class MainWindow(QMainWindow):
 
         self._act_fit_height = QAction(QIcon(os.path.join(_icons, "fit_height.svg")),
                                        "Fit Height", self)
+        self._act_fit_height.setShortcut("Ctrl+0")
         self._act_fit_height.triggered.connect(self._zoom_fit_height)
 
         self._act_fit_screen = QAction(QIcon(os.path.join(_icons, "fit_screen.svg")),
@@ -246,7 +285,7 @@ class MainWindow(QMainWindow):
         self._act_about = QAction("&About", self)
         self._act_about.triggered.connect(self._help_about)
 
-        self._act_get_releases = QAction("&Get new releases", self)
+        self._act_get_releases = QAction("&Get new version", self)
         self._act_get_releases.triggered.connect(self._help_get_releases)
 
     # ── Menus ──
@@ -668,11 +707,22 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
     # ── Zoom actions ──
 
+    def _zoom_at_cursor(self, factor):
+        """Zoom by factor, anchored to the current cursor position."""
+        canvas_pos = self._canvas.mapFromGlobal(QCursor.pos())
+        if not self._canvas.rect().contains(canvas_pos):
+            # Cursor outside canvas: anchor to visible centre
+            vp = self._scroll.viewport()
+            h = self._scroll.horizontalScrollBar().value()
+            v = self._scroll.verticalScrollBar().value()
+            canvas_pos = QPoint(h + vp.width() // 2, v + vp.height() // 2)
+        self._canvas.zoom_at(self._canvas.get_scale() * factor, canvas_pos)
+
     def _zoom_in(self):
-        self._canvas.set_scale(self._canvas.get_scale() * 1.25)
+        self._zoom_at_cursor(1.25)
 
     def _zoom_out(self):
-        self._canvas.set_scale(self._canvas.get_scale() / 1.25)
+        self._zoom_at_cursor(1.0 / 1.25)
 
     def _zoom_fit_height(self):
         if self._view_orientation == "sewing_direction":
@@ -786,7 +836,7 @@ class MainWindow(QMainWindow):
     def _help_get_releases(self):
         """Open GitHub releases page in default web browser."""
         QDesktopServices.openUrl(
-            QUrl("https://github.com/art-hen/pcstitchdesigner/releases")
+            QUrl("https://github.com/arthendev/pcstitchdesigner/releases")
         )
 
     # ── Keyboard events ──
@@ -796,6 +846,11 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key_Escape:
             # If no points selected, switch to Pan tool
             if (self._canvas.get_selection() == (None, None)):
+                self._act_pan.setChecked(True)
+                self._on_tool_pan()
+            # If AddPointTool active and last point selected, switch to Pan tool
+            elif (isinstance(self._canvas._tool, AddPointTool) and
+                  self._canvas.get_selected_point() == len(self._pattern.points) - 1):
                 self._act_pan.setChecked(True)
                 self._on_tool_pan()
             else:

@@ -275,8 +275,30 @@ class MovePointTool(BaseTool):
         self._offset_y = 0
 
     def key_press(self, canvas, event):
-        """Handle keyboard events. Backspace triggers Undo only if last action was MovePointCommand."""
-        if event.key() == Qt.Key_Backspace and not event.isAutoRepeat():
+        """Backspace triggers Undo but only if last action was MovePointCommand.
+        Handle Ctrl+arrow shortcuts for selection navigation.
+
+        Ctrl+Right: move selection 1 point towards end of pattern
+        Ctrl+Left:  move selection 1 point towards beginning of pattern
+        Ctrl+Up:    extend selection by 1 point towards end
+        Ctrl+Down:  reduce selection by 1 point from the end side
+        """
+        if not (event.modifiers() & Qt.ControlModifier):
+            return False
+
+        start = canvas._selection_start
+        end = canvas._selection_end
+
+        if start is None or end is None:
+            return False
+
+        n = len(canvas.pattern.points)
+        if n == 0:
+            return False
+
+        key = event.key()
+
+        if key == Qt.Key_Backspace and not event.isAutoRepeat():
             # Only undo if the last command in undo stack is a MovePointCommand
             if canvas.pattern._undo_stack and isinstance(canvas.pattern._undo_stack[-1], MovePointCommand):
                 canvas.pattern.undo()
@@ -284,6 +306,31 @@ class MovePointTool(BaseTool):
                 canvas.notify_change()
                 event.accept()
                 return True
+        elif key == Qt.Key_Right:
+            # Shift entire selection one step toward end
+            if end < n - 1:
+                canvas.set_selection(start + 1, end + 1)
+            event.accept()
+            return True
+        elif key == Qt.Key_Left:
+            # Shift entire selection one step toward beginning
+            if start > 0:
+                canvas.set_selection(start - 1, end - 1)
+            event.accept()
+            return True
+        elif key == Qt.Key_Up:
+            # Extend selection one more point toward end
+            if end < n - 1:
+                canvas.set_selection(start, end + 1)
+            event.accept()
+            return True
+        elif key == Qt.Key_Down:
+            # Shrink selection by removing the point closest to end
+            if end > start:
+                canvas.set_selection(start, end - 1)
+            event.accept()
+            return True
+
         return False
 
     def _find_nearest(self, canvas, cx, cy):
