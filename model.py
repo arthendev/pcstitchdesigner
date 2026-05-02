@@ -161,7 +161,7 @@ class StitchPattern:
         "9mm": (198, 54),
         "MAXI": (998, 359),
         "small hoop": (480, 480),
-        "big hoop": (689, 720),
+        "large hoop": (689, 720),
     }
 
     STITCH_RES_MM = 1/3  # 1 stitch = 0.333... mm
