@@ -265,3 +265,34 @@ class StitchPattern:
         cmd.redo(self)
         self._undo_stack.append(cmd)
         self.modified = True
+
+    def set_machine_data(self, points, slot_type):
+        """Load points received from the machine, adjusting coordinates to fit the canvas.
+
+        For MAXI patterns, shifts all Y values by a uniform offset so that
+        y_min >= 0 and y_max <= CANVAS_HEIGHT.  The shift is the minimum
+        required: if y_min < 0 the pattern is moved up; if y_max exceeds the
+        canvas height it is moved down.
+
+        Args:
+            points (list[tuple[int, int]]): Raw (x, y) pairs decoded from the
+                machine response.
+            slot_type (str): '9mm' or 'MAXI'.
+        """
+        self.stitch_type = slot_type
+        if slot_type == "MAXI" and points:
+            canvas_h = self.CANVAS_SIZES["MAXI"][1]
+            y_min = min(y for _, y in points)
+            y_max = max(y for _, y in points)
+            offset = 0
+            if y_min < 0:
+                offset = -y_min
+            elif y_max > canvas_h:
+                offset = canvas_h - y_max
+            if offset:
+                points = [(x, y + offset) for x, y in points]
+        self.points.clear()
+        self.points.extend(points)
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self.modified = True

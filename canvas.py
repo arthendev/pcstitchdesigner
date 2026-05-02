@@ -26,7 +26,7 @@ class StitchCanvas(QWidget):
     # Line width mapping
     LINE_WIDTHS = {"fine": 1, "medium": 2, "thick": 3}
     # Point radius mapping
-    POINT_RADII = {"small": 3, "medium": 4, "big": 6}
+    POINT_RADII = {"small": 2, "medium": 3, "big": 4}
 
     # Colors (defaults — overridden by apply_display_settings)
     COLOR_GRID = QColor(220, 220, 220)

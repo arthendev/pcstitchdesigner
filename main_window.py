@@ -4,7 +4,7 @@ import os
 
 from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
-    QFileDialog, QMessageBox, QToolBar, QLabel, QMenu,
+    QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
 )
 from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
@@ -17,6 +17,8 @@ import file_io
 from config import Config
 from version import APP_VERSION
 from preferences_dialog import PreferencesDialog
+from machine_comm import MachineComm, MachineCommError
+from pmemory_dialog import PMemoryDialog
 
 
 class MainWindow(QMainWindow):
@@ -29,6 +31,9 @@ class MainWindow(QMainWindow):
         # Load configuration
         self._config = Config()
         self._recent_files = self._config.get_recent_files()
+
+        # Machine communication
+        self._machine_comm = MachineComm()
 
         self._file_path = None
         self._pattern = StitchPattern()
@@ -844,17 +849,144 @@ class MainWindow(QMainWindow):
 
     # ── Machine ──
 
+    def _open_machine_connection(self):
+        """Open the serial port and perform the initial query_machine handshake.
+
+        Returns the machine identification dict on success, or None if the
+        user should abort (error already shown to the user).
+        """
+        prefs = self._config.get_machine_preferences()
+        port = prefs.get("port", "")
+        if not port:
+            QMessageBox.warning(
+                self, "Machine",
+                "No serial port configured.\n"
+                "Please set the port in Settings → Preferences → Machine."
+            )
+            return None
+
+        baudrate = (
+            MachineComm.FAST_BAUDRATE
+            if prefs.get("high_speed", False)
+            else MachineComm.DEFAULT_BAUDRATE
+        )
+
+        try:
+            self._machine_comm.open(port, baudrate=baudrate)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Machine",
+                f"Could not open port {port!r}:\n{exc}"
+            )
+            return None
+
+        try:
+            info = self._machine_comm.query_machine()
+        except (MachineCommError, Exception) as exc:
+            self._machine_comm.close()
+            QMessageBox.critical(
+                self, "Machine",
+                f"Machine did not respond:\n{exc}"
+            )
+            return None
+
+        detected = info.get('model', '')
+        configured = prefs.get('model', '')
+        if detected and configured and detected != configured:
+            self._machine_comm.close()
+            QMessageBox.critical(
+                self, "Machine",
+                f"Connected machine ({detected}) does not match "
+                f"the configured model ({configured}).\n"
+                f"Please check Settings → Preferences → Machine."
+            )
+            return None
+
+        return info
+
+    def _query_and_show_pmemory(self, action):
+        """Open connection, query P-Memory, and show the P-Memory dialog.
+
+        Args:
+            action (str): One of PMemoryDialog.ACTION_* constants.
+        """
+        # For Load, confirm discarding unsaved changes before touching the machine
+        if action == PMemoryDialog.ACTION_LOAD:
+            if not self._confirm_discard():
+                return
+
+        if not self._open_machine_connection():
+            return
+
+        # Query P-Memory directory
+        try:
+            raw = self._machine_comm.query_pmemory()
+        except (MachineCommError, Exception) as exc:
+            self._machine_comm.end_transmission()
+            QMessageBox.critical(
+                self, "Machine",
+                f"Failed to read P-Memory:\n{exc}"
+            )
+            return
+
+        # Decode the raw response
+        machine_model = self._config.get_machine_preferences().get("model", "")
+        try:
+            pmem_info = MachineComm.decode_pmemory(raw, machine_model)
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            QMessageBox.critical(
+                self, "Machine",
+                f"Failed to decode P-Memory data:\n{exc}"
+            )
+            return
+
+        dlg = PMemoryDialog(
+            pmem_info,
+            action,
+            self._machine_comm,
+            pattern=self._pattern if action == PMemoryDialog.ACTION_SEND else None,
+            parent=self,
+        )
+        result = dlg.exec_()
+
+        if action == PMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+
+    def _apply_machine_pattern(self, points, slot_type):
+        """Replace the current pattern with points loaded from the machine."""
+        new_pattern = StitchPattern()
+        new_pattern.set_machine_data(points, slot_type or self._pattern.stitch_type)
+
+        self._pattern = new_pattern
+        self._canvas.pattern = new_pattern
+        self._canvas.set_selected_point(None)
+        self._file_path = None
+
+        if new_pattern.stitch_type == "9mm":
+            self._act_9mm.setChecked(True)
+        elif new_pattern.stitch_type == "MAXI":
+            self._act_maxi.setChecked(True)
+
+        self._canvas._update_size()
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._act_pan.setChecked(True)
+        self._on_tool_pan()
+        self._fit_pattern()
+
     def _machine_load_pmemory(self):
-        pass
+        self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
 
     def _machine_send_pmemory(self):
-        pass
+        self._query_and_show_pmemory(PMemoryDialog.ACTION_SEND)
 
     def _machine_insert_pmemory(self):
-        pass
+        self._query_and_show_pmemory(PMemoryDialog.ACTION_INSERT)
 
     def _machine_delete_pmemory(self):
-        pass
+        self._query_and_show_pmemory(PMemoryDialog.ACTION_DELETE)
 
     def _machine_configuration(self):
         pass
