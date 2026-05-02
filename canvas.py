@@ -110,7 +110,7 @@ class StitchCanvas(QWidget):
         scroll_area.verticalScrollBar().setValue(int(new_sy - vy))
 
     def set_view_orientation(self, orientation):
-        """Set view orientation: 'default' or 'sewing_direction' (90° CCW)."""
+        """Set view orientation: 'default' or 'sewing_direction' (90° CW)."""
         self._view_orientation = orientation
         self._update_size()
         self.update()
@@ -193,13 +193,10 @@ class StitchCanvas(QWidget):
         if self._view_orientation == "default":
             sx = self.MARGIN + cx * self._scale
             sy = self.MARGIN + (self.pattern.CANVAS_HEIGHT - cy) * self._scale
-        else:  # sewing_direction (90° CCW rotation)
-            # After 90° CCW: (0,0) moves to bottom-right
-            # cx maps to height - cy, cy maps to cx
-            rotated_x = self.pattern.CANVAS_HEIGHT - cy
-            rotated_y = cx
-            sx = self.MARGIN + rotated_x * self._scale
-            sy = self.MARGIN + (self.pattern.CANVAS_WIDTH - rotated_y) * self._scale
+        else:  # sewing_direction (90° CW rotation)
+            # After 90° CW: (0,0) moves to top-left
+            sx = self.MARGIN + cy * self._scale
+            sy = self.MARGIN + cx * self._scale
         return sx, sy
 
     def screen_to_canvas(self, sx, sy):
@@ -207,13 +204,10 @@ class StitchCanvas(QWidget):
         if self._view_orientation == "default":
             cx = (sx - self.MARGIN) / self._scale
             cy = self.pattern.CANVAS_HEIGHT - (sy - self.MARGIN) / self._scale
-        else:  # sewing_direction (90° CCW rotation)
-            # Reverse the rotation
-            rotated_x = (sx - self.MARGIN) / self._scale
-            rotated_y = self.pattern.CANVAS_WIDTH - (sy - self.MARGIN) / self._scale
-            # Reverse: x = rotated_y, y = rotated_x - height
-            cy = self.pattern.CANVAS_HEIGHT - rotated_x
-            cx = rotated_y
+        else:  # sewing_direction (90° CW rotation)
+            # Reverse 90° CW: cx = (sy - MARGIN) / scale, cy = (sx - MARGIN) / scale
+            cx = (sy - self.MARGIN) / self._scale
+            cy = (sx - self.MARGIN) / self._scale
         return cx, cy
 
     # ── Painting ──

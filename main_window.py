@@ -831,10 +831,10 @@ class MainWindow(QMainWindow):
         
         # Convert pattern coordinates to canvas pixel coordinates, accounting for orientation
         if self._view_orientation == "sewing_direction":
-            # canvas_to_screen: sx = MARGIN + (CANVAS_HEIGHT - cy) * scale
-            #                   sy = MARGIN + (CANVAS_WIDTH - cx) * scale
-            canvas_center_x = (self._pattern.CANVAS_HEIGHT - bounds_center_y) * new_scale + self._canvas.MARGIN
-            canvas_center_y = (self._pattern.CANVAS_WIDTH - bounds_center_x) * new_scale + self._canvas.MARGIN
+            # canvas_to_screen (90° CW): sx = MARGIN + cy * scale
+            #                            sy = MARGIN + cx * scale
+            canvas_center_x = bounds_center_y * new_scale + self._canvas.MARGIN
+            canvas_center_y = bounds_center_x * new_scale + self._canvas.MARGIN
         else:
             # Default: pattern y is measured from bottom, canvas y is measured from top
             canvas_center_x = bounds_center_x * new_scale + self._canvas.MARGIN
