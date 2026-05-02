@@ -16,6 +16,7 @@ from tools import PanTool, AddPointTool, MovePointTool, DeletePointTool, SelectP
 import file_io
 from config import Config
 from version import APP_VERSION
+from preferences_dialog import PreferencesDialog
 
 
 class MainWindow(QMainWindow):
@@ -81,6 +82,8 @@ class MainWindow(QMainWindow):
         self._on_pdesign_selected()
         # Initialize undo/redo button state
         self._update_undo_redo_state()
+        # Apply saved display settings to canvas
+        self._apply_display_settings()
 
     # ── Ctrl temporary tool switch ──
 
@@ -281,6 +284,26 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_9mm)
         self._stitch_group.addAction(self._act_maxi)
 
+        # Machine
+        self._act_machine_load_pmem = QAction("Load P-Memory", self)
+        self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
+
+        self._act_machine_send_pmem = QAction("Send P-Memory", self)
+        self._act_machine_send_pmem.triggered.connect(self._machine_send_pmemory)
+
+        self._act_machine_insert_pmem = QAction("Insert P-Memory", self)
+        self._act_machine_insert_pmem.triggered.connect(self._machine_insert_pmemory)
+
+        self._act_machine_delete_pmem = QAction("Delete P-Memory", self)
+        self._act_machine_delete_pmem.triggered.connect(self._machine_delete_pmemory)
+
+        self._act_machine_config = QAction("Configuration…", self)
+        self._act_machine_config.triggered.connect(self._machine_configuration)
+
+        # Settings
+        self._act_preferences = QAction("Preferences…", self)
+        self._act_preferences.triggered.connect(self._settings_preferences)
+
         # Help
         self._act_about = QAction("&About", self)
         self._act_about.triggered.connect(self._help_about)
@@ -345,6 +368,17 @@ class MainWindow(QMainWindow):
         design_menu.addSeparator()
         design_menu.addAction(self._act_9mm)
         design_menu.addAction(self._act_maxi)
+
+        machine_menu = mb.addMenu("&Machine")
+        machine_menu.addAction(self._act_machine_load_pmem)
+        machine_menu.addAction(self._act_machine_send_pmem)
+        machine_menu.addAction(self._act_machine_insert_pmem)
+        machine_menu.addAction(self._act_machine_delete_pmem)
+        machine_menu.addSeparator()
+        machine_menu.addAction(self._act_machine_config)
+
+        settings_menu = mb.addMenu("&Settings")
+        settings_menu.addAction(self._act_preferences)
 
         help_menu = mb.addMenu("&Help")
         help_menu.addAction(self._act_get_releases)
@@ -807,6 +841,40 @@ class MainWindow(QMainWindow):
         
         h_scroll.setValue(int(canvas_center_x - vw / 2))
         v_scroll.setValue(int(canvas_center_y - vh / 2))
+
+    # ── Machine ──
+
+    def _machine_load_pmemory(self):
+        pass
+
+    def _machine_send_pmemory(self):
+        pass
+
+    def _machine_insert_pmemory(self):
+        pass
+
+    def _machine_delete_pmemory(self):
+        pass
+
+    def _machine_configuration(self):
+        pass
+
+    # ── Settings ──
+
+    def _settings_preferences(self):
+        dlg = PreferencesDialog(self._config, parent=self)
+        if dlg.exec_() == PreferencesDialog.Accepted:
+            self._apply_display_settings()
+
+    def _apply_display_settings(self):
+        d = self._config.get_display_preferences()
+        self._canvas.apply_display_settings(
+            line_color=d["line_color"],
+            line_width=d["line_width"],
+            point_color=d["point_color"],
+            point_size=d["point_size"],
+            grid_color=d["grid_color"],
+        )
 
     # ── Help ──
 

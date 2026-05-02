@@ -256,7 +256,7 @@ class AddPointTool(BaseTool):
         preview_pen = QPen(QColor(0, 80, 200, 150), 1)  # Faint point outline
         painter.setPen(preview_pen)
         painter.setBrush(QColor(0, 80, 200, 50))  # Very faint filled point
-        r = canvas.POINT_RADIUS
+        r = canvas._point_radius
         painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
 

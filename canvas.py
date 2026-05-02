@@ -22,9 +22,13 @@ class StitchCanvas(QWidget):
     selection_changed = pyqtSignal()  # emitted when selection changes
 
     MARGIN = 20  # pixel margin around the drawing area
-    POINT_RADIUS = 4  # pixels
 
-    # Colors
+    # Line width mapping
+    LINE_WIDTHS = {"fine": 1, "medium": 2, "thick": 3}
+    # Point radius mapping
+    POINT_RADII = {"small": 3, "medium": 4, "big": 6}
+
+    # Colors (defaults — overridden by apply_display_settings)
     COLOR_GRID = QColor(220, 220, 220)
     COLOR_BORDER = QColor(0, 80, 200)  # Blue frame
     COLOR_POINT = QColor(0, 0, 0)      # Black points
@@ -41,6 +45,12 @@ class StitchCanvas(QWidget):
         self._selection_start = None  # Start index of selection range
         self._selection_end = None    # End index of selection range (inclusive)
         self._view_orientation = "default"  # "default" or "sewing_direction"
+        # Display settings (instance-level, updated via apply_display_settings)
+        self._color_grid = QColor(220, 220, 220)
+        self._color_line = QColor(0, 0, 0)
+        self._color_point = QColor(0, 0, 0)
+        self._line_width = 2   # medium
+        self._point_radius = 4  # medium
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -103,6 +113,24 @@ class StitchCanvas(QWidget):
         """Set view orientation: 'default' or 'sewing_direction' (90° CCW)."""
         self._view_orientation = orientation
         self._update_size()
+        self.update()
+
+    def apply_display_settings(self, line_color, line_width, point_color,
+                               point_size, grid_color):
+        """Apply display preferences and redraw.
+
+        Args:
+            line_color: Hex string, e.g. '#000000'.
+            line_width: 'fine', 'medium', or 'thick'.
+            point_color: Hex string.
+            point_size: 'small', 'medium', or 'big'.
+            grid_color: Hex string.
+        """
+        self._color_line = QColor(line_color)
+        self._color_point = QColor(point_color)
+        self._color_grid = QColor(grid_color)
+        self._line_width = self.LINE_WIDTHS.get(line_width, 2)
+        self._point_radius = self.POINT_RADII.get(point_size, 6)
         self.update()
 
     def get_selected_point(self):
@@ -198,7 +226,7 @@ class StitchCanvas(QWidget):
         painter.fillRect(self.rect(), self.COLOR_BG)
 
         # Grid lines (every integer unit)
-        grid_pen = QPen(self.COLOR_GRID, 1)
+        grid_pen = QPen(self._color_grid, 1)
         painter.setPen(grid_pen)
         for x in range(self.pattern.CANVAS_WIDTH + 1):
             sx1, sy1 = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
@@ -219,7 +247,7 @@ class StitchCanvas(QWidget):
 
         # Connecting lines
         if len(self.pattern.points) >= 2:
-            line_pen = QPen(self.COLOR_LINE, 2)
+            line_pen = QPen(self._color_line, self._line_width)
             painter.setPen(line_pen)
             for i in range(len(self.pattern.points) - 1):
                 x1, y1 = self.pattern.points[i]
@@ -240,7 +268,7 @@ class StitchCanvas(QWidget):
 
         # Stitch points (draw in layers to ensure first, last, and selected are on top)
         painter.setPen(Qt.NoPen)
-        r = self.POINT_RADIUS
+        r = self._point_radius
         num_points = len(self.pattern.points)
         
         # First layer: draw all regular points (not first, not last, not selected)
@@ -252,7 +280,7 @@ class StitchCanvas(QWidget):
                 continue
             
             # Draw regular point
-            painter.setBrush(QBrush(self.COLOR_POINT))
+            painter.setBrush(QBrush(self._color_point))
             sx, sy = self.canvas_to_screen(x, y)
             painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
         

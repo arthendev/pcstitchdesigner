@@ -31,6 +31,16 @@ class Config:
         self._data = {
             "version": self.CURRENT_VERSION,
             "recent_files": [],
+            # Machine preferences
+            "machine_model": "PFAFF Creative 7570",
+            "machine_port": "",
+            "machine_high_speed": False,
+            # Display preferences
+            "display_line_color": "#000000",
+            "display_line_width": "medium",
+            "display_point_color": "#000000",
+            "display_point_size": "medium",
+            "display_grid_color": "#dcdcdc",
         }
 
         # Try to load existing config
@@ -120,3 +130,38 @@ class Config:
             Configuration value or default.
         """
         return self._data.get(key, default)
+
+    # ── Preferences helpers ──
+
+    def get_machine_preferences(self):
+        """Return machine preference values as a dict."""
+        return {
+            "model": self._data.get("machine_model", "PFAFF Creative 7570"),
+            "port": self._data.get("machine_port", ""),
+            "high_speed": self._data.get("machine_high_speed", False),
+        }
+
+    def set_machine_preferences(self, model, port, high_speed):
+        """Persist machine preferences."""
+        self._data["machine_model"] = model
+        self._data["machine_port"] = port
+        self._data["machine_high_speed"] = bool(high_speed)
+
+    def get_display_preferences(self):
+        """Return display preference values as a dict."""
+        return {
+            "line_color": self._data.get("display_line_color", "#000000"),
+            "line_width": self._data.get("display_line_width", "medium"),
+            "point_color": self._data.get("display_point_color", "#000000"),
+            "point_size": self._data.get("display_point_size", "big"),
+            "grid_color": self._data.get("display_grid_color", "#dcdcdc"),
+        }
+
+    def set_display_preferences(self, line_color, line_width, point_color,
+                                point_size, grid_color):
+        """Persist display preferences."""
+        self._data["display_line_color"] = line_color
+        self._data["display_line_width"] = line_width
+        self._data["display_point_color"] = point_color
+        self._data["display_point_size"] = point_size
+        self._data["display_grid_color"] = grid_color
