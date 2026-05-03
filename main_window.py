@@ -185,6 +185,22 @@ class MainWindow(QMainWindow):
         self._act_mirror_horizontal.setEnabled(False)
         self._act_mirror_horizontal.triggered.connect(self._edit_mirror_horizontal)
 
+        self._act_sel_extend = QAction("Extend by 1 stitch", self)
+        self._act_sel_extend.setEnabled(False)
+        self._act_sel_extend.triggered.connect(self._edit_sel_extend)
+
+        self._act_sel_reduce = QAction("Reduce by 1 stitch", self)
+        self._act_sel_reduce.setEnabled(False)
+        self._act_sel_reduce.triggered.connect(self._edit_sel_reduce)
+
+        self._act_sel_move_start = QAction("Move towards Start", self)
+        self._act_sel_move_start.setEnabled(False)
+        self._act_sel_move_start.triggered.connect(self._edit_sel_move_start)
+
+        self._act_sel_move_end = QAction("Move towards End", self)
+        self._act_sel_move_end.setEnabled(False)
+        self._act_sel_move_end.triggered.connect(self._edit_sel_move_end)
+
         # Tools (checkable, exclusive)
 
         self._act_pan = QAction(QIcon(os.path.join(_icons, "pan.svg")),
@@ -344,6 +360,12 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_redo)
         edit_menu.addSeparator()
         edit_menu.addAction(self._act_select_all)
+        sel_submenu = edit_menu.addMenu("&Selection")
+        sel_submenu.addAction(self._act_sel_extend)
+        sel_submenu.addAction(self._act_sel_reduce)
+        sel_submenu.addSeparator()
+        sel_submenu.addAction(self._act_sel_move_start)
+        sel_submenu.addAction(self._act_sel_move_end)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
         edit_menu.addAction(self._act_delete_selected)
@@ -515,7 +537,7 @@ class MainWindow(QMainWindow):
         self._coord_label.setText(f"x: {cx_clamped:.0f}  y: {cy_clamped:.0f}")
 
     def _on_pattern_changed(self):
-        self._count_label.setText(f"Points: {len(self._pattern.points)}")
+        self._count_label.setText(f"Stitches: {len(self._pattern.points)}")
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
@@ -531,11 +553,16 @@ class MainWindow(QMainWindow):
         has_selection = start is not None and end is not None
         has_multiple_selection = has_selection and end > start
         
+        n = len(self._pattern.points)
         self._act_clear_selection.setEnabled(has_selection)
         self._act_delete_selected.setEnabled(has_selection)
         self._act_invert_selected.setEnabled(has_multiple_selection)
         self._act_mirror_vertical.setEnabled(has_multiple_selection)
         self._act_mirror_horizontal.setEnabled(has_multiple_selection)
+        self._act_sel_extend.setEnabled(has_selection and end < n - 1)
+        self._act_sel_reduce.setEnabled(has_multiple_selection)
+        self._act_sel_move_start.setEnabled(has_selection and start > 0)
+        self._act_sel_move_end.setEnabled(has_selection and end < n - 1)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
@@ -712,6 +739,42 @@ class MainWindow(QMainWindow):
     def _edit_clear_selection(self):
         """Clear all selected stitch points."""
         self._canvas.set_selection(None, None)
+
+    def _edit_sel_extend(self):
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return
+        if end < len(self._pattern.points) - 1:
+            self._canvas.set_selection(start, end + 1)
+        self._canvas.update()
+        self._update_selection_action_state()
+
+    def _edit_sel_reduce(self):
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return
+        if end > start:
+            self._canvas.set_selection(start, end - 1)
+        self._canvas.update()
+        self._update_selection_action_state()
+
+    def _edit_sel_move_start(self):
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return
+        if start > 0:
+            self._canvas.set_selection(start - 1, end - 1)
+        self._canvas.update()
+        self._update_selection_action_state()
+
+    def _edit_sel_move_end(self):
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return
+        if end < len(self._pattern.points) - 1:
+            self._canvas.set_selection(start + 1, end + 1)
+        self._canvas.update()
+        self._update_selection_action_state()
 
     def _edit_delete_selected(self):
         """Delete all selected stitch points."""
