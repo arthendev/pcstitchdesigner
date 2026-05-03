@@ -168,14 +168,14 @@ class MainWindow(QMainWindow):
         self._act_clear_selection.setEnabled(False)
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
-        self._act_delete_selection = QAction("Delete Selected", self)
-        self._act_delete_selection.setShortcut("Delete")
-        self._act_delete_selection.setEnabled(False)
-        self._act_delete_selection.triggered.connect(self._edit_delete_selection)
+        self._act_delete_selected = QAction("Delete Selected", self)
+        self._act_delete_selected.setShortcut("Delete")
+        self._act_delete_selected.setEnabled(False)
+        self._act_delete_selected.triggered.connect(self._edit_delete_selected)
 
-        self._act_invert_selection = QAction("&Invert Selection", self)
-        self._act_invert_selection.setEnabled(False)
-        self._act_invert_selection.triggered.connect(self._edit_invert_selection)
+        self._act_invert_selected = QAction("&Invert Selected", self)
+        self._act_invert_selected.setEnabled(False)
+        self._act_invert_selected.triggered.connect(self._edit_invert_selected)
 
         self._act_mirror_vertical = QAction("Mirror &Vertically", self)
         self._act_mirror_vertical.setEnabled(False)
@@ -346,8 +346,8 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_select_all)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
-        edit_menu.addAction(self._act_delete_selection)
-        edit_menu.addAction(self._act_invert_selection)
+        edit_menu.addAction(self._act_delete_selected)
+        edit_menu.addAction(self._act_invert_selected)
         edit_menu.addAction(self._act_mirror_vertical)
         edit_menu.addAction(self._act_mirror_horizontal)
 
@@ -532,8 +532,8 @@ class MainWindow(QMainWindow):
         has_multiple_selection = has_selection and end > start
         
         self._act_clear_selection.setEnabled(has_selection)
-        self._act_delete_selection.setEnabled(has_selection)
-        self._act_invert_selection.setEnabled(has_multiple_selection)
+        self._act_delete_selected.setEnabled(has_selection)
+        self._act_invert_selected.setEnabled(has_multiple_selection)
         self._act_mirror_vertical.setEnabled(has_multiple_selection)
         self._act_mirror_horizontal.setEnabled(has_multiple_selection)
 
@@ -713,28 +713,26 @@ class MainWindow(QMainWindow):
         """Clear all selected stitch points."""
         self._canvas.set_selection(None, None)
 
-    def _edit_delete_selection(self):
+    def _edit_delete_selected(self):
         """Delete all selected stitch points."""
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return  # No selection
-        
-        # Delete from highest to lowest index to avoid index shifting
-        for idx in range(end, start - 1, -1):
-            self._pattern.delete_point(idx)
-        
+
+        self._pattern.delete_range(start, end)
+
         # Clear selection and update
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
 
-    def _edit_invert_selection(self):
+    def _edit_invert_selected(self):
         """Invert the order of selected stitch points."""
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return  # No selection
         
-        self._pattern.invert_selection(start, end)
+        self._pattern.invert_selected(start, end)
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -1091,6 +1089,12 @@ class MainWindow(QMainWindow):
         self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
 
     def _machine_send_pmemory(self):
+        if not self._pattern.points:
+            QMessageBox.warning(
+                self, "Send P-Memory",
+                "The stitch pattern is empty. Add stitch points before sending to the machine."
+            )
+            return
         self._query_and_show_pmemory(PMemoryDialog.ACTION_SEND)
 
     def _machine_insert_pmemory(self):

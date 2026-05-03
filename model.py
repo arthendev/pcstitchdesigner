@@ -70,6 +70,23 @@ class DeletePointCommand(Command):
         pattern.points.insert(idx, (self.x, self.y))
 
 
+class DeleteRangeCommand(Command):
+    """Deletes points at indices [start, end] (inclusive) as a single undo step."""
+
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+        self.saved_points = None
+
+    def redo(self, pattern):
+        self.saved_points = list(pattern.points[self.start:self.end + 1])
+        del pattern.points[self.start:self.end + 1]
+
+    def undo(self, pattern):
+        if self.saved_points is not None:
+            pattern.points[self.start:self.start] = self.saved_points
+
+
 class ReplaceRangeCommand(Command):
     """Replaces points at indices [start, end] (inclusive) with new_points."""
 
@@ -89,8 +106,8 @@ class ReplaceRangeCommand(Command):
             pattern.points[self.start:inserted_end] = self.old_points
 
 
-class InvertSelectionCommand(Command):
-    """Inverts the order of points within a selection."""
+class InvertRangeCommand(Command):
+    """Inverts the order of points within a [start, end] range."""
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -113,7 +130,7 @@ class InvertSelectionCommand(Command):
 
 
 class MirrorVerticalCommand(Command):
-    """Mirrors selected points vertically around the center of selection."""
+    """Mirrors points vertically around the center of a [start, end] range."""
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -143,7 +160,7 @@ class MirrorVerticalCommand(Command):
 
 
 class MirrorHorizontalCommand(Command):
-    """Mirrors selected points horizontally around the center of selection."""
+    """Mirrors points horizontally around the center of a [start, end] range."""
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -238,11 +255,19 @@ class StitchPattern:
         x, y = self.points[index]
         self._exec(DeletePointCommand(index, x, y))
 
-    def invert_selection(self, start, end):
+    def delete_range(self, start, end):
+        """Delete points at indices [start, end] (inclusive) as a single undo step."""
+        start = max(0, start)
+        end = min(len(self.points) - 1, end)
+        if start > end:
+            return
+        self._exec(DeleteRangeCommand(start, end))
+
+    def invert_selected(self, start, end):
         """Invert the order of points within the selection."""
         if start is None or end is None or start > end:
             return
-        self._exec(InvertSelectionCommand(start, end))
+        self._exec(InvertRangeCommand(start, end))
 
     def mirror_vertical(self, start, end):
         """Mirror selected points vertically around the center of selection."""
