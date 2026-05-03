@@ -259,10 +259,21 @@ class MainWindow(QMainWindow):
                                         "Fit Pattern", self)
         self._act_fit_pattern.triggered.connect(self._fit_pattern)
 
-        self._act_show_grid = QAction("Show &Grid", self)
+        self._act_show_grid = QAction(QIcon(os.path.join(_icons, "grid.svg")), "Show &Grid", self)
         self._act_show_grid.setCheckable(True)
         self._act_show_grid.setChecked(True)
         self._act_show_grid.triggered.connect(self._toggle_show_grid)
+
+        # View orientation toggle (toolbar button)
+        self._act_toggle_orientation = QAction(
+            QIcon(os.path.join(_icons, "rotate_view.svg")),
+            "Toggle Orientation", self
+        )
+        self._act_toggle_orientation.setCheckable(True)
+        self._act_toggle_orientation.setToolTip(
+            "Toggle view orientation: Default / Sewing Direction"
+        )
+        self._act_toggle_orientation.triggered.connect(self._on_toggle_orientation)
 
         # View orientation
         self._act_orientation_default = QAction("Default", self)
@@ -447,6 +458,9 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_fit_height)
         tb.addAction(self._act_fit_screen)
         tb.addAction(self._act_fit_pattern)
+        tb.addSeparator()
+        tb.addAction(self._act_toggle_orientation)
+        tb.addAction(self._act_show_grid)
 
     # ── Tool selection ──
 
@@ -485,12 +499,22 @@ class MainWindow(QMainWindow):
     def _on_orientation_default(self):
         self._view_orientation = "default"
         self._canvas.set_view_orientation("default")
+        self._act_toggle_orientation.setChecked(False)
         self._fit_pattern()
 
     def _on_orientation_sewing(self):
         self._view_orientation = "sewing_direction"
         self._canvas.set_view_orientation("sewing_direction")
+        self._act_toggle_orientation.setChecked(True)
         self._fit_pattern()
+
+    def _on_toggle_orientation(self, checked):
+        if checked:
+            self._act_orientation_sewing.setChecked(True)
+            self._on_orientation_sewing()
+        else:
+            self._act_orientation_default.setChecked(True)
+            self._on_orientation_default()
 
     # ── Stitch type selection ──
 
