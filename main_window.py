@@ -316,6 +316,9 @@ class MainWindow(QMainWindow):
         self._act_get_releases = QAction("&Get new version", self)
         self._act_get_releases.triggered.connect(self._help_get_releases)
 
+        self._act_donate = QAction("&Donate", self)
+        self._act_donate.triggered.connect(self._help_donate)
+
     # ── Menus ──
 
     def _build_menus(self):
@@ -387,6 +390,9 @@ class MainWindow(QMainWindow):
 
         help_menu = mb.addMenu("&Help")
         help_menu.addAction(self._act_get_releases)
+        help_menu.addSeparator()
+        help_menu.addAction(self._act_donate)
+        help_menu.addSeparator()
         help_menu.addAction(self._act_about)
 
     # ── Toolbar ──
@@ -1143,6 +1149,12 @@ class MainWindow(QMainWindow):
         """Open GitHub releases page in default web browser."""
         QDesktopServices.openUrl(
             QUrl("https://github.com/arthendev/pcstitchdesigner/releases")
+        )
+
+    def _help_donate(self):
+        """Open PayPal donation page in default web browser."""
+        QDesktopServices.openUrl(
+            QUrl("https://www.paypal.com/donate/?hosted_button_id=ALB975LFDA7AE")
         )
 
     # ── Keyboard events ──

@@ -39,3 +39,17 @@ The following features are planned for future releases:
   - Transferring embroidery designs to and from the sewing machine
   - Support for PFAFF Creative 7560
 - Support for the original serial interface cable
+
+## Donations
+
+I work as an engineer, where software development is only a small part of my daily job.
+
+This project was created entirely in my free time. It started when I was looking for a high-quality sewing machine and, by chance, came across a PFAFF Creative series. I was immediately impressed by the craftsmanship and engineering of this classic machine.
+
+At the same time it was sad to see the original software tools are outdated and not easy to use on modern systems anymore. Then I decided to build a modern, user-friendly alternative, that allows owners of these remarkable machines to continue using them with all their features. Just as they were originally intended. Furthermore, I wanted to give something back to the open-source community, whose spirit I deeply appreciate. It also became a great opportunity for me to learn more about reverse engineering, Python, and AI-assisted software development.
+
+If you find this project useful and would like to support its ongoing development, you are very welcome to make a small donation. Of course, this is entirely optional, but it would help me justify the time I continue to invest in improving and maintaining the project.
+
+[![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=ALB975LFDA7AE)
+
+Thank you!
