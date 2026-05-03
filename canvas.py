@@ -24,9 +24,9 @@ class StitchCanvas(QWidget):
     MARGIN = 20  # pixel margin around the drawing area
 
     # Line width mapping
-    LINE_WIDTHS = {"fine": 1, "medium": 2, "thick": 3}
+    LINE_WIDTHS = {"fine": 1, "medium": 2, "thick": 3, 'very thick': 4}
     # Point radius mapping
-    POINT_RADII = {"small": 2, "medium": 3, "big": 4}
+    POINT_RADII = {"small": 2, "medium": 3, "large": 4}
 
     # Colors (defaults — overridden by apply_display_settings)
     COLOR_GRID = QColor(220, 220, 220)
@@ -122,16 +122,16 @@ class StitchCanvas(QWidget):
 
         Args:
             line_color: Hex string, e.g. '#000000'.
-            line_width: 'fine', 'medium', or 'thick'.
+            line_width: 'fine', 'medium', 'thick', or 'very thick'.
             point_color: Hex string.
-            point_size: 'small', 'medium', or 'big'.
+            point_size: 'small', 'medium', or 'large'.
             grid_color: Hex string.
         """
         self._color_line = QColor(line_color)
         self._color_point = QColor(point_color)
         self._color_grid = QColor(grid_color)
         self._line_width = self.LINE_WIDTHS.get(line_width, 2)
-        self._point_radius = self.POINT_RADII.get(point_size, 6)
+        self._point_radius = self.POINT_RADII.get(point_size, 3)
         self.update()
 
     def get_selected_point(self):

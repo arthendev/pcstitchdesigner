@@ -164,7 +164,7 @@ class DisplayTab(QWidget):
         # Line color + width
         self._line_color_btn = ColorButton(prefs.get("line_color", DISPLAY_DEFAULTS["line_color"]))
         self._line_width_combo = QComboBox()
-        for opt in ("fine", "medium", "thick"):
+        for opt in ("fine", "medium", "thick", "very thick"):
             self._line_width_combo.addItem(opt.capitalize(), opt)
         self._select_combo(self._line_width_combo, prefs.get("line_width", DISPLAY_DEFAULTS["line_width"]))
         line_row = QHBoxLayout()
@@ -177,7 +177,7 @@ class DisplayTab(QWidget):
         # Stitch point color + size
         self._point_color_btn = ColorButton(prefs.get("point_color", DISPLAY_DEFAULTS["point_color"]))
         self._point_size_combo = QComboBox()
-        for opt in ("small", "medium", "big"):
+        for opt in ("small", "medium", "large"):
             self._point_size_combo.addItem(opt.capitalize(), opt)
         self._select_combo(self._point_size_combo, prefs.get("point_size", DISPLAY_DEFAULTS["point_size"]))
         point_row = QHBoxLayout()

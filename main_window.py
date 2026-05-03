@@ -265,6 +265,14 @@ class MainWindow(QMainWindow):
         self._act_show_grid.setChecked(True)
         self._act_show_grid.triggered.connect(self._toggle_show_grid)
 
+        # Menu-only version: checkbox, no icon
+        self._act_show_grid_menu = QAction("Show &Grid", self)
+        self._act_show_grid_menu.setCheckable(True)
+        self._act_show_grid_menu.setChecked(True)
+        self._act_show_grid_menu.triggered.connect(self._toggle_show_grid)
+        self._act_show_grid_menu.triggered.connect(self._act_show_grid.setChecked)
+        self._act_show_grid.triggered.connect(self._act_show_grid_menu.setChecked)
+
         self._act_animate = QAction(
             QIcon(os.path.join(_icons, "player.svg")),
             "&Animate Stitching", self
@@ -355,7 +363,7 @@ class MainWindow(QMainWindow):
         self._act_get_releases = QAction("&Get new version", self)
         self._act_get_releases.triggered.connect(self._help_get_releases)
 
-        self._act_donate = QAction("&Donate", self)
+        self._act_donate = QAction("&Donate!", self)
         self._act_donate.triggered.connect(self._help_donate)
 
     # ── Menus ──
@@ -415,7 +423,7 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self._act_fit_screen)
         view_menu.addAction(self._act_fit_pattern)
         view_menu.addSeparator()
-        view_menu.addAction(self._act_show_grid)
+        view_menu.addAction(self._act_show_grid_menu)
         view_menu.addSeparator()
         view_menu.addAction(self._act_animate)
 
