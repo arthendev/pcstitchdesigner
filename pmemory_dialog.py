@@ -131,9 +131,10 @@ class PMemoryDialog(QDialog):
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_load)
         else:
-            # Insert – not yet implemented
+            # Insert – reuses the same machine-read logic as Load
             self._action_btn = QPushButton("Insert")
             self._action_btn.setEnabled(False)
+            self._action_btn.clicked.connect(self._on_load)
 
         right.addWidget(self._action_btn)
         top.addLayout(right)

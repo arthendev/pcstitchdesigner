@@ -265,7 +265,7 @@ class MovePointTool(BaseTool):
 
     name = "Move Stitch Point"
     cursor = Qt.CrossCursor
-    HIT_RADIUS_CANVAS = 2  # in canvas units
+    SNAP_RADIUS_PX = 16  # screen pixels for hit detection (zoom-independent)
 
     def __init__(self):
         self._dragging_indices = []  # List of indices being dragged
@@ -273,6 +273,8 @@ class MovePointTool(BaseTool):
         self._clicked_idx = None     # Index of the point that was clicked
         self._offset_x = 0
         self._offset_y = 0
+        self._empty_click = False    # True when press landed far from any point
+        self._press_screen_pos = None  # Screen pos of last empty-space press
 
     def key_press(self, canvas, event):
         """Backspace triggers Undo but only if last action was MovePointCommand.
@@ -334,7 +336,8 @@ class MovePointTool(BaseTool):
         return False
 
     def _find_nearest(self, canvas, cx, cy):
-        """Return index of the nearest point within hit radius, or None."""
+        """Return index of the nearest point within SNAP_RADIUS_PX screen pixels, or None."""
+        radius_canvas = self.SNAP_RADIUS_PX / canvas.get_scale()
         best_idx = None
         best_dist_sq = float('inf')
         for i, (px, py) in enumerate(canvas.pattern.points):
@@ -342,7 +345,7 @@ class MovePointTool(BaseTool):
             if d < best_dist_sq:
                 best_dist_sq = d
                 best_idx = i
-        if best_idx is not None and best_dist_sq <= self.HIT_RADIUS_CANVAS ** 2:
+        if best_idx is not None and best_dist_sq <= radius_canvas ** 2:
             return best_idx
         return None
 
@@ -352,6 +355,7 @@ class MovePointTool(BaseTool):
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
         if idx is not None:
+            self._empty_click = False
             # Store the clicked point index
             self._clicked_idx = idx
             # Check if clicked point is in current selection
@@ -369,8 +373,17 @@ class MovePointTool(BaseTool):
             self._offset_x = 0
             self._offset_y = 0
             canvas.setCursor(Qt.CrossCursor)
+        else:
+            self._empty_click = True
+            self._press_screen_pos = (event.x(), event.y())
 
     def mouse_move(self, canvas, event):
+        if self._empty_click and self._press_screen_pos is not None:
+            dx = event.x() - self._press_screen_pos[0]
+            dy = event.y() - self._press_screen_pos[1]
+            if dx * dx + dy * dy > 16:  # 4 px threshold
+                self._empty_click = False
+                self._press_screen_pos = None
         if self._dragging_indices:
             cx, cy = canvas.screen_to_canvas(event.x(), event.y())
             cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
@@ -401,6 +414,12 @@ class MovePointTool(BaseTool):
 
     def mouse_release(self, canvas, event):
         if event.button() != Qt.LeftButton:
+            return
+        if self._empty_click:
+            self._empty_click = False
+            self._press_screen_pos = None
+            canvas.set_selection(None, None)
+            canvas.update()
             return
         if self._dragging_indices:
             # Restore originals and apply move commands

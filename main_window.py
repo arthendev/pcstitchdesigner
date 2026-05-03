@@ -478,6 +478,8 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        if not self._pattern.points:
+            self._zoom_fit_height()
 
     def _on_stitch_maxi(self):
         if not self._pattern_fits_in_canvas("MAXI"):
@@ -494,7 +496,10 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
 
         # Center the pattern in the view
-        self._fit_pattern()
+        if self._pattern.points:
+            self._fit_pattern()
+        else:
+            self._zoom_fit_height()
 
     # ── Status bar updates ──
 
@@ -681,11 +686,13 @@ class MainWindow(QMainWindow):
 
     def _edit_undo(self):
         self._pattern.undo()
+        self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
 
     def _edit_redo(self):
         self._pattern.redo()
+        self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -910,7 +917,8 @@ class MainWindow(QMainWindow):
         Args:
             action (str): One of PMemoryDialog.ACTION_* constants.
         """
-        # For Load, confirm discarding unsaved changes before touching the machine
+        # For Load, confirm discarding unsaved changes before touching the machine.
+        # Insert keeps the current design open, so no confirmation is needed.
         if action == PMemoryDialog.ACTION_LOAD:
             if not self._confirm_discard():
                 return
@@ -954,6 +962,10 @@ class MainWindow(QMainWindow):
             if dlg.loaded_points is not None:
                 self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
 
+        if action == PMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+
     def _apply_machine_pattern(self, points, slot_type):
         """Replace the current pattern with points loaded from the machine."""
         new_pattern = StitchPattern()
@@ -975,6 +987,99 @@ class MainWindow(QMainWindow):
         self._act_pan.setChecked(True)
         self._on_tool_pan()
         self._fit_pattern()
+
+    def _apply_insert_pattern(self, points, slot_type):
+        """Replace the currently selected range with points loaded from the machine.
+
+        If no points are selected, the last pattern point is used as the
+        single-point selection.  The loaded pattern is translated so that its
+        first point coincides with the first point of the selection before the
+        replacement takes place.
+        """
+        start, end = self._canvas.get_selection()
+
+        # Fall back to the last point when nothing is selected
+        if start is None and self._pattern.points:
+            start = len(self._pattern.points) - 1
+            end = start
+
+        # Warn when the loaded slot type differs from the open pattern type,
+        # except when inserting a 9mm pattern into a MAXI canvas (compatible).
+        if (slot_type and slot_type != self._pattern.stitch_type
+                and not (slot_type == "9mm" and self._pattern.stitch_type == "MAXI")):
+            ret = QMessageBox.warning(
+                self, "Insert P-Memory",
+                f"The loaded slot type ({slot_type}) differs from the current "
+                f"pattern type ({self._pattern.stitch_type}).\n\n"
+                "Point coordinates will be clamped to fit the current canvas.\n"
+                "Continue?",
+                QMessageBox.Ok | QMessageBox.Cancel,
+                QMessageBox.Cancel,
+            )
+            if ret != QMessageBox.Ok:
+                return
+
+        # Translate loaded points so their first point aligns with
+        # pattern.points[start], then clamp to the current canvas bounds.
+        cw = self._pattern.CANVAS_WIDTH
+        ch = self._pattern.CANVAS_HEIGHT
+        if points and start is not None and start < len(self._pattern.points):
+            anchor_x, anchor_y = self._pattern.points[start]
+            dx = anchor_x - points[0][0]
+            dy = anchor_y - points[0][1]
+            translated = [(x + dx, y + dy) for x, y in points]
+        else:
+            translated = list(points)
+
+        # If the translated pattern extends outside the canvas, shift it as a
+        # whole so it fits without squashing.  Only clamp individual points when
+        # the pattern is genuinely larger than the canvas in that axis.
+        shift_applied = False
+        if translated:
+            xs = [x for x, y in translated]
+            ys = [y for x, y in translated]
+            x_min, x_max = min(xs), max(xs)
+            y_min, y_max = min(ys), max(ys)
+
+            shift_x = 0
+            if x_max - x_min <= cw:
+                if x_min < 0:
+                    shift_x = -x_min
+                elif x_max > cw:
+                    shift_x = cw - x_max
+
+            shift_y = 0
+            if y_max - y_min <= ch:
+                if y_min < 0:
+                    shift_y = -y_min
+                elif y_max > ch:
+                    shift_y = ch - y_max
+
+            if shift_x or shift_y:
+                translated = [(x + shift_x, y + shift_y) for x, y in translated]
+                shift_applied = True
+
+        clamped = [(max(0, min(cw, x)), max(0, min(ch, y))) for x, y in translated]
+
+        if start is None:
+            # Pattern is empty – just load the points as-is
+            self._pattern.set_machine_data(clamped, self._pattern.stitch_type)
+            self._canvas.set_selected_point(None)
+        else:
+            # When a canvas-fitting shift was applied the inserted pattern no
+            # longer starts at the anchor point, so keep pattern.points[start]
+            # in place and replace only [start+1, end] with the loaded points.
+            replace_start = start + 1 if shift_applied else start
+            self._pattern.replace_range(replace_start, end, clamped)
+            # Update selection to cover the newly inserted points
+            if clamped:
+                self._canvas.set_selection(replace_start, replace_start + len(clamped) - 1)
+            else:
+                self._canvas.set_selected_point(None)
+
+        self._canvas._update_size()
+        self._canvas.update()
+        self._on_pattern_changed()
 
     def _machine_load_pmemory(self):
         self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
@@ -1019,10 +1124,11 @@ class MainWindow(QMainWindow):
         # Create a label with clickable links
         label = QLabel(
             f"<b>PC Stitch Designer</b> v{APP_VERSION}<br><br>"
-            "A stitch pattern editor for PFAFF machines.<br><br>"
+            "A stitch pattern editor for PFAFF machines.<br>"
+            "Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.<br><br>"
             "<b>Project:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner">'
-            "github.com/arthendev/pcstitchdesigner</a><br>"
+            "github.com/arthendev/pcstitchdesigner</a><br><br>"
             "<b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
             "github.com/arthendev/pcstitchdesigner/releases</a>"

@@ -70,6 +70,25 @@ class DeletePointCommand(Command):
         pattern.points.insert(idx, (self.x, self.y))
 
 
+class ReplaceRangeCommand(Command):
+    """Replaces points at indices [start, end] (inclusive) with new_points."""
+
+    def __init__(self, start, end, new_points):
+        self.start = start
+        self.end = end
+        self.new_points = list(new_points)
+        self.old_points = None
+
+    def redo(self, pattern):
+        self.old_points = pattern.points[self.start:self.end + 1]
+        pattern.points[self.start:self.end + 1] = self.new_points
+
+    def undo(self, pattern):
+        if self.old_points is not None:
+            inserted_end = self.start + len(self.new_points)
+            pattern.points[self.start:inserted_end] = self.old_points
+
+
 class InvertSelectionCommand(Command):
     """Inverts the order of points within a selection."""
     def __init__(self, start, end):
@@ -236,6 +255,12 @@ class StitchPattern:
         if start is None or end is None or start > end:
             return
         self._exec(MirrorHorizontalCommand(start, end))
+
+    def replace_range(self, start, end, new_points):
+        """Replace points at indices [start, end] (inclusive) with new_points."""
+        start = max(0, start)
+        end = min(len(self.points) - 1, end)
+        self._exec(ReplaceRangeCommand(start, end, new_points))
 
     def clear(self):
         self.points.clear()

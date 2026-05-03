@@ -24,7 +24,7 @@ DISPLAY_DEFAULTS = {
 
 MACHINE_MODELS = [
     "PFAFF Creative 7570",
-    "PFAFF Creative 7560",
+    # "PFAFF Creative 7560",
     "PFAFF Creative 7550",
     "PFAFF Creative 1475 CD",
 ]
@@ -111,6 +111,15 @@ class MachineTab(QWidget):
         self._high_speed_cb = QCheckBox("High-speed")
         self._high_speed_cb.setChecked(bool(prefs.get("high_speed", False)))
         layout.addRow("", self._high_speed_cb)
+
+        self._model_combo.currentIndexChanged.connect(self._on_model_changed)
+        self._on_model_changed()
+
+    def _on_model_changed(self):
+        is_1475 = self._model_combo.currentText() == "PFAFF Creative 1475 CD"
+        if is_1475:
+            self._high_speed_cb.setChecked(False)
+        self._high_speed_cb.setEnabled(not is_1475)
 
     def _refresh_ports(self):
         """Reload available serial ports into the combo box."""

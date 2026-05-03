@@ -15,12 +15,14 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
   - *.PCQ (MAXI stitches)
 - Transfer stitch patterns to and from supported sewing machines
   - PFAFF Creative 7570
+  - PFAFF Creative 7550
+  - PFAFF Creative 1475 CD (not tested yet or real hardware)
 - Compatibility with modern 64-bit operating systems
 
 ## Hardware requirements
 
 - Compatible sewing machine
-  - currently only PFAFF Creative 7570 is supported
+  - PFAFF Creative 7570, 7550 or 1475 CD
 - Interface cable
   - aftermarket USB-PFAFF cable
   - original COM cable should eventually work but was not tested yet
@@ -35,6 +37,5 @@ The following features are planned for future releases:
 - Embroidery Design Support
   - Loading embroidery design files
   - Transferring embroidery designs to and from the sewing machine
-- Support for more sewing machines
-  - PFAFF Creative 7550, 7560, 1475
+  - Support for PFAFF Creative 7560
 - Support for the original serial interface cable
