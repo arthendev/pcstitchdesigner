@@ -187,7 +187,7 @@ class MachineComm:
         ("1475 CD","PFAFF Creative 1475 CD"),
     ]
 
-    def query_machine(self, retries=15, retry_delay=0.05, timeout=2.0):
+    def query_machine(self, retries=15, retry_delay=0.05, timeout=1.0):
         """Query the machine for its identification string.
 
         Sends CTRL_BEL repeatedly until the machine responds. The machine
@@ -200,7 +200,7 @@ class MachineComm:
         Args:
             retries (int): Maximum number of CTRL_BEL attempts. Default: 15.
             retry_delay (float): Seconds to wait between retries. Default: 0.05.
-            timeout (float): Read timeout in seconds per attempt. Default: 2.0.
+            timeout (float): Read timeout in seconds per attempt. Default: 1.0.
 
         Returns:
             dict: {
@@ -355,14 +355,14 @@ class MachineComm:
 
     # ── P-Memory commands ──
 
-    def query_pmemory(self, timeout=5.0):
+    def query_pmemory(self, timeout=1.0):
         """Query the machine P-Memory directory.
 
         Sends the "PI" command terminated with CTRL_ETX. Reads the response
         until CTRL_ETB is received, then reads the 2 trailing checksum bytes.
 
         Args:
-            timeout (float): Read timeout in seconds. Default: 5.0.
+            timeout (float): Read timeout in seconds. Default: 1.0.
 
         Returns:
             bytes: Raw response bytes (payload bytes up to and including CTRL_ETB,
@@ -397,7 +397,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def delete_pmemory_slot(self, slot_index, timeout=5.0):
+    def delete_pmemory_slot(self, slot_index, timeout=1.0):
         """Send a delete command for the given P-Memory slot.
 
         Sends "PL<xx>" + CTRL_ETX where <xx> is the zero-based slot index
@@ -405,7 +405,7 @@ class MachineComm:
 
         Args:
             slot_index (int): Zero-based index of the slot to delete.
-            timeout (float): Read timeout in seconds. Default: 5.0.
+            timeout (float): Read timeout in seconds. Default: 1.0.
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -430,7 +430,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_pmemory_slot(self, slot_index, slot_type, timeout=3.0,
+    def load_pmemory_slot(self, slot_index, slot_type, timeout=1.0,
                           total_size=0, progress_callback=None):
         """Load a pattern from a P-Memory slot.
 
@@ -444,7 +444,7 @@ class MachineComm:
         Args:
             slot_index (int): Zero-based index of the slot to read.
             slot_type (str): '9mm' or 'MAXI'.
-            timeout (float): Per-byte read timeout in seconds. Default: 3.0.
+            timeout (float): Per-byte read timeout in seconds. Default: 1.0.
 
         Returns:
             bytes: Concatenated hex-ASCII payload from all chunks.
@@ -532,7 +532,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pattern(self, data, chunk_size=250, timeout=5.0, progress_callback=None):
+    def send_pattern(self, data, chunk_size=250, timeout=1.0, progress_callback=None):
         """Send pattern data to the machine in chunked PFAFF protocol frames.
 
         Each chunk is wrapped as: <payload> + CTRL_ETB + <2 ASCII-hex checksum bytes>.
@@ -541,7 +541,7 @@ class MachineComm:
         Args:
             data (bytes | bytearray): Serialised pattern data to send.
             chunk_size (int): Payload size per chunk in bytes. Default: 250.
-            timeout (float): Per-chunk read timeout in seconds. Default: 5.0.
+            timeout (float): Per-chunk read timeout in seconds. Default: 1.0.
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -578,7 +578,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot(self, slot_index, pattern, chunk_size=250, timeout=5.0,
+    def send_pmemory_slot(self, slot_index, pattern, chunk_size=250, timeout=1.0,
                           progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
@@ -600,7 +600,7 @@ class MachineComm:
             slot_index (int): 0-based slot number to write to.
             pattern: StitchPattern instance (stitch_type + points).
             chunk_size (int): Stitch-data payload bytes per chunk. Default: 250.
-            timeout (float): Per-response read timeout in seconds. Default: 5.0.
+            timeout (float): Per-response read timeout in seconds. Default: 1.0.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable
                 called after each stitch-data chunk is acknowledged.
 

@@ -201,7 +201,7 @@ class PMemoryDialog(QDialog):
             type_item.setTextAlignment(Qt.AlignCenter)
             size_item = QTableWidgetItem(str(slot.get("size", 0)))
             size_item.setTextAlignment(Qt.AlignCenter)
-            self._table.setItem(row, 0, slot_item)
+            self._table.setItem(row, 0, QTableWidgetItem("P" + str(row)))
             self._table.setItem(row, 1, type_item)
             self._table.setItem(row, 2, size_item)
         self._free_label.setText(f"Free memory: {pmem_info.get('free_memory', 0)} bytes")

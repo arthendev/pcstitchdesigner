@@ -161,31 +161,35 @@ class DisplayTab(QWidget):
         form.setVerticalSpacing(8)
         form.setHorizontalSpacing(8)
 
-        # Line color
+        # Line color + width
         self._line_color_btn = ColorButton(prefs.get("line_color", DISPLAY_DEFAULTS["line_color"]))
-        form.addRow("Line color:", self._line_color_btn)
-
-        # Line width
         self._line_width_combo = QComboBox()
         for opt in ("fine", "medium", "thick"):
             self._line_width_combo.addItem(opt.capitalize(), opt)
         self._select_combo(self._line_width_combo, prefs.get("line_width", DISPLAY_DEFAULTS["line_width"]))
-        form.addRow("Line width:", self._line_width_combo)
+        line_row = QHBoxLayout()
+        line_row.setSpacing(6)
+        line_row.addWidget(self._line_color_btn)
+        line_row.addWidget(self._line_width_combo)
+        line_row.addStretch()
+        form.addRow("Line:", line_row)
 
-        # Stitch points color
+        # Stitch point color + size
         self._point_color_btn = ColorButton(prefs.get("point_color", DISPLAY_DEFAULTS["point_color"]))
-        form.addRow("Stitch Points Color:", self._point_color_btn)
-
-        # Stitch points size
         self._point_size_combo = QComboBox()
         for opt in ("small", "medium", "big"):
             self._point_size_combo.addItem(opt.capitalize(), opt)
         self._select_combo(self._point_size_combo, prefs.get("point_size", DISPLAY_DEFAULTS["point_size"]))
-        form.addRow("Stitch Points Size:", self._point_size_combo)
+        point_row = QHBoxLayout()
+        point_row.setSpacing(6)
+        point_row.addWidget(self._point_color_btn)
+        point_row.addWidget(self._point_size_combo)
+        point_row.addStretch()
+        form.addRow("Stitch Points:", point_row)
 
         # Grid color
         self._grid_color_btn = ColorButton(prefs.get("grid_color", DISPLAY_DEFAULTS["grid_color"]))
-        form.addRow("Grid color:", self._grid_color_btn)
+        form.addRow("Grid:", self._grid_color_btn)
 
         outer.addWidget(group)
 
