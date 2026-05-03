@@ -872,7 +872,7 @@ class MainWindow(QMainWindow):
         port = prefs.get("port", "")
         if not port:
             QMessageBox.warning(
-                self, "Machine",
+                self, "Communication Error",
                 "No serial port configured.\n"
                 "Please set the port in Settings → Preferences → Machine."
             )
@@ -888,7 +888,7 @@ class MainWindow(QMainWindow):
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
             QMessageBox.critical(
-                self, "Machine",
+                self, "Communication Error",
                 f"Could not open port {port!r}:\n{exc}"
             )
             return None
@@ -898,8 +898,8 @@ class MainWindow(QMainWindow):
         except (MachineCommError, Exception) as exc:
             self._machine_comm.close()
             QMessageBox.critical(
-                self, "Machine",
-                f"Machine did not respond:\n{exc}"
+                self, "Communication Error",
+                f"No communication with the machine:\n{exc}"
             )
             return None
 
@@ -908,7 +908,7 @@ class MainWindow(QMainWindow):
         if detected and configured and detected != configured:
             self._machine_comm.close()
             QMessageBox.critical(
-                self, "Machine",
+                self, "Communication Error",
                 f"Connected machine ({detected}) does not match "
                 f"the configured model ({configured}).\n"
                 f"Please check Settings → Preferences → Machine."
@@ -938,7 +938,7 @@ class MainWindow(QMainWindow):
         except (MachineCommError, Exception) as exc:
             self._machine_comm.end_transmission()
             QMessageBox.critical(
-                self, "Machine",
+                self, "Communication Error",
                 f"Failed to read P-Memory:\n{exc}"
             )
             return
@@ -950,7 +950,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self._machine_comm.end_transmission()
             QMessageBox.critical(
-                self, "Machine",
+                self, "Communication Error",
                 f"Failed to decode P-Memory data:\n{exc}"
             )
             return

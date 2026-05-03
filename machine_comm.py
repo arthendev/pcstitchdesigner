@@ -264,7 +264,8 @@ class MachineComm:
             # No response after all retries — signal the machine to abort
             self._serial.write(bytes([self.CTRL_EOT]))
             raise MachineCommError(
-                f"No response from machine after {retries} attempt(s)."
+                # f"No response from machine after {retries} attempt(s)."
+                f"Machine not responding. Please check connection and try again."
             )
         finally:
             self._serial.timeout = saved_timeout
