@@ -193,13 +193,13 @@ class MainWindow(QMainWindow):
         self._act_sel_reduce.setEnabled(False)
         self._act_sel_reduce.triggered.connect(self._edit_sel_reduce)
 
-        self._act_sel_move_start = QAction("Move towards Start", self)
-        self._act_sel_move_start.setEnabled(False)
-        self._act_sel_move_start.triggered.connect(self._edit_sel_move_start)
+        self._act_sel_move_forward = QAction("Move forwards", self)
+        self._act_sel_move_forward.setEnabled(False)
+        self._act_sel_move_forward.triggered.connect(self._edit_sel_move_forward)
 
-        self._act_sel_move_end = QAction("Move towards End", self)
-        self._act_sel_move_end.setEnabled(False)
-        self._act_sel_move_end.triggered.connect(self._edit_sel_move_end)
+        self._act_sel_move_backward = QAction("Move backwards", self)
+        self._act_sel_move_backward.setEnabled(False)
+        self._act_sel_move_backward.triggered.connect(self._edit_sel_move_backward)
 
         # Tools (checkable, exclusive)
 
@@ -364,8 +364,8 @@ class MainWindow(QMainWindow):
         sel_submenu.addAction(self._act_sel_extend)
         sel_submenu.addAction(self._act_sel_reduce)
         sel_submenu.addSeparator()
-        sel_submenu.addAction(self._act_sel_move_start)
-        sel_submenu.addAction(self._act_sel_move_end)
+        sel_submenu.addAction(self._act_sel_move_forward)
+        sel_submenu.addAction(self._act_sel_move_backward)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
         edit_menu.addAction(self._act_delete_selected)
@@ -561,8 +561,8 @@ class MainWindow(QMainWindow):
         self._act_mirror_horizontal.setEnabled(has_multiple_selection)
         self._act_sel_extend.setEnabled(has_selection and end < n - 1)
         self._act_sel_reduce.setEnabled(has_multiple_selection)
-        self._act_sel_move_start.setEnabled(has_selection and start > 0)
-        self._act_sel_move_end.setEnabled(has_selection and end < n - 1)
+        self._act_sel_move_backward.setEnabled(has_selection and start > 0)
+        self._act_sel_move_forward.setEnabled(has_selection and end < n - 1)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
@@ -758,7 +758,7 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._update_selection_action_state()
 
-    def _edit_sel_move_start(self):
+    def _edit_sel_move_backward(self):
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return
@@ -767,7 +767,7 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._update_selection_action_state()
 
-    def _edit_sel_move_end(self):
+    def _edit_sel_move_forward(self):
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return
