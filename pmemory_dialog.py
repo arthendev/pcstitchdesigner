@@ -15,16 +15,16 @@ class PMemoryDialog(QDialog):
 
     Layout::
 
-        ┌──────────────────────────────────────────┐
+        ┌───────────────────────────────────────────┐
         │ Slot │ Type  │ Size (bytes)  │            │
         │──────┼───────┼───────────────│  [action]  │
         │  1   │ 9mm   │ 1024          │            │
         │  2   │ MAXI  │ 2048          │            │
-        ├──────────────────────────────────────────┤
+        ├───────────────────────────────────────────┤
         │ Free memory: 5120 bytes                   │
-        ├──────────────────────────────────────────┤
-        │                              [Close]      │
-        └──────────────────────────────────────────┘
+        ├───────────────────────────────────────────┤
+        │  [Progressbar]               [Close]      │
+        └───────────────────────────────────────────┘
 
     Args:
         pmem_info (dict | None): Decoded P-Memory data::
@@ -71,6 +71,8 @@ class PMemoryDialog(QDialog):
         self.setWindowTitle("P-Memory")
         self.setFixedWidth(320)
         self.setMinimumHeight(340)
+        # Open with height of 500px
+        self.resize(self.width(), 500)
 
         outer = QVBoxLayout(self)
         outer.setSpacing(6)
@@ -88,13 +90,15 @@ class PMemoryDialog(QDialog):
         self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
-        self._table.verticalHeader().setDefaultSectionSize(22)
+        self._table.verticalHeader().setDefaultSectionSize(16)
+        self._table.verticalHeader().setMinimumSectionSize(16)
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self._table.setColumnWidth(1, 60)
         self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self._table.setColumnWidth(2, 80)
         self._table.itemSelectionChanged.connect(self._update_action_btn_state)
+        self._table.cellDoubleClicked.connect(self._on_row_double_clicked)
 
         left.addWidget(self._table)
 
@@ -173,6 +177,11 @@ class PMemoryDialog(QDialog):
             return int(item.text()) if item else 0
         except ValueError:
             return 0
+
+    def _on_row_double_clicked(self, _row, _col):
+        """Trigger the action on double-click if the button is currently enabled."""
+        if self._action_btn.isEnabled():
+            self._action_btn.click()
 
     def _update_action_btn_state(self):
         """Enable the action button based on the current selection."""
@@ -274,6 +283,16 @@ class PMemoryDialog(QDialog):
         """Delete the selected P-Memory slot and refresh the table."""
         slot_index = self._selected_slot_index()
         if slot_index is None:
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Delete slot {slot_index} from P-Memory?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
             return
 
         self._action_btn.setEnabled(False)
