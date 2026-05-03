@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Horizontal rectangle depicting an image being rotated -->
+  <rect x="3" y="10" width="12" height="8" rx="1" fill="#cce5ff" stroke="#333" stroke-width="1.5"/>
+  <!-- Clockwise arc in bottom-right corner with arrowhead -->
+  <g transform="scale(-1,1) translate(-24,0)">
+    <path d="M 13 4 A 9 9 0 0 0 4 13" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="2,13 6,13 4,17" fill="#333"/>
+  </g>
+</svg>

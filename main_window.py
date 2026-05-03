@@ -19,6 +19,7 @@ from version import APP_VERSION
 from preferences_dialog import PreferencesDialog
 from machine_comm import MachineComm, MachineCommError
 from pmemory_dialog import PMemoryDialog
+from animation_window import AnimationWindow
 
 
 class MainWindow(QMainWindow):
@@ -264,6 +265,12 @@ class MainWindow(QMainWindow):
         self._act_show_grid.setChecked(True)
         self._act_show_grid.triggered.connect(self._toggle_show_grid)
 
+        self._act_animate = QAction(
+            QIcon(os.path.join(_icons, "player.svg")),
+            "&Animate Stitching", self
+        )
+        self._act_animate.triggered.connect(self._view_animate_stitching)
+
         # View orientation toggle (toolbar button)
         self._act_toggle_orientation = QAction(
             QIcon(os.path.join(_icons, "rotate_view.svg")),
@@ -410,7 +417,7 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
         view_menu.addAction(self._act_show_grid)
         view_menu.addSeparator()
-        view_menu.addAction(self._act_show_grid)
+        view_menu.addAction(self._act_animate)
 
         design_menu = mb.addMenu("&Design")
         design_menu.addAction(self._act_pdesign)
@@ -461,6 +468,8 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self._act_toggle_orientation)
         tb.addAction(self._act_show_grid)
+        tb.addSeparator()
+        tb.addAction(self._act_animate)
 
     # ── Tool selection ──
 
@@ -495,6 +504,10 @@ class MainWindow(QMainWindow):
         self._act_maxi.setVisible(False)
 
     # ── View orientation ──
+
+    def _view_animate_stitching(self):
+        dlg = AnimationWindow(self._pattern, parent=self)
+        dlg.exec_()
 
     def _on_orientation_default(self):
         self._view_orientation = "default"
