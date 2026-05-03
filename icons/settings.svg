@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Horizontal mirror of wrench.svg -->
+  <g transform="translate(24, 0) scale(-1, 1)">
+    <!-- Wrench drawn jaw-up, then rotated 45° CW so jaw points to upper-left -->
+    <g transform="rotate(45, 12, 12)">
+      <path d="M 6,3 L 10,3 L 10,8 L 14,8 L 14,3 L 18,3
+               L 18,9 L 15,10 L 14,21 Q 12,23 10,21
+               L 9,10 L 6,9 Z"
+            fill="#333"/>
+    </g>
+  </g>
+</svg>

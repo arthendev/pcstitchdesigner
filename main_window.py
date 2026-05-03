@@ -353,7 +353,7 @@ class MainWindow(QMainWindow):
         self._act_machine_config.triggered.connect(self._machine_configuration)
 
         # Settings
-        self._act_preferences = QAction("Preferences…", self)
+        self._act_preferences = QAction(QIcon(os.path.join(_icons, "settings.svg")), "Preferences…", self)
         self._act_preferences.triggered.connect(self._settings_preferences)
 
         # Help
@@ -478,6 +478,8 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_show_grid)
         tb.addSeparator()
         tb.addAction(self._act_animate)
+        tb.addSeparator()
+        tb.addAction(self._act_preferences)
 
     # ── Tool selection ──
 
@@ -1225,7 +1227,7 @@ class MainWindow(QMainWindow):
         self._query_and_show_pmemory(PMemoryDialog.ACTION_DELETE)
 
     def _machine_configuration(self):
-        pass
+        self._settings_preferences()
 
     # ── Settings ──
 
