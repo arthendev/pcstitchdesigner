@@ -51,6 +51,7 @@ class StitchCanvas(QWidget):
         self._color_point = QColor(0, 0, 0)
         self._line_width = 2   # medium
         self._point_radius = 4  # medium
+        self._show_grid = True
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -220,16 +221,17 @@ class StitchCanvas(QWidget):
         painter.fillRect(self.rect(), self.COLOR_BG)
 
         # Grid lines (every integer unit)
-        grid_pen = QPen(self._color_grid, 1)
-        painter.setPen(grid_pen)
-        for x in range(self.pattern.CANVAS_WIDTH + 1):
-            sx1, sy1 = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
-            sx2, sy2 = self.canvas_to_screen(x, 0)
-            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
-        for y in range(self.pattern.CANVAS_HEIGHT + 1):
-            sx1, sy1 = self.canvas_to_screen(0, y)
-            sx2, sy2 = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, y)
-            painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+        if self._show_grid:
+            grid_pen = QPen(self._color_grid, 1)
+            painter.setPen(grid_pen)
+            for x in range(self.pattern.CANVAS_WIDTH + 1):
+                sx1, sy1 = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
+                sx2, sy2 = self.canvas_to_screen(x, 0)
+                painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+            for y in range(self.pattern.CANVAS_HEIGHT + 1):
+                sx1, sy1 = self.canvas_to_screen(0, y)
+                sx2, sy2 = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, y)
+                painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
         # Border rectangle
         border_pen = QPen(self.COLOR_BORDER, 2)

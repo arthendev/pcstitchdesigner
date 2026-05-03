@@ -259,6 +259,11 @@ class MainWindow(QMainWindow):
                                         "Fit Pattern", self)
         self._act_fit_pattern.triggered.connect(self._fit_pattern)
 
+        self._act_show_grid = QAction("Show &Grid", self)
+        self._act_show_grid.setCheckable(True)
+        self._act_show_grid.setChecked(True)
+        self._act_show_grid.triggered.connect(self._toggle_show_grid)
+
         # View orientation
         self._act_orientation_default = QAction("Default", self)
         self._act_orientation_default.setCheckable(True)
@@ -391,6 +396,10 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self._act_fit_height)
         view_menu.addAction(self._act_fit_screen)
         view_menu.addAction(self._act_fit_pattern)
+        view_menu.addSeparator()
+        view_menu.addAction(self._act_show_grid)
+        view_menu.addSeparator()
+        view_menu.addAction(self._act_show_grid)
 
         design_menu = mb.addMenu("&Design")
         design_menu.addAction(self._act_pdesign)
@@ -920,6 +929,10 @@ class MainWindow(QMainWindow):
         
         h_scroll.setValue(int(canvas_center_x - vw / 2))
         v_scroll.setValue(int(canvas_center_y - vh / 2))
+
+    def _toggle_show_grid(self, checked):
+        self._canvas._show_grid = checked
+        self._canvas.update()
 
     # ── Machine ──
 
