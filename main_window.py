@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
         self._machine_comm = MachineComm()
 
         self._file_path = None
+        self._clipboard = None  # List of (x, y) tuples copied from selection
         self._pattern = StitchPattern()
         self._canvas = StitchCanvas(self._pattern)
         self._canvas.changed.connect(self._on_pattern_changed)
@@ -164,6 +165,21 @@ class MainWindow(QMainWindow):
         self._act_redo.setShortcut("Ctrl+Y")
         self._act_redo.triggered.connect(self._edit_redo)
 
+        self._act_copy = QAction("&Copy", self)
+        self._act_copy.setShortcut("Ctrl+C")
+        self._act_copy.setEnabled(False)
+        self._act_copy.triggered.connect(self._edit_copy)
+
+        self._act_cut = QAction("Cu&t", self)
+        self._act_cut.setShortcut("Ctrl+X")
+        self._act_cut.setEnabled(False)
+        self._act_cut.triggered.connect(self._edit_cut)
+
+        self._act_paste = QAction("&Paste", self)
+        self._act_paste.setShortcut("Ctrl+V")
+        self._act_paste.setEnabled(False)
+        self._act_paste.triggered.connect(self._edit_paste)
+
         self._act_select_all = QAction("Select &All", self)
         self._act_select_all.setShortcut("Ctrl+A")
         self._act_select_all.triggered.connect(self._edit_select_all)
@@ -173,7 +189,7 @@ class MainWindow(QMainWindow):
         self._act_clear_selection.setEnabled(False)
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
-        self._act_delete_selected = QAction("Delete Selected", self)
+        self._act_delete_selected = QAction("&Delete", self)
         self._act_delete_selected.setShortcut("Delete")
         self._act_delete_selected.setEnabled(False)
         self._act_delete_selected.triggered.connect(self._edit_delete_selected)
@@ -395,6 +411,11 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_undo)
         edit_menu.addAction(self._act_redo)
         edit_menu.addSeparator()
+        edit_menu.addAction(self._act_copy)
+        edit_menu.addAction(self._act_cut)
+        edit_menu.addAction(self._act_paste)
+        edit_menu.addAction(self._act_delete_selected)
+        edit_menu.addSeparator()
         edit_menu.addAction(self._act_select_all)
         sel_submenu = edit_menu.addMenu("&Selection")
         sel_submenu.addAction(self._act_sel_extend)
@@ -404,7 +425,6 @@ class MainWindow(QMainWindow):
         sel_submenu.addAction(self._act_sel_move_backward)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
-        edit_menu.addAction(self._act_delete_selected)
         edit_menu.addAction(self._act_invert_selected)
         edit_menu.addAction(self._act_mirror_vertical)
         edit_menu.addAction(self._act_mirror_horizontal)
@@ -614,6 +634,9 @@ class MainWindow(QMainWindow):
         has_multiple_selection = has_selection and end > start
         
         n = len(self._pattern.points)
+        self._act_copy.setEnabled(has_multiple_selection)
+        self._act_cut.setEnabled(has_multiple_selection)
+        self._act_paste.setEnabled(self._clipboard is not None)
         self._act_clear_selection.setEnabled(has_selection)
         self._act_delete_selected.setEnabled(has_selection)
         self._act_invert_selected.setEnabled(has_multiple_selection)
@@ -798,6 +821,32 @@ class MainWindow(QMainWindow):
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+
+    def _edit_copy(self):
+        """Copy selected stitch points to the internal clipboard."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None or end <= start:
+            return
+        self._clipboard = list(self._pattern.points[start:end + 1])
+        self._act_paste.setEnabled(True)
+
+    def _edit_cut(self):
+        """Cut selected stitch points: copy to clipboard then delete in one undo step."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None or end <= start:
+            return
+        self._clipboard = self._pattern.cut_range(start, end)
+        self._canvas.set_selection(None, None)
+        self._canvas._update_size()
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._act_paste.setEnabled(True)
+
+    def _edit_paste(self):
+        """Paste clipboard points using the same logic as Insert P-Memory."""
+        if not self._clipboard:
+            return
+        self._apply_insert_pattern(self._clipboard, None)
 
     def _edit_select_all(self):
         """Select all stitch points in the pattern."""
@@ -1125,20 +1174,26 @@ class MainWindow(QMainWindow):
         self._on_tool_pan()
         self._fit_pattern()
 
-    def _apply_insert_pattern(self, points, slot_type):
-        """Replace the currently selected range with points loaded from the machine.
+    def _apply_insert_pattern(self, points, slot_type, append_on_no_selection=False):
+        """Replace the currently selected range with new points.
 
-        If no points are selected, the last pattern point is used as the
-        single-point selection.  The loaded pattern is translated so that its
-        first point coincides with the first point of the selection before the
-        replacement takes place.
+        If no points are selected and *append_on_no_selection* is False (the
+        default), the last pattern point is used as the single-point selection
+        (P-Memory insert behaviour).  When *append_on_no_selection* is True the
+        points are instead appended to the end of the pattern (Copy/Paste
+        behaviour).
+
+        The incoming points are translated so that their first point coincides
+        with the first point of the selection before the replacement takes
+        place.
         """
         start, end = self._canvas.get_selection()
 
-        # Fall back to the last point when nothing is selected
-        if start is None and self._pattern.points:
-            start = len(self._pattern.points) - 1
-            end = start
+        if not append_on_no_selection:
+            # Fall back to the last point when nothing is selected
+            if start is None and self._pattern.points:
+                start = len(self._pattern.points) - 1
+                end = start
 
         # Warn when the loaded slot type differs from the open pattern type,
         # except when inserting a 9mm pattern into a MAXI canvas (compatible).
@@ -1199,9 +1254,18 @@ class MainWindow(QMainWindow):
         clamped = [(max(0, min(cw, x)), max(0, min(ch, y))) for x, y in translated]
 
         if start is None:
-            # Pattern is empty – just load the points as-is
-            self._pattern.set_machine_data(clamped, self._pattern.stitch_type)
-            self._canvas.set_selected_point(None)
+            if append_on_no_selection:
+                # No selection — append to end of the pattern.
+                n = len(self._pattern.points)
+                self._pattern.replace_range(n, n - 1, clamped)
+                if clamped:
+                    self._canvas.set_selection(n, n + len(clamped) - 1)
+                else:
+                    self._canvas.set_selected_point(None)
+            else:
+                # Pattern is empty – just load the points as-is (machine path).
+                self._pattern.set_machine_data(clamped, self._pattern.stitch_type)
+                self._canvas.set_selected_point(None)
         else:
             # When a canvas-fitting shift was applied the inserted pattern no
             # longer starts at the anchor point, so keep pattern.points[start]
@@ -1266,15 +1330,16 @@ class MainWindow(QMainWindow):
         
         # Create a label with clickable links
         label = QLabel(
-            f"<b>PC Stitch Designer</b> v{APP_VERSION}<br><br>"
-            "A stitch pattern editor for PFAFF machines.<br>"
-            "Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.<br><br>"
-            "<b>Project:</b> "
+            f"<h3>PC Stitch Designer v{APP_VERSION}</h3>"
+            "<p>A stitch pattern editor for PFAFF machines.</p>"
+            "<p>Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.</p>"
+            "<p><b>Project:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner">'
-            "github.com/arthendev/pcstitchdesigner</a><br><br>"
-            "<b>New Releases:</b> "
+            "github.com/arthendev/pcstitchdesigner</a></p>"
+            "<p><b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
-            "github.com/arthendev/pcstitchdesigner/releases</a>"
+            "github.com/arthendev/pcstitchdesigner/releases</a></p>"
+            "<p><i>ArthenDev, 2026</i></p>"
         )
         label.setOpenExternalLinks(True)
         label.setTextFormat(Qt.RichText)

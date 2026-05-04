@@ -4,7 +4,7 @@ import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap
 
-from model import AddPointCommand, DeletePointCommand, MovePointCommand
+from model import AddPointCommand, DeletePointCommand, MovePointCommand, MoveManyPointsCommand
 
 
 class BaseTool:
@@ -422,13 +422,24 @@ class MovePointTool(BaseTool):
             canvas.update()
             return
         if self._dragging_indices:
-            # Restore originals and apply move commands
+            # Restore live-preview positions to originals, then commit all moves
+            # as a single undoable step.
             for i, idx in enumerate(self._dragging_indices):
                 canvas.pattern.points[idx] = self._orig_positions[i]
+
+            new_positions = []
+            for i, idx in enumerate(self._dragging_indices):
                 orig_x, orig_y = self._orig_positions[i]
                 new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
                 new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
+                new_positions.append((new_x, new_y))
+
+            if len(self._dragging_indices) == 1:
+                idx = self._dragging_indices[0]
+                new_x, new_y = new_positions[0]
                 canvas.pattern.move_point(idx, new_x, new_y)
+            else:
+                canvas.pattern.move_points(self._dragging_indices, new_positions)
             
             self._dragging_indices = []
             self._orig_positions = []

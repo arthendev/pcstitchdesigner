@@ -50,6 +50,26 @@ class MovePointCommand(Command):
             pattern.points[self.index] = (self.old_x, self.old_y)
 
 
+class MoveManyPointsCommand(Command):
+    """Moves multiple points in one undoable step.
+
+    Args:
+        moves: list of (index, old_x, old_y, new_x, new_y)
+    """
+    def __init__(self, moves):
+        self.moves = moves  # [(index, old_x, old_y, new_x, new_y), ...]
+
+    def redo(self, pattern):
+        for index, old_x, old_y, new_x, new_y in self.moves:
+            if 0 <= index < len(pattern.points):
+                pattern.points[index] = (new_x, new_y)
+
+    def undo(self, pattern):
+        for index, old_x, old_y, new_x, new_y in self.moves:
+            if 0 <= index < len(pattern.points):
+                pattern.points[index] = (old_x, old_y)
+
+
 class DeletePointCommand(Command):
     def __init__(self, index, x, y):
         self.index = index
@@ -251,6 +271,23 @@ class StitchPattern:
             return
         self._exec(MovePointCommand(index, old_x, old_y, new_x, new_y))
 
+    def move_points(self, indices, new_positions):
+        """Move multiple points as a single undoable step.
+
+        Args:
+            indices: list of point indices to move.
+            new_positions: list of (new_x, new_y) tuples, same length as indices.
+        """
+        moves = []
+        for idx, (new_x, new_y) in zip(indices, new_positions):
+            old_x, old_y = self.points[idx]
+            new_x = max(0, min(self.CANVAS_WIDTH, int(round(new_x))))
+            new_y = max(0, min(self.CANVAS_HEIGHT, int(round(new_y))))
+            if (old_x, old_y) != (new_x, new_y):
+                moves.append((idx, old_x, old_y, new_x, new_y))
+        if moves:
+            self._exec(MoveManyPointsCommand(moves))
+
     def delete_point(self, index):
         x, y = self.points[index]
         self._exec(DeletePointCommand(index, x, y))
@@ -262,6 +299,20 @@ class StitchPattern:
         if start > end:
             return
         self._exec(DeleteRangeCommand(start, end))
+
+    def cut_range(self, start, end):
+        """Delete points at indices [start, end] (inclusive) and return them.
+
+        The deletion is a single undoable step.  Returns the list of removed
+        (x, y) tuples, or an empty list when the range is invalid.
+        """
+        start = max(0, start)
+        end = min(len(self.points) - 1, end)
+        if start > end:
+            return []
+        cmd = DeleteRangeCommand(start, end)
+        self._exec(cmd)
+        return list(cmd.saved_points)
 
     def invert_selected(self, start, end):
         """Invert the order of points within the selection."""
