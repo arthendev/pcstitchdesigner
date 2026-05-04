@@ -92,14 +92,26 @@ class PatternPreviewWidget(QWidget):
         painter.drawRect(int(origin_x), int(origin_y), int(pattern_w), int(pattern_h))
 
         if len(points) >= 2:
-            line_pen = QPen(QColor(0, 0, 0), 1)
-            painter.setPen(line_pen)
             for idx in range(len(points) - 1):
                 x1, y1 = points[idx]
                 x2, y2 = points[idx + 1]
                 sx1, sy1 = to_screen(x1, y1)
                 sx2, sy2 = to_screen(x2, y2)
-                painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+
+                # Get line color from palette if available, else use black
+                if self._pattern.has_palette:
+                    color_idx = self._pattern.get_point_color_index(idx)
+                    r, g, b = self._pattern.colors[color_idx]
+                    line_color = QColor(r, g, b)
+                else:
+                    line_color = QColor(0, 0, 0)
+
+                # jump_stitches stores the index of the next point in a new segment.
+                # For segment idx -> idx+1, skip when idx+1 is marked as jump start.
+                if (idx + 1) not in self._pattern.jump_stitches:
+                    line_pen = QPen(line_color, 1)
+                    painter.setPen(line_pen)
+                    painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
 
 class PatternBrowserDialog(QFileDialog):
@@ -109,12 +121,12 @@ class PatternBrowserDialog(QFileDialog):
         super().__init__(parent, "Open Stitch Pattern")
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
-        self.setNameFilter("Stitch Files (*.pcd *.pcq);;All Files (*)")
-        self.selectNameFilter("Stitch Files (*.pcd *.pcq)")
+        self.setNameFilter("All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;Embroidery Files (*.pcs);;All Files (*)")
+        self.selectNameFilter("All Supported Files (*.pcd *.pcq *.pcs)")
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
-        self._info_label = QLabel("Select a .pcd or .pcq file", self)
+        self._info_label = QLabel("Select a .pcd, .pcq, or .pcs file", self)
         self._info_label.setWordWrap(True)
 
         preview_panel = QWidget(self)
@@ -134,11 +146,11 @@ class PatternBrowserDialog(QFileDialog):
     def _on_current_changed(self, path):
         if not path or not os.path.isfile(path):
             self._preview_widget.clear()
-            self._info_label.setText("Select a .pcd or .pcq file")
+            self._info_label.setText("Select a .pcd, .pcq, or .pcs file")
             return
 
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".pcd", ".pcq"):
+        if ext not in (".pcd", ".pcq", ".pcs"):
             self._preview_widget.clear()
             self._info_label.setText("Unsupported file type")
             return
@@ -152,11 +164,16 @@ class PatternBrowserDialog(QFileDialog):
 
         self._preview_widget.set_pattern(pattern)
         width_mm, height_mm = pattern.get_stitch_size_mm()
-        self._info_label.setText(
+        info_text = (
             f"Type: {pattern.stitch_type}"
             f", Size: {width_mm:.2f} x {height_mm:.2f} mm"
             f", Stitches: {len(pattern.points)}"
         )
+        if pattern.has_palette:
+            info_text += f", Colors: {len(pattern.colors)}"
+        if pattern.jump_stitches:
+            info_text += f", Jumps: {len(pattern.jump_stitches)}"
+        self._info_label.setText(info_text)
 
     @staticmethod
     def getOpenFileName(parent=None, directory=""):

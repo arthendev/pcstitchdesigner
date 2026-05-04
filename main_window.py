@@ -696,7 +696,7 @@ class MainWindow(QMainWindow):
             return
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Stitch Pattern", "",
-            "Stitch Files (*.pcd;*pcq);;All Files (*)",
+            "All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;Embroidery Files (*.pcs);;All Files (*)",
         )
         if not path:
             return
