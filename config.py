@@ -35,14 +35,19 @@ class Config:
             "machine_model": "PFAFF Creative 7570",
             "machine_port": "",
             "machine_high_speed": False,
-            # Display preferences
-            "display_line_color": "#000000",
-            "display_line_width": "medium",
-            "display_point_color": "#000000",
-            "display_point_size": "medium",
-            "display_grid_color": "#dcdcdc",
-            "display_show_stitch_points": True,
-            "display_show_grid": True,
+            # Stitch display preferences (9mm / MAXI)
+            "stitch_line_color": "#000000",
+            "stitch_line_width": "medium",
+            "stitch_point_color": "#000000",
+            "stitch_point_size": "medium",
+            "stitch_grid_color": "#dcdcdc",
+            "stitch_show_stitch_points": True,
+            "stitch_show_grid": True,
+            "embroidery_line_width": "medium",
+            "embroidery_point_size": "medium",
+            "embroidery_grid_color": "#dcdcdc",
+            "embroidery_show_stitch_points": False,
+            "embroidery_show_grid": False,
         }
 
         # Try to load existing config
@@ -152,23 +157,36 @@ class Config:
     def get_display_preferences(self):
         """Return display preference values as a dict."""
         return {
-            "line_color": self._data.get("display_line_color", "#000000"),
-            "line_width": self._data.get("display_line_width", "medium"),
-            "point_color": self._data.get("display_point_color", "#000000"),
-            "point_size": self._data.get("display_point_size", "big"),
-            "grid_color": self._data.get("display_grid_color", "#dcdcdc"),
-            "show_stitch_points": self._data.get("display_show_stitch_points", True),
-            "show_grid": self._data.get("display_show_grid", True),
+            "line_color": self._data.get("stitch_line_color", "#000000"),
+            "line_width": self._data.get("stitch_line_width", "medium"),
+            "point_color": self._data.get("stitch_point_color", "#000000"),
+            "point_size": self._data.get("stitch_point_size", "big"),
+            "grid_color": self._data.get("stitch_grid_color", "#dcdcdc"),
+            "show_stitch_points": self._data.get("stitch_show_stitch_points", True),
+            "show_grid": self._data.get("stitch_show_grid", True),
+            "embroidery_line_width": self._data.get("embroidery_line_width", "medium"),
+            "embroidery_point_size": self._data.get("embroidery_point_size", "medium"),
+            "embroidery_grid_color": self._data.get("embroidery_grid_color", "#dcdcdc"),
+            "embroidery_show_stitch_points": self._data.get("embroidery_show_stitch_points", False),
+            "embroidery_show_grid": self._data.get("embroidery_show_grid", False),
         }
 
     def set_display_preferences(self, line_color, line_width, point_color,
                                 point_size, grid_color, show_stitch_points,
-                                show_grid):
+                                show_grid, embroidery_line_width,
+                                embroidery_point_size, embroidery_grid_color,
+                                embroidery_show_stitch_points,
+                                embroidery_show_grid):
         """Persist display preferences."""
-        self._data["display_line_color"] = line_color
-        self._data["display_line_width"] = line_width
-        self._data["display_point_color"] = point_color
-        self._data["display_point_size"] = point_size
-        self._data["display_grid_color"] = grid_color
-        self._data["display_show_stitch_points"] = bool(show_stitch_points)
-        self._data["display_show_grid"] = bool(show_grid)
+        self._data["stitch_line_color"] = line_color
+        self._data["stitch_line_width"] = line_width
+        self._data["stitch_point_color"] = point_color
+        self._data["stitch_point_size"] = point_size
+        self._data["stitch_grid_color"] = grid_color
+        self._data["stitch_show_stitch_points"] = bool(show_stitch_points)
+        self._data["stitch_show_grid"] = bool(show_grid)
+        self._data["embroidery_line_width"] = embroidery_line_width
+        self._data["embroidery_point_size"] = embroidery_point_size
+        self._data["embroidery_grid_color"] = embroidery_grid_color
+        self._data["embroidery_show_stitch_points"] = bool(embroidery_show_stitch_points)
+        self._data["embroidery_show_grid"] = bool(embroidery_show_grid)

@@ -14,7 +14,7 @@ from PyQt5.QtCore import Qt
 
 # ── Display defaults ────────────────────────────────────────────────────────
 
-DISPLAY_DEFAULTS = {
+STITCH_DISPLAY_DEFAULTS = {
     "line_color": "#000000",
     "line_width": "medium",
     "point_color": "#000000",
@@ -22,6 +22,14 @@ DISPLAY_DEFAULTS = {
     "grid_color": "#dcdcdc",
     "show_stitch_points": True,
     "show_grid": True,
+}
+
+EMBROIDERY_DISPLAY_DEFAULTS = {
+    "line_width": "medium",
+    "point_size": "medium",
+    "grid_color": "#dcdcdc",
+    "show_stitch_points": False,
+    "show_grid": False,
 }
 
 MACHINE_MODELS = [
@@ -158,33 +166,33 @@ class DisplayTab(QWidget):
         outer.setContentsMargins(12, 12, 12, 12)
         outer.setSpacing(10)
 
-        group = QGroupBox("9 mm / MAXI Stitches")
-        form = QFormLayout(group)
-        form.setVerticalSpacing(8)
-        form.setHorizontalSpacing(8)
+        stitch_group = QGroupBox("9 mm / MAXI Stitches")
+        stitch_form = QFormLayout(stitch_group)
+        stitch_form.setVerticalSpacing(8)
+        stitch_form.setHorizontalSpacing(8)
 
         # Line color + width
-        self._line_color_btn = ColorButton(prefs.get("line_color", DISPLAY_DEFAULTS["line_color"]))
+        self._line_color_btn = ColorButton(prefs.get("line_color", STITCH_DISPLAY_DEFAULTS["line_color"]))
         self._line_width_combo = QComboBox()
         for opt in ("fine", "medium", "thick", "very thick"):
             self._line_width_combo.addItem(opt.capitalize(), opt)
-        self._select_combo(self._line_width_combo, prefs.get("line_width", DISPLAY_DEFAULTS["line_width"]))
+        self._select_combo(self._line_width_combo, prefs.get("line_width", STITCH_DISPLAY_DEFAULTS["line_width"]))
         line_row = QHBoxLayout()
         line_row.setSpacing(6)
         line_row.addWidget(self._line_color_btn)
         line_row.addWidget(self._line_width_combo)
         line_row.addStretch()
-        form.addRow("Line:", line_row)
+        stitch_form.addRow("Line:", line_row)
 
         # Stitch point color + size
-        self._point_color_btn = ColorButton(prefs.get("point_color", DISPLAY_DEFAULTS["point_color"]))
+        self._point_color_btn = ColorButton(prefs.get("point_color", STITCH_DISPLAY_DEFAULTS["point_color"]))
         self._point_size_combo = QComboBox()
         for opt in ("small", "medium", "large"):
             self._point_size_combo.addItem(opt.capitalize(), opt)
-        self._select_combo(self._point_size_combo, prefs.get("point_size", DISPLAY_DEFAULTS["point_size"]))
+        self._select_combo(self._point_size_combo, prefs.get("point_size", STITCH_DISPLAY_DEFAULTS["point_size"]))
         self._show_stitch_points_cb = QCheckBox("Show by default")
         self._show_stitch_points_cb.setChecked(
-            bool(prefs.get("show_stitch_points", DISPLAY_DEFAULTS["show_stitch_points"]))
+            bool(prefs.get("show_stitch_points", STITCH_DISPLAY_DEFAULTS["show_stitch_points"]))
         )
         point_row = QHBoxLayout()
         point_row.setSpacing(6)
@@ -192,20 +200,77 @@ class DisplayTab(QWidget):
         point_row.addWidget(self._point_size_combo)
         point_row.addWidget(self._show_stitch_points_cb)
         point_row.addStretch()
-        form.addRow("Stitch Points:", point_row)
+        stitch_form.addRow("Stitch Points:", point_row)
 
         # Grid color
-        self._grid_color_btn = ColorButton(prefs.get("grid_color", DISPLAY_DEFAULTS["grid_color"]))
+        self._grid_color_btn = ColorButton(prefs.get("grid_color", STITCH_DISPLAY_DEFAULTS["grid_color"]))
         self._show_grid_cb = QCheckBox("Show by default")
-        self._show_grid_cb.setChecked(bool(prefs.get("show_grid", DISPLAY_DEFAULTS["show_grid"])))
+        self._show_grid_cb.setChecked(bool(prefs.get("show_grid", STITCH_DISPLAY_DEFAULTS["show_grid"])))
         grid_row = QHBoxLayout()
         grid_row.setSpacing(6)
         grid_row.addWidget(self._grid_color_btn)
         grid_row.addWidget(self._show_grid_cb)
         grid_row.addStretch()
-        form.addRow("Grid:", grid_row)
+        stitch_form.addRow("Grid:", grid_row)
 
-        outer.addWidget(group)
+        outer.addWidget(stitch_group)
+
+        embroidery_group = QGroupBox("Embroidery")
+        embroidery_form = QFormLayout(embroidery_group)
+        embroidery_form.setVerticalSpacing(8)
+        embroidery_form.setHorizontalSpacing(8)
+
+        self._embroidery_line_width_combo = QComboBox()
+        for opt in ("fine", "medium", "thick", "very thick"):
+            self._embroidery_line_width_combo.addItem(opt.capitalize(), opt)
+        self._select_combo(
+            self._embroidery_line_width_combo,
+            prefs.get("embroidery_line_width", EMBROIDERY_DISPLAY_DEFAULTS["line_width"]),
+        )
+        embroidery_line_row = QHBoxLayout()
+        embroidery_line_row.setSpacing(6)
+        embroidery_line_row.addWidget(self._embroidery_line_width_combo)
+        embroidery_line_row.addStretch()
+        embroidery_form.addRow("Line:", embroidery_line_row)
+
+        self._embroidery_point_size_combo = QComboBox()
+        for opt in ("small", "medium", "large"):
+            self._embroidery_point_size_combo.addItem(opt.capitalize(), opt)
+        self._select_combo(
+            self._embroidery_point_size_combo,
+            prefs.get("embroidery_point_size", EMBROIDERY_DISPLAY_DEFAULTS["point_size"]),
+        )
+        self._embroidery_show_stitch_points_cb = QCheckBox("Show by default")
+        self._embroidery_show_stitch_points_cb.setChecked(
+            bool(
+                prefs.get(
+                    "embroidery_show_stitch_points",
+                    EMBROIDERY_DISPLAY_DEFAULTS["show_stitch_points"],
+                )
+            )
+        )
+        embroidery_point_row = QHBoxLayout()
+        embroidery_point_row.setSpacing(6)
+        embroidery_point_row.addWidget(self._embroidery_point_size_combo)
+        embroidery_point_row.addWidget(self._embroidery_show_stitch_points_cb)
+        embroidery_point_row.addStretch()
+        embroidery_form.addRow("Stitch Points:", embroidery_point_row)
+
+        self._embroidery_grid_color_btn = ColorButton(
+            prefs.get("embroidery_grid_color", EMBROIDERY_DISPLAY_DEFAULTS["grid_color"])
+        )
+        self._embroidery_show_grid_cb = QCheckBox("Show by default")
+        self._embroidery_show_grid_cb.setChecked(
+            bool(prefs.get("embroidery_show_grid", EMBROIDERY_DISPLAY_DEFAULTS["show_grid"]))
+        )
+        embroidery_grid_row = QHBoxLayout()
+        embroidery_grid_row.setSpacing(6)
+        embroidery_grid_row.addWidget(self._embroidery_grid_color_btn)
+        embroidery_grid_row.addWidget(self._embroidery_show_grid_cb)
+        embroidery_grid_row.addStretch()
+        embroidery_form.addRow("Grid:", embroidery_grid_row)
+
+        outer.addWidget(embroidery_group)
 
         # Restore defaults button
         restore_btn = QPushButton("Restore Defaults")
@@ -224,13 +289,20 @@ class DisplayTab(QWidget):
                 return
 
     def _restore_defaults(self):
-        self._line_color_btn.set_color(DISPLAY_DEFAULTS["line_color"])
-        self._select_combo(self._line_width_combo, DISPLAY_DEFAULTS["line_width"])
-        self._point_color_btn.set_color(DISPLAY_DEFAULTS["point_color"])
-        self._select_combo(self._point_size_combo, DISPLAY_DEFAULTS["point_size"])
-        self._grid_color_btn.set_color(DISPLAY_DEFAULTS["grid_color"])
-        self._show_stitch_points_cb.setChecked(DISPLAY_DEFAULTS["show_stitch_points"])
-        self._show_grid_cb.setChecked(DISPLAY_DEFAULTS["show_grid"])
+        self._line_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["line_color"])
+        self._select_combo(self._line_width_combo, STITCH_DISPLAY_DEFAULTS["line_width"])
+        self._point_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["point_color"])
+        self._select_combo(self._point_size_combo, STITCH_DISPLAY_DEFAULTS["point_size"])
+        self._grid_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["grid_color"])
+        self._show_stitch_points_cb.setChecked(STITCH_DISPLAY_DEFAULTS["show_stitch_points"])
+        self._show_grid_cb.setChecked(STITCH_DISPLAY_DEFAULTS["show_grid"])
+        self._select_combo(self._embroidery_line_width_combo, EMBROIDERY_DISPLAY_DEFAULTS["line_width"])
+        self._select_combo(self._embroidery_point_size_combo, EMBROIDERY_DISPLAY_DEFAULTS["point_size"])
+        self._embroidery_grid_color_btn.set_color(EMBROIDERY_DISPLAY_DEFAULTS["grid_color"])
+        self._embroidery_show_stitch_points_cb.setChecked(
+            EMBROIDERY_DISPLAY_DEFAULTS["show_stitch_points"]
+        )
+        self._embroidery_show_grid_cb.setChecked(EMBROIDERY_DISPLAY_DEFAULTS["show_grid"])
 
     def values(self) -> dict:
         return {
@@ -241,6 +313,11 @@ class DisplayTab(QWidget):
             "grid_color": self._grid_color_btn.color(),
             "show_stitch_points": self._show_stitch_points_cb.isChecked(),
             "show_grid": self._show_grid_cb.isChecked(),
+            "embroidery_line_width": self._embroidery_line_width_combo.currentData(),
+            "embroidery_point_size": self._embroidery_point_size_combo.currentData(),
+            "embroidery_grid_color": self._embroidery_grid_color_btn.color(),
+            "embroidery_show_stitch_points": self._embroidery_show_stitch_points_cb.isChecked(),
+            "embroidery_show_grid": self._embroidery_show_grid_cb.isChecked(),
         }
 
 
@@ -288,6 +365,11 @@ class PreferencesDialog(QDialog):
             grid_color=d["grid_color"],
             show_stitch_points=d["show_stitch_points"],
             show_grid=d["show_grid"],
+            embroidery_line_width=d["embroidery_line_width"],
+            embroidery_point_size=d["embroidery_point_size"],
+            embroidery_grid_color=d["embroidery_grid_color"],
+            embroidery_show_stitch_points=d["embroidery_show_stitch_points"],
+            embroidery_show_grid=d["embroidery_show_grid"],
         )
         self._config.save()
         self.accept()

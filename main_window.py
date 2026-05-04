@@ -622,6 +622,7 @@ class MainWindow(QMainWindow):
             self._act_maxi.setChecked(True)
             return
         self._pattern.stitch_type = "9mm"
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -639,6 +640,7 @@ class MainWindow(QMainWindow):
             self._act_9mm.setChecked(True)
             return
         self._pattern.stitch_type = "MAXI"
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -659,6 +661,7 @@ class MainWindow(QMainWindow):
             self._act_large_hoop.setChecked(True)
             return
         self._pattern.stitch_type = "small hoop"
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -677,6 +680,7 @@ class MainWindow(QMainWindow):
             self._act_small_hoop.setChecked(True)
             return
         self._pattern.stitch_type = "large hoop"
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -841,6 +845,7 @@ class MainWindow(QMainWindow):
             self._on_pdesign_selected()
         
         # Update canvas
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
@@ -1452,19 +1457,31 @@ class MainWindow(QMainWindow):
 
     def _apply_display_settings(self):
         d = self._config.get_display_preferences()
+        if self._is_hoop_type():
+            line_width = d["embroidery_line_width"]
+            point_size = d["embroidery_point_size"]
+            grid_color = d["embroidery_grid_color"]
+            show_stitch_points = d["embroidery_show_stitch_points"]
+            show_grid = d["embroidery_show_grid"]
+        else:
+            line_width = d["line_width"]
+            point_size = d["point_size"]
+            grid_color = d["grid_color"]
+            show_stitch_points = d["show_stitch_points"]
+            show_grid = d["show_grid"]
         self._canvas.apply_display_settings(
             line_color=d["line_color"],
-            line_width=d["line_width"],
+            line_width=line_width,
             point_color=d["point_color"],
-            point_size=d["point_size"],
-            grid_color=d["grid_color"],
-            show_stitch_points=d["show_stitch_points"],
-            show_grid=d["show_grid"],
+            point_size=point_size,
+            grid_color=grid_color,
+            show_stitch_points=show_stitch_points,
+            show_grid=show_grid,
         )
-        self._act_show_grid.setChecked(bool(d["show_grid"]))
-        self._act_show_grid_menu.setChecked(bool(d["show_grid"]))
-        self._act_show_stitch_points.setChecked(bool(d["show_stitch_points"]))
-        self._act_show_stitch_points_menu.setChecked(bool(d["show_stitch_points"]))
+        self._act_show_grid.setChecked(bool(show_grid))
+        self._act_show_grid_menu.setChecked(bool(show_grid))
+        self._act_show_stitch_points.setChecked(bool(show_stitch_points))
+        self._act_show_stitch_points_menu.setChecked(bool(show_stitch_points))
 
     # ── Help ──
 
