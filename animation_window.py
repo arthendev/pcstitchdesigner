@@ -80,14 +80,11 @@ class AnimationCanvas(QWidget):
         """Return cached (bx0, by0, bx1, by1) bounding box of all pattern points."""
         if self._bbox_vals is not None:
             return self._bbox_vals
-        pts = self._pattern.points
-        if not pts:
+        bounds = self._pattern.get_stitch_bounds()
+        if bounds is None:
             self._bbox_vals = (0, 0, 6, 6)
             return self._bbox_vals
-        xs = [x for x, y in pts]
-        ys = [y for x, y in pts]
-        bx0, bx1 = min(xs), max(xs)
-        by0, by1 = min(ys), max(ys)
+        bx0, by0, bx1, by1 = bounds
         if bx0 == bx1:
             bx0 = max(0, bx0 - 1); bx1 += 1
         if by0 == by1:

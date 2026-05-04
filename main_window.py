@@ -938,14 +938,10 @@ class MainWindow(QMainWindow):
 
     def _fit_pattern(self):
         """Fit the view to show only the designed stitch pattern."""
-        if not self._pattern.points:
+        bounds = self._pattern.get_stitch_bounds()
+        if bounds is None:
             return
-        
-        # Calculate bounding box of all points (using bottom-left reference)
-        xs = [x for x, y in self._pattern.points]
-        ys = [y for x, y in self._pattern.points]
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
+        min_x, min_y, max_x, max_y = bounds
         
         # Add margins around the pattern
         margin = 20
