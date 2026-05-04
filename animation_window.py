@@ -27,10 +27,6 @@ class AnimationCanvas(QWidget):
     COLOR_BORDER = QColor(0, 80, 200)
     COLOR_LABEL = QColor(80, 80, 80)
     COLOR_LINE = QColor(0, 0, 0)
-    COLOR_POINT = QColor(0, 0, 0)
-    COLOR_FIRST = QColor(0, 200, 0)    # green — first stitch
-    COLOR_HEAD = QColor(255, 140, 0)   # orange — current animation head
-    COLOR_LAST = QColor(200, 0, 0)     # red — final stitch (when complete)
 
     def __init__(self, pattern, parent=None):
         super().__init__(parent)
@@ -48,14 +44,13 @@ class AnimationCanvas(QWidget):
         self._lines_pixmap = None   # QPixmap with lines drawn up to _lines_count points
         self._lines_count = 0
 
+        # Per-palette-colour pen cache  {color_index: QPen}
+        self._color_pens = {}
+
         # Pre-built pens / brushes (avoid allocation inside paintEvent)
         self._pen_line   = QPen(self.COLOR_LINE,   2)
         self._pen_border = QPen(self.COLOR_BORDER, 1)
         self._pen_label  = QPen(self.COLOR_LABEL,  1)
-        self._brush_point = QBrush(self.COLOR_POINT)
-        self._brush_first = QBrush(self.COLOR_FIRST)
-        self._brush_head  = QBrush(self.COLOR_HEAD)
-        self._brush_last  = QBrush(self.COLOR_LAST)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(300, 150)
@@ -75,6 +70,7 @@ class AnimationCanvas(QWidget):
         self._bbox_vals = None
         self._lines_pixmap = None
         self._lines_count = 0
+        self._color_pens = {}
 
     def _bbox(self):
         """Return cached (bx0, by0, bx1, by1) bounding box of all pattern points."""
@@ -112,6 +108,52 @@ class AnimationCanvas(QWidget):
             for cx, cy in self._pattern.points
         ]
 
+    def _pen_for_segment(self, seg_idx):
+        """Return the QPen for segment seg_idx (the line from point seg_idx to seg_idx+1)."""
+        if not self._pattern.has_palette:
+            return self._pen_line
+        color_idx = self._pattern.get_point_color_index(seg_idx)
+        if color_idx not in self._color_pens:
+            r, g, b = self._pattern.colors[color_idx]
+            self._color_pens[color_idx] = QPen(QColor(r, g, b), 2)
+        return self._color_pens[color_idx]
+
+    def _draw_segments(self, painter, from_seg, to_seg):
+        """Draw line segments [from_seg, to_seg) onto painter.
+
+        Segments are grouped into polylines by colour and split at jump stitches.
+        Segment i connects screen points i and i+1.
+        """
+        pts = self._screen_pts
+        jump = self._pattern.jump_stitches
+        run = []
+        run_pen = None
+        for i in range(from_seg, to_seg):
+            # A jump at point i+1 means no line from i to i+1
+            if (i + 1) in jump:
+                if len(run) >= 2:
+                    painter.setPen(run_pen)
+                    painter.drawPolyline(QPolygon([QPoint(sx, sy) for sx, sy in run]))
+                run = []
+                run_pen = None
+                continue
+            pen = self._pen_for_segment(i)
+            if not run:
+                run = [pts[i], pts[i + 1]]
+                run_pen = pen
+            elif pen is run_pen:
+                run.append(pts[i + 1])
+            else:
+                # Colour change — flush and start new run, overlapping at junction
+                if len(run) >= 2:
+                    painter.setPen(run_pen)
+                    painter.drawPolyline(QPolygon([QPoint(sx, sy) for sx, sy in run]))
+                run = [pts[i], pts[i + 1]]
+                run_pen = pen
+        if len(run) >= 2:
+            painter.setPen(run_pen)
+            painter.drawPolyline(QPolygon([QPoint(sx, sy) for sx, sy in run]))
+
     def _ensure_lines_pixmap(self, n):
         """Incrementally extend the backing pixmap to cover n visible points."""
         size = self.size()
@@ -124,15 +166,13 @@ class AnimationCanvas(QWidget):
             self._lines_count = 0
 
         if n >= 2 and self._lines_count < n:
-            # Only paint the new segment(s) — connect from last drawn point
-            start = max(1, self._lines_count)
-            new_pts = self._screen_pts[start - 1 : n]
-            if len(new_pts) >= 2:
-                p = QPainter(self._lines_pixmap)
-                p.setRenderHint(QPainter.Antialiasing)
-                p.setPen(self._pen_line)
-                p.drawPolyline(QPolygon([QPoint(sx, sy) for sx, sy in new_pts]))
-                p.end()
+            # Draw only the new segments onto the pixmap
+            from_seg = max(0, self._lines_count - 1)
+            to_seg   = n - 1
+            p = QPainter(self._lines_pixmap)
+            p.setRenderHint(QPainter.Antialiasing)
+            self._draw_segments(p, from_seg, to_seg)
+            p.end()
 
         self._lines_count = n
 
@@ -181,28 +221,6 @@ class AnimationCanvas(QWidget):
         if n >= 2:
             self._ensure_lines_pixmap(n)
             painter.drawPixmap(0, 0, self._lines_pixmap)
-
-        # Points — batch by colour to minimise brush-switch overhead
-        r = max(2, int(3 * min(scale / 4.0, 1.5)))
-        total = len(self._pattern.points)
-        painter.setPen(Qt.NoPen)
-
-        # Interior points (all same colour — single brush set)
-        if n > 2:
-            painter.setBrush(self._brush_point)
-            for sx, sy in self._screen_pts[1:n - 1]:
-                painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
-
-        # First point
-        if n > 1:
-            painter.setBrush(self._brush_first)
-            sx, sy = self._screen_pts[0]
-            painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
-
-        # Head / last point
-        painter.setBrush(self._brush_last if n == total else self._brush_head)
-        sx, sy = self._screen_pts[n - 1]
-        painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
 
         painter.end()
 
