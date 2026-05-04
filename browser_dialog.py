@@ -126,6 +126,8 @@ class PatternBrowserDialog(QFileDialog):
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
+        self._size_label = QLabel("Size: -", self)
+        self._size_label.setWordWrap(True)
         self._info_label = QLabel("Select a .pcd, .pcq, or .pcs file", self)
         self._info_label.setWordWrap(True)
 
@@ -135,6 +137,7 @@ class PatternBrowserDialog(QFileDialog):
         preview_layout.setSpacing(8)
         preview_layout.addWidget(QLabel("Preview", self))
         preview_layout.addWidget(self._preview_widget, 1)
+        preview_layout.addWidget(self._size_label)
         preview_layout.addWidget(self._info_label)
 
         layout = self.layout()
@@ -146,12 +149,14 @@ class PatternBrowserDialog(QFileDialog):
     def _on_current_changed(self, path):
         if not path or not os.path.isfile(path):
             self._preview_widget.clear()
+            self._size_label.setText("Size: -")
             self._info_label.setText("Select a .pcd, .pcq, or .pcs file")
             return
 
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".pcd", ".pcq", ".pcs"):
             self._preview_widget.clear()
+            self._size_label.setText("Size: -")
             self._info_label.setText("Unsupported file type")
             return
 
@@ -159,14 +164,15 @@ class PatternBrowserDialog(QFileDialog):
             pattern = file_io.load_pattern(path)
         except Exception as exc:
             self._preview_widget.clear()
+            self._size_label.setText("Size: -")
             self._info_label.setText(f"Preview unavailable: {exc}")
             return
 
         self._preview_widget.set_pattern(pattern)
         width_mm, height_mm = pattern.get_stitch_size_mm()
+        self._size_label.setText(f"Size: {width_mm:.2f} x {height_mm:.2f} mm")
         info_text = (
             f"Type: {pattern.stitch_type}"
-            f", Size: {width_mm:.2f} x {height_mm:.2f} mm"
             f", Stitches: {len(pattern.points)}"
         )
         if pattern.has_palette:
