@@ -118,7 +118,8 @@ class StitchCanvas(QWidget):
         self.update()
 
     def apply_display_settings(self, line_color, line_width, point_color,
-                               point_size, grid_color):
+                               point_size, grid_color, show_stitch_points,
+                               show_grid):
         """Apply display preferences and redraw.
 
         Args:
@@ -127,12 +128,16 @@ class StitchCanvas(QWidget):
             point_color: Hex string.
             point_size: 'small', 'medium', or 'large'.
             grid_color: Hex string.
+            show_stitch_points: Whether stitch points are shown by default.
+            show_grid: Whether grid is shown by default.
         """
         self._color_line = QColor(line_color)
         self._color_point = QColor(point_color)
         self._color_grid = QColor(grid_color)
         self._line_width = self.LINE_WIDTHS.get(line_width, 2)
         self._point_radius = self.POINT_RADII.get(point_size, 3)
+        self._show_stitch_points = bool(show_stitch_points)
+        self._show_grid = bool(show_grid)
         self.update()
 
     def get_selected_point(self):

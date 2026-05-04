@@ -20,6 +20,8 @@ DISPLAY_DEFAULTS = {
     "point_color": "#000000",
     "point_size": "medium",
     "grid_color": "#dcdcdc",
+    "show_stitch_points": True,
+    "show_grid": True,
 }
 
 MACHINE_MODELS = [
@@ -180,16 +182,28 @@ class DisplayTab(QWidget):
         for opt in ("small", "medium", "large"):
             self._point_size_combo.addItem(opt.capitalize(), opt)
         self._select_combo(self._point_size_combo, prefs.get("point_size", DISPLAY_DEFAULTS["point_size"]))
+        self._show_stitch_points_cb = QCheckBox("Show by default")
+        self._show_stitch_points_cb.setChecked(
+            bool(prefs.get("show_stitch_points", DISPLAY_DEFAULTS["show_stitch_points"]))
+        )
         point_row = QHBoxLayout()
         point_row.setSpacing(6)
         point_row.addWidget(self._point_color_btn)
         point_row.addWidget(self._point_size_combo)
+        point_row.addWidget(self._show_stitch_points_cb)
         point_row.addStretch()
         form.addRow("Stitch Points:", point_row)
 
         # Grid color
         self._grid_color_btn = ColorButton(prefs.get("grid_color", DISPLAY_DEFAULTS["grid_color"]))
-        form.addRow("Grid:", self._grid_color_btn)
+        self._show_grid_cb = QCheckBox("Show by default")
+        self._show_grid_cb.setChecked(bool(prefs.get("show_grid", DISPLAY_DEFAULTS["show_grid"])))
+        grid_row = QHBoxLayout()
+        grid_row.setSpacing(6)
+        grid_row.addWidget(self._grid_color_btn)
+        grid_row.addWidget(self._show_grid_cb)
+        grid_row.addStretch()
+        form.addRow("Grid:", grid_row)
 
         outer.addWidget(group)
 
@@ -215,6 +229,8 @@ class DisplayTab(QWidget):
         self._point_color_btn.set_color(DISPLAY_DEFAULTS["point_color"])
         self._select_combo(self._point_size_combo, DISPLAY_DEFAULTS["point_size"])
         self._grid_color_btn.set_color(DISPLAY_DEFAULTS["grid_color"])
+        self._show_stitch_points_cb.setChecked(DISPLAY_DEFAULTS["show_stitch_points"])
+        self._show_grid_cb.setChecked(DISPLAY_DEFAULTS["show_grid"])
 
     def values(self) -> dict:
         return {
@@ -223,6 +239,8 @@ class DisplayTab(QWidget):
             "point_color": self._point_color_btn.color(),
             "point_size": self._point_size_combo.currentData(),
             "grid_color": self._grid_color_btn.color(),
+            "show_stitch_points": self._show_stitch_points_cb.isChecked(),
+            "show_grid": self._show_grid_cb.isChecked(),
         }
 
 
@@ -268,6 +286,8 @@ class PreferencesDialog(QDialog):
             point_color=d["point_color"],
             point_size=d["point_size"],
             grid_color=d["grid_color"],
+            show_stitch_points=d["show_stitch_points"],
+            show_grid=d["show_grid"],
         )
         self._config.save()
         self.accept()

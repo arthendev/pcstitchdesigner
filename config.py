@@ -41,6 +41,8 @@ class Config:
             "display_point_color": "#000000",
             "display_point_size": "medium",
             "display_grid_color": "#dcdcdc",
+            "display_show_stitch_points": True,
+            "display_show_grid": True,
         }
 
         # Try to load existing config
@@ -155,13 +157,18 @@ class Config:
             "point_color": self._data.get("display_point_color", "#000000"),
             "point_size": self._data.get("display_point_size", "big"),
             "grid_color": self._data.get("display_grid_color", "#dcdcdc"),
+            "show_stitch_points": self._data.get("display_show_stitch_points", True),
+            "show_grid": self._data.get("display_show_grid", True),
         }
 
     def set_display_preferences(self, line_color, line_width, point_color,
-                                point_size, grid_color):
+                                point_size, grid_color, show_stitch_points,
+                                show_grid):
         """Persist display preferences."""
         self._data["display_line_color"] = line_color
         self._data["display_line_width"] = line_width
         self._data["display_point_color"] = point_color
         self._data["display_point_size"] = point_size
         self._data["display_grid_color"] = grid_color
+        self._data["display_show_stitch_points"] = bool(show_stitch_points)
+        self._data["display_show_grid"] = bool(show_grid)

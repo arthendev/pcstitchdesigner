@@ -304,6 +304,14 @@ class MainWindow(QMainWindow):
         self._act_show_stitch_points.setChecked(True)
         self._act_show_stitch_points.triggered.connect(self._toggle_show_stitch_points)
 
+        # Menu-only version: checkbox, no icon
+        self._act_show_stitch_points_menu = QAction("Show &Stitch Points", self)
+        self._act_show_stitch_points_menu.setCheckable(True)
+        self._act_show_stitch_points_menu.setChecked(True)
+        self._act_show_stitch_points_menu.triggered.connect(self._toggle_show_stitch_points)
+        self._act_show_stitch_points_menu.triggered.connect(self._act_show_stitch_points.setChecked)
+        self._act_show_stitch_points.triggered.connect(self._act_show_stitch_points_menu.setChecked)
+
         self._act_animate = QAction(
             QIcon(os.path.join(_icons, "player.svg")),
             "&Animate Stitching", self
@@ -366,6 +374,18 @@ class MainWindow(QMainWindow):
         self._stitch_group.setExclusive(True)
         self._stitch_group.addAction(self._act_9mm)
         self._stitch_group.addAction(self._act_maxi)
+
+        # Hoop type (Small / Large) - visible when P-Design is selected
+        self._act_small_hoop = QAction("Small Hoop", self)
+        self._act_small_hoop.setCheckable(True)
+        self._act_small_hoop.triggered.connect(self._on_stitch_small_hoop)
+
+        self._act_large_hoop = QAction("Large Hoop", self)
+        self._act_large_hoop.setCheckable(True)
+        self._act_large_hoop.triggered.connect(self._on_stitch_large_hoop)
+
+        self._stitch_group.addAction(self._act_small_hoop)
+        self._stitch_group.addAction(self._act_large_hoop)
 
         # Machine
         self._act_machine_load_pmem = QAction("Load P-Memory", self)
@@ -460,7 +480,7 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self._act_fit_pattern)
         view_menu.addSeparator()
         view_menu.addAction(self._act_show_grid_menu)
-        view_menu.addAction(self._act_show_stitch_points)
+        view_menu.addAction(self._act_show_stitch_points_menu)
         view_menu.addSeparator()
         view_menu.addAction(self._act_animate)
 
@@ -470,6 +490,8 @@ class MainWindow(QMainWindow):
         design_menu.addSeparator()
         design_menu.addAction(self._act_9mm)
         design_menu.addAction(self._act_maxi)
+        design_menu.addAction(self._act_small_hoop)
+        design_menu.addAction(self._act_large_hoop)
 
         machine_menu = mb.addMenu("&Machine")
         machine_menu.addAction(self._act_machine_load_pmem)
@@ -545,10 +567,14 @@ class MainWindow(QMainWindow):
     def _on_pdesign_selected(self):
         self._act_9mm.setVisible(True)
         self._act_maxi.setVisible(True)
+        self._act_small_hoop.setVisible(True)
+        self._act_large_hoop.setVisible(True)
 
     def _on_mdesign_selected(self):
         self._act_9mm.setVisible(False)
         self._act_maxi.setVisible(False)
+        self._act_small_hoop.setVisible(False)
+        self._act_large_hoop.setVisible(False)
 
     # ── View orientation ──
 
@@ -599,6 +625,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
         if not self._pattern.points:
             self._zoom_fit_height()
 
@@ -615,6 +642,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
 
         # Center the pattern in the view
         if self._pattern.points:
@@ -622,7 +650,79 @@ class MainWindow(QMainWindow):
         else:
             self._zoom_fit_height()
 
+    def _on_stitch_small_hoop(self):
+        if not self._pattern_fits_in_canvas("small hoop"):
+            QMessageBox.warning(
+                self, "Canvas Size Change",
+                "Current pattern will be too large for the working area."
+            )
+            self._act_large_hoop.setChecked(True)
+            return
+        self._pattern.stitch_type = "small hoop"
+        self._canvas._update_size()
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
+        if self._pattern.points:
+            self._fit_pattern()
+        else:
+            self._zoom_fit_height()
+
+    def _on_stitch_large_hoop(self):
+        if not self._pattern_fits_in_canvas("large hoop"):
+            QMessageBox.warning(
+                self, "Canvas Size Change",
+                "Current pattern will be too large for the working area."
+            )
+            self._act_small_hoop.setChecked(True)
+            return
+        self._pattern.stitch_type = "large hoop"
+        self._canvas._update_size()
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
+        if self._pattern.points:
+            self._fit_pattern()
+        else:
+            self._zoom_fit_height()
+
     # ── Status bar updates ──
+
+    def _is_hoop_type(self):
+        """Return True when the current stitch type is a hoop (read-only) pattern."""
+        return self._pattern.stitch_type in ("small hoop", "large hoop")
+
+    def _update_hoop_restricted_actions(self):
+        """Enable or disable actions that are not supported for hoop patterns."""
+        enabled = not self._is_hoop_type()
+        # File
+        self._act_save.setEnabled(enabled)
+        self._act_save_as.setEnabled(enabled)
+        # Tools
+        self._act_add.setEnabled(enabled)
+        self._act_delete.setEnabled(enabled)
+        # Machine
+        self._act_machine_send_pmem.setEnabled(enabled)
+        self._act_machine_insert_pmem.setEnabled(enabled)
+        # Edit (selection-dependent ones are re-evaluated by _update_selection_action_state)
+        self._act_copy.setEnabled(enabled and self._act_copy.isEnabled())
+        self._act_cut.setEnabled(enabled and self._act_cut.isEnabled())
+        self._act_paste.setEnabled(enabled and self._clipboard is not None)
+        self._act_delete_selected.setEnabled(enabled and self._act_delete_selected.isEnabled())
+        self._act_invert_selected.setEnabled(enabled and self._act_invert_selected.isEnabled())
+        self._act_mirror_vertical.setEnabled(enabled and self._act_mirror_vertical.isEnabled())
+        self._act_mirror_horizontal.setEnabled(enabled and self._act_mirror_horizontal.isEnabled())
+        # View orientation
+        self._act_orientation_sewing.setEnabled(enabled)
+        self._act_toggle_orientation.setEnabled(enabled)
+        if not enabled:
+            # Force back to default orientation for hoop types
+            self._act_orientation_default.setChecked(True)
+            self._on_orientation_default()
+        # If hoop type is active and the current tool is add/delete, switch to pan
+        if not enabled and self._canvas._tool in (self._add_tool, self._delete_tool):
+            self._act_pan.setChecked(True)
+            self._on_tool_pan()
 
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
@@ -645,16 +745,17 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         has_selection = start is not None and end is not None
         has_multiple_selection = has_selection and end > start
-        
+        hoop = self._is_hoop_type()
+
         n = len(self._pattern.points)
-        self._act_copy.setEnabled(has_multiple_selection)
-        self._act_cut.setEnabled(has_multiple_selection)
-        self._act_paste.setEnabled(self._clipboard is not None)
+        self._act_copy.setEnabled(has_multiple_selection and not hoop)
+        self._act_cut.setEnabled(has_multiple_selection and not hoop)
+        self._act_paste.setEnabled(self._clipboard is not None and not hoop)
         self._act_clear_selection.setEnabled(has_selection)
-        self._act_delete_selected.setEnabled(has_selection)
-        self._act_invert_selected.setEnabled(has_multiple_selection)
-        self._act_mirror_vertical.setEnabled(has_multiple_selection)
-        self._act_mirror_horizontal.setEnabled(has_multiple_selection)
+        self._act_delete_selected.setEnabled(has_selection and not hoop)
+        self._act_invert_selected.setEnabled(has_multiple_selection and not hoop)
+        self._act_mirror_vertical.setEnabled(has_multiple_selection and not hoop)
+        self._act_mirror_horizontal.setEnabled(has_multiple_selection and not hoop)
         self._act_sel_extend.setEnabled(has_selection and end < n - 1)
         self._act_sel_reduce.setEnabled(has_multiple_selection)
         self._act_sel_move_backward.setEnabled(has_selection and start > 0)
@@ -728,15 +829,22 @@ class MainWindow(QMainWindow):
         # Update stitch type selection based on loaded pattern
         if self._pattern.stitch_type == "9mm":
             self._act_9mm.setChecked(True)
-        if self._pattern.stitch_type == "MAXI":
+            self._on_pdesign_selected()
+        elif self._pattern.stitch_type == "MAXI":
             self._act_maxi.setChecked(True)
-        else:
-            pass
+            self._on_pdesign_selected()
+        elif self._pattern.stitch_type == "small hoop":
+            self._act_small_hoop.setChecked(True)
+            self._on_pdesign_selected()
+        elif self._pattern.stitch_type == "large hoop":
+            self._act_large_hoop.setChecked(True)
+            self._on_pdesign_selected()
         
         # Update canvas
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
         self._update_palette_bar()
 
         # Switch to Pan tool after opening
@@ -1185,6 +1293,10 @@ class MainWindow(QMainWindow):
             self._act_9mm.setChecked(True)
         elif new_pattern.stitch_type == "MAXI":
             self._act_maxi.setChecked(True)
+        elif new_pattern.stitch_type == "small hoop":
+            self._act_small_hoop.setChecked(True)
+        elif new_pattern.stitch_type == "large hoop":
+            self._act_large_hoop.setChecked(True)
 
         self._canvas._update_size()
         self._canvas.update()
@@ -1346,7 +1458,13 @@ class MainWindow(QMainWindow):
             point_color=d["point_color"],
             point_size=d["point_size"],
             grid_color=d["grid_color"],
+            show_stitch_points=d["show_stitch_points"],
+            show_grid=d["show_grid"],
         )
+        self._act_show_grid.setChecked(bool(d["show_grid"]))
+        self._act_show_grid_menu.setChecked(bool(d["show_grid"]))
+        self._act_show_stitch_points.setChecked(bool(d["show_stitch_points"]))
+        self._act_show_stitch_points_menu.setChecked(bool(d["show_stitch_points"]))
 
     # ── Help ──
 
