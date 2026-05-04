@@ -200,7 +200,7 @@ class StitchPattern:
         "large hoop": (689, 720),
     }
 
-    STITCH_RES_MM = 1/3  # 1 stitch = 0.333... mm
+    STITCH_RES_MM = 1/6  # 1 stitch = 0.166... mm
 
     def __init__(self):
         self.points = []  # list of (int, int)
@@ -346,3 +346,24 @@ class StitchPattern:
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = True
+
+    def get_stitch_bounds(self):
+        """Return stitch bounds as (min_x, min_y, max_x, max_y), or None if empty."""
+        if not self.points:
+            return None
+        xs = [x for x, _ in self.points]
+        ys = [y for _, y in self.points]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def get_stitch_size_mm(self):
+        """Return stitch width/height in mm using preview stitch resolution."""
+        bounds = self.get_stitch_bounds()
+        if bounds is None:
+            return 0.0, 0.0
+        min_x, min_y, max_x, max_y = bounds
+        width_units = max_x - min_x
+        height_units = max_y - min_y
+        return (
+            width_units * self.STITCH_RES_MM,
+            height_units * self.STITCH_RES_MM,
+        )

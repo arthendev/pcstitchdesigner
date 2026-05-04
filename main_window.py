@@ -20,6 +20,7 @@ from preferences_dialog import PreferencesDialog
 from machine_comm import MachineComm, MachineCommError
 from pmemory_dialog import PMemoryDialog
 from animation_window import AnimationWindow
+from browser_dialog import PatternBrowserDialog
 
 
 class MainWindow(QMainWindow):
@@ -132,6 +133,9 @@ class MainWindow(QMainWindow):
         self._act_open = QAction("&Open…", self)
         self._act_open.setShortcut("Ctrl+O")
         self._act_open.triggered.connect(self._file_open)
+
+        self._act_browser = QAction("&Browser…", self)
+        self._act_browser.triggered.connect(self._file_browser)
 
         self._act_save = QAction("&Save", self)
         self._act_save.setShortcut("Ctrl+S")
@@ -374,6 +378,7 @@ class MainWindow(QMainWindow):
         file_menu = mb.addMenu("&File")
         file_menu.addAction(self._act_new)
         file_menu.addAction(self._act_open)
+        file_menu.addAction(self._act_browser)
         
         # Open Recent submenu
         self._recent_menu = QMenu("Open &Recent", self)
@@ -447,7 +452,6 @@ class MainWindow(QMainWindow):
 
         help_menu = mb.addMenu("&Help")
         help_menu.addAction(self._act_get_releases)
-        help_menu.addSeparator()
         help_menu.addAction(self._act_donate)
         help_menu.addSeparator()
         help_menu.addAction(self._act_about)
@@ -657,6 +661,16 @@ class MainWindow(QMainWindow):
             self, "Open Stitch Pattern", "",
             "Stitch Files (*.pcd;*pcq);;All Files (*)",
         )
+        if not path:
+            return
+        self._open_file(path)
+
+    def _file_browser(self):
+        if not self._confirm_discard():
+            return
+
+        directory = os.path.dirname(self._file_path) if self._file_path else ""
+        path, _ = PatternBrowserDialog.getOpenFileName(self, directory=directory)
         if not path:
             return
         self._open_file(path)
