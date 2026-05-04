@@ -227,6 +227,7 @@ class StitchPattern:
         self.points = []  # list of (int, int)
         self.colors = []  # list of (r, g, b) tuples representing thread colors
         self.color_segments = []  # sorted list of point indices where a new palette color starts
+        self.jump_stitches = set()  # set of point indices where no line is drawn from the previous point
         self.modified = False
         self._undo_stack = []
         self._redo_stack = []
@@ -367,6 +368,7 @@ class StitchPattern:
         self.points.clear()
         self.colors.clear()
         self.color_segments.clear()
+        self.jump_stitches.clear()
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = False

@@ -36,17 +36,23 @@ def save_pattern(path, pattern):
         # Write colors: RGB + padding byte
         for r, g, b in pattern.colors:
             f.write(struct.pack('BBBx', r, g, b))
-        # Stitch count includes color-change marker records
-        stitch_count = len(pattern.points) + len(pattern.color_segments)
+        # Stitch count includes color-change and jump-stitch marker records
+        stitch_count = len(pattern.points) + len(pattern.color_segments) + len(pattern.jump_stitches)
         f.write(struct.pack('<H', stitch_count))
-        # Write points, inserting a color-change record before each new color segment
+        # Write points, inserting marker records before each affected stitch
         change_indices = set(pattern.color_segments)
+        jump_indices = set(pattern.jump_stitches)
         for i, (x, y) in enumerate(pattern.points):
             if i in change_indices:
-                # Color-change marker record: same coordinates as the upcoming stitch
+                # Color-change marker record
                 x_bytes_m = x.to_bytes(3, 'little')
                 y_bytes_m = y.to_bytes(3, 'little')
                 f.write(struct.pack(POINT_FMT, 0, x_bytes_m, 0, y_bytes_m, 0x01))
+            if i in jump_indices:
+                # Jump-stitch marker record
+                x_bytes_m = x.to_bytes(3, 'little')
+                y_bytes_m = y.to_bytes(3, 'little')
+                f.write(struct.pack(POINT_FMT, 0, x_bytes_m, 0, y_bytes_m, 0x04))
             x_bytes = x.to_bytes(3, 'little')
             y_bytes = y.to_bytes(3, 'little')
             f.write(struct.pack(POINT_FMT, 0, x_bytes, 0, y_bytes, 0))
@@ -113,8 +119,8 @@ def load_pattern(path):
                 if pattern.colors:
                     pattern.color_segments.append(len(pattern.points))
             elif control_byte & 0x04:
-                # jump stitch — ignored
-                pass
+                # Jump stitch: the next point starts a new segment (no connecting line)
+                pattern.jump_stitches.add(len(pattern.points))
 
     
     pattern.modified = False

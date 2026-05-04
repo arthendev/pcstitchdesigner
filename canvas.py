@@ -254,6 +254,10 @@ class StitchCanvas(QWidget):
                 sx1, sy1 = self.canvas_to_screen(x1, y1)
                 sx2, sy2 = self.canvas_to_screen(x2, y2)
 
+                # Skip connecting line for jump stitches (the next point starts a new segment)
+                if (i + 1) in self.pattern.jump_stitches:
+                    continue
+
                 # Draw blue dashed line if both points in selection and multiple selected
                 if (self._selection_start is not None and self._selection_end is not None and
                     self._selection_end - self._selection_start >= 1 and
