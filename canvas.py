@@ -52,6 +52,7 @@ class StitchCanvas(QWidget):
         self._line_width = 2   # medium
         self._point_radius = 4  # medium
         self._show_grid = True
+        self._show_stitch_points = True
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -243,14 +244,16 @@ class StitchCanvas(QWidget):
 
         # Connecting lines
         if len(self.pattern.points) >= 2:
-            line_pen = QPen(self._color_line, self._line_width)
-            painter.setPen(line_pen)
+            default_line_pen = QPen(self._color_line, self._line_width)
+            use_palette = self.pattern.has_palette
+            if not use_palette:
+                painter.setPen(default_line_pen)
             for i in range(len(self.pattern.points) - 1):
                 x1, y1 = self.pattern.points[i]
                 x2, y2 = self.pattern.points[i + 1]
                 sx1, sy1 = self.canvas_to_screen(x1, y1)
                 sx2, sy2 = self.canvas_to_screen(x2, y2)
-                
+
                 # Draw blue dashed line if both points in selection and multiple selected
                 if (self._selection_start is not None and self._selection_end is not None and
                     self._selection_end - self._selection_start >= 1 and
@@ -258,64 +261,89 @@ class StitchCanvas(QWidget):
                     dashed_pen = QPen(QColor(0, 80, 200), 2)
                     dashed_pen.setDashPattern([4, 4])
                     painter.setPen(dashed_pen)
+                elif use_palette:
+                    ci = self.pattern.get_point_color_index(i)
+                    pr, pg, pb = self.pattern.colors[ci]
+                    painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
                 else:
-                    painter.setPen(line_pen)
+                    painter.setPen(default_line_pen)
                 painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
-        # Stitch points (draw in layers to ensure first, last, and selected are on top)
-        painter.setPen(Qt.NoPen)
-        r = self._point_radius
-        num_points = len(self.pattern.points)
-        
-        # First layer: draw all regular points (not first, not last, not selected)
-        for i, (x, y) in enumerate(self.pattern.points):
-            # Skip first, last, and selected points (draw them in the top layer)
-            if num_points > 1 and (i == 0 or i == num_points - 1):
-                continue
-            if self.is_point_selected(i):
-                continue
-            
-            # Draw regular point
-            painter.setBrush(QBrush(self._color_point))
-            sx, sy = self.canvas_to_screen(x, y)
-            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-        
-        # Second layer: draw first, last, and selected points on top
-        if num_points > 1:
-            # Draw first point (green unless selected)
-            x, y = self.pattern.points[0]
-            if self.is_point_selected(0):
-                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+        # Stitch points (draw in layers to ensure selected points are on top)
+        if self._show_stitch_points:
+            painter.setPen(Qt.NoPen)
+            r = self._point_radius
+            num_points = len(self.pattern.points)
+            use_palette = self.pattern.has_palette
+
+            if use_palette:
+                # Palette mode: draw all non-selected points in their palette color
+                for i, (x, y) in enumerate(self.pattern.points):
+                    if self.is_point_selected(i):
+                        continue
+                    ci = self.pattern.get_point_color_index(i)
+                    pr, pg, pb = self.pattern.colors[ci]
+                    painter.setBrush(QBrush(QColor(pr, pg, pb)))
+                    sx, sy = self.canvas_to_screen(x, y)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                # Draw selected points in blue on top
+                for i, (x, y) in enumerate(self.pattern.points):
+                    if self.is_point_selected(i):
+                        painter.setBrush(QBrush(QColor(0, 80, 200)))
+                        sx, sy = self.canvas_to_screen(x, y)
+                        painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
             else:
-                painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-            sx, sy = self.canvas_to_screen(x, y)
-            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-            
-            # Draw last point (red unless selected)
-            x, y = self.pattern.points[num_points - 1]
-            if self.is_point_selected(num_points - 1):
-                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
-            else:
-                painter.setBrush(QBrush(self.COLOR_LAST_POINT))
-            sx, sy = self.canvas_to_screen(x, y)
-            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-        elif num_points == 1:
-            # Single point: draw in green unless selected
-            x, y = self.pattern.points[0]
-            if self.is_point_selected(0):
-                painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
-            else:
-                painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-            sx, sy = self.canvas_to_screen(x, y)
-            painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-        
-        # Draw all other selected points (not first, not last) on top in blue
-        for i in range(1, num_points - 1):
-            if self.is_point_selected(i):
-                x, y = self.pattern.points[i]
-                painter.setBrush(QBrush(QColor(0, 80, 200)))
-                sx, sy = self.canvas_to_screen(x, y)
-                painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                # Default mode: first=green, last=red, selected=blue, others=default color
+
+                # First layer: draw all regular points (not first, not last, not selected)
+                for i, (x, y) in enumerate(self.pattern.points):
+                    # Skip first, last, and selected points (draw them in the top layer)
+                    if num_points > 1 and (i == 0 or i == num_points - 1):
+                        continue
+                    if self.is_point_selected(i):
+                        continue
+
+                    # Draw regular point
+                    painter.setBrush(QBrush(self._color_point))
+                    sx, sy = self.canvas_to_screen(x, y)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+
+                # Second layer: draw first, last, and selected points on top
+                if num_points > 1:
+                    # Draw first point (green unless selected)
+                    x, y = self.pattern.points[0]
+                    if self.is_point_selected(0):
+                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+                    else:
+                        painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
+                    sx, sy = self.canvas_to_screen(x, y)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+
+                    # Draw last point (red unless selected)
+                    x, y = self.pattern.points[num_points - 1]
+                    if self.is_point_selected(num_points - 1):
+                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+                    else:
+                        painter.setBrush(QBrush(self.COLOR_LAST_POINT))
+                    sx, sy = self.canvas_to_screen(x, y)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                elif num_points == 1:
+                    # Single point: draw in green unless selected
+                    x, y = self.pattern.points[0]
+                    if self.is_point_selected(0):
+                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
+                    else:
+                        painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
+                    sx, sy = self.canvas_to_screen(x, y)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+
+                # Draw all other selected points (not first, not last) on top in blue
+                for i in range(1, num_points - 1):
+                    if self.is_point_selected(i):
+                        x, y = self.pattern.points[i]
+                        painter.setBrush(QBrush(QColor(0, 80, 200)))
+                        sx, sy = self.canvas_to_screen(x, y)
+                        painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
         # Tool overlay
         if self._tool:

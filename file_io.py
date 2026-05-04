@@ -13,7 +13,7 @@ All values are little-endian.
 import struct
 from model import StitchPattern
 
-HEADER_FMT = '<BBHH'  # header_byte(1) + stitch_type(1) + color_count(2) + stitch_count(2) = 6 bytes
+HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
 
@@ -31,10 +31,22 @@ def save_pattern(path, pattern):
         raise ValueError("Invalid/unsupported stitch type")
     
     with open(path, 'wb') as f:
-        # Write header: 0x32, stitch_type, color_count, stitch_count
-        f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, 0, len(pattern.points)))
-        # Write points: c0=0, x(3 bytes LE), c1=0, y(3 bytes LE), control_byte=0
-        for x, y in pattern.points:
+        # Write header: 0x32, stitch_type, color_count
+        f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, len(pattern.colors)))
+        # Write colors: RGB + padding byte
+        for r, g, b in pattern.colors:
+            f.write(struct.pack('BBBx', r, g, b))
+        # Stitch count includes color-change marker records
+        stitch_count = len(pattern.points) + len(pattern.color_segments)
+        f.write(struct.pack('<H', stitch_count))
+        # Write points, inserting a color-change record before each new color segment
+        change_indices = set(pattern.color_segments)
+        for i, (x, y) in enumerate(pattern.points):
+            if i in change_indices:
+                # Color-change marker record: same coordinates as the upcoming stitch
+                x_bytes_m = x.to_bytes(3, 'little')
+                y_bytes_m = y.to_bytes(3, 'little')
+                f.write(struct.pack(POINT_FMT, 0, x_bytes_m, 0, y_bytes_m, 0x01))
             x_bytes = x.to_bytes(3, 'little')
             y_bytes = y.to_bytes(3, 'little')
             f.write(struct.pack(POINT_FMT, 0, x_bytes, 0, y_bytes, 0))
@@ -51,7 +63,7 @@ def load_pattern(path):
         if len(header_data) < header_size:
             raise ValueError("File too short")
         
-        magic_number, stitch_type_byte, color_count, stitch_count = struct.unpack(HEADER_FMT, header_data)
+        magic_number, stitch_type_byte, color_count = struct.unpack(HEADER_FMT, header_data)
         
         if magic_number != 0x32:
             raise ValueError("Invalid file format")
@@ -70,13 +82,21 @@ def load_pattern(path):
         
         # Read colors
         for _ in range(color_count):
-            color_data = f.read(3)  # RGB
+            color_data = f.read(3)  # RGB (big-endian)
             if len(color_data) < 3:
                 raise ValueError("Unexpected end of file while reading colors")
             r, g, b = struct.unpack('BBB', color_data)
             pattern.colors.append((r, g, b))
+            f.read(1)  # skip padding byte
 
-        # Read points
+        stitch_count_data = f.read(2)
+        if len(stitch_count_data) < 2:
+            raise ValueError("Unexpected end of file while reading stitch count")
+        stitch_count, = struct.unpack('<H', stitch_count_data)
+
+        # Read points — color_change records are stored as-is into color_segments:
+        # color_segments[j] = index of the first stitch that uses palette color j.
+        # Files always open with a color_change record before any stitches (j=0).
         point_size = struct.calcsize(POINT_FMT)
         for _ in range(stitch_count):
             point_data = f.read(point_size)
@@ -89,11 +109,12 @@ def load_pattern(path):
                 y = int.from_bytes(y_bytes, 'little')
                 pattern.points.append((x, y))
             elif control_byte & 0x01:
-                # color change
-                pass  # For now, we ignore color changes since our model doesn't support them
+                # Color change: record the first point index for this palette color
+                if pattern.colors:
+                    pattern.color_segments.append(len(pattern.points))
             elif control_byte & 0x04:
-                # jump stitch
-                pass  # For now, we ignore jump stitches since our model doesn't support them
+                # jump stitch — ignored
+                pass
 
     
     pattern.modified = False

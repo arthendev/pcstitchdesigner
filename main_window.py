@@ -21,6 +21,7 @@ from machine_comm import MachineComm, MachineCommError
 from pmemory_dialog import PMemoryDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
+from color_palette_bar import ColorPaletteBar
 
 
 class MainWindow(QMainWindow):
@@ -73,6 +74,10 @@ class MainWindow(QMainWindow):
         self._build_actions()
         self._build_menus()
         self._build_toolbar()
+
+        # Color palette toolbar (left edge, hidden until a palette is loaded)
+        self._palette_bar = ColorPaletteBar(self)
+        self.addToolBar(Qt.LeftToolBarArea, self._palette_bar)
 
         # Temporary Ctrl→SelectPoint state (while AddPointTool is active)
         self._ctrl_select_active = False
@@ -293,6 +298,12 @@ class MainWindow(QMainWindow):
         self._act_show_grid_menu.triggered.connect(self._act_show_grid.setChecked)
         self._act_show_grid.triggered.connect(self._act_show_grid_menu.setChecked)
 
+        self._act_show_stitch_points = QAction(
+            QIcon(os.path.join(_icons, "stitch_point.svg")), "Show &Stitch Points", self)
+        self._act_show_stitch_points.setCheckable(True)
+        self._act_show_stitch_points.setChecked(True)
+        self._act_show_stitch_points.triggered.connect(self._toggle_show_stitch_points)
+
         self._act_animate = QAction(
             QIcon(os.path.join(_icons, "player.svg")),
             "&Animate Stitching", self
@@ -449,6 +460,7 @@ class MainWindow(QMainWindow):
         view_menu.addAction(self._act_fit_pattern)
         view_menu.addSeparator()
         view_menu.addAction(self._act_show_grid_menu)
+        view_menu.addAction(self._act_show_stitch_points)
         view_menu.addSeparator()
         view_menu.addAction(self._act_animate)
 
@@ -500,6 +512,7 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self._act_toggle_orientation)
         tb.addAction(self._act_show_grid)
+        tb.addAction(self._act_show_stitch_points)
         tb.addSeparator()
         tb.addAction(self._act_animate)
         tb.addSeparator()
@@ -676,6 +689,7 @@ class MainWindow(QMainWindow):
         self._file_path = None
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_palette_bar()
 
     def _file_open(self):
         if not self._confirm_discard():
@@ -723,6 +737,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_palette_bar()
 
         # Switch to Pan tool after opening
         self._act_pan.setChecked(True)
@@ -1040,6 +1055,10 @@ class MainWindow(QMainWindow):
         self._canvas._show_grid = checked
         self._canvas.update()
 
+    def _toggle_show_stitch_points(self, checked):
+        self._canvas._show_stitch_points = checked
+        self._canvas.update()
+
     # ── Machine ──
 
     def _open_machine_connection(self):
@@ -1170,6 +1189,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_palette_bar()
         self._act_pan.setChecked(True)
         self._on_tool_pan()
         self._fit_pattern()
@@ -1305,6 +1325,14 @@ class MainWindow(QMainWindow):
 
     # ── Settings ──
 
+    def _update_palette_bar(self):
+        """Show/hide and populate the color palette bar based on the current pattern."""
+        if self._pattern.has_palette:
+            self._palette_bar.set_colors(self._pattern.colors)
+            self._palette_bar.setVisible(True)
+        else:
+            self._palette_bar.setVisible(False)
+
     def _settings_preferences(self):
         dlg = PreferencesDialog(self._config, parent=self)
         if dlg.exec_() == PreferencesDialog.Accepted:
@@ -1339,7 +1367,7 @@ class MainWindow(QMainWindow):
             "<p><b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
             "github.com/arthendev/pcstitchdesigner/releases</a></p>"
-            "<p><i>ArthenDev, 2026</i></p>"
+            "<p>© 2026 A. Frej (arthendev)</p>"
         )
         label.setOpenExternalLinks(True)
         label.setTextFormat(Qt.RichText)

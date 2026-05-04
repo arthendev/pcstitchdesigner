@@ -1,5 +1,6 @@
 """Stitch pattern data model with undo/redo support."""
 
+import bisect
 from copy import deepcopy
 
 
@@ -225,10 +226,34 @@ class StitchPattern:
     def __init__(self):
         self.points = []  # list of (int, int)
         self.colors = []  # list of (r, g, b) tuples representing thread colors
+        self.color_segments = []  # sorted list of point indices where a new palette color starts
         self.modified = False
         self._undo_stack = []
         self._redo_stack = []
         self.stitch_type = "9mm"  # "9mm" or "MAXI"
+
+    @property
+    def has_palette(self):
+        """True when the pattern has a defined color palette."""
+        return len(self.colors) > 0
+
+    def get_point_color_index(self, i):
+        """Return the palette color index for point i.
+
+        Returns None if no palette is defined.
+
+        ``color_segments`` stores the first point index for each palette color:
+        ``color_segments[j]`` is the index of the first stitch drawn in color j.
+        The file always starts with a color-change record before any stitches,
+        so ``color_segments[0] == 0``.  Subsequent color-change records add
+        further entries.  The color for point i is therefore:
+
+            bisect_right(color_segments, i) - 1  (clamped to [0, len-1])
+        """
+        if not self.colors:
+            return None
+        color_idx = bisect.bisect_right(self.color_segments, i) - 1
+        return max(0, min(color_idx, len(self.colors) - 1))
 
     @property
     def CANVAS_WIDTH(self):
@@ -341,6 +366,7 @@ class StitchPattern:
     def clear(self):
         self.points.clear()
         self.colors.clear()
+        self.color_segments.clear()
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = False
