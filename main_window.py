@@ -660,12 +660,15 @@ class MainWindow(QMainWindow):
             )
             self._act_large_hoop.setChecked(True)
             return
+        was_hoop = self._is_hoop_type()
         self._pattern.stitch_type = "small hoop"
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
+        if not was_hoop:
+            self._show_hoop_info()
         if self._pattern.points:
             self._fit_pattern()
         else:
@@ -679,18 +682,28 @@ class MainWindow(QMainWindow):
             )
             self._act_small_hoop.setChecked(True)
             return
+        was_hoop = self._is_hoop_type()
         self._pattern.stitch_type = "large hoop"
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
+        if not was_hoop:
+            self._show_hoop_info()
         if self._pattern.points:
             self._fit_pattern()
         else:
             self._zoom_fit_height()
 
     # ── Status bar updates ──
+
+    def _show_hoop_info(self):
+        QMessageBox.information(
+            self, "Embroidery Design",
+            "Embroidery designs can be loaded and viewed, "
+            "but editing and transfer to the sewing machine are not yet supported."
+        )
 
     def _is_hoop_type(self):
         """Return True when the current stitch type is a hoop (read-only) pattern."""
@@ -851,6 +864,8 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
         self._update_palette_bar()
+        if self._is_hoop_type():
+            self._show_hoop_info()
 
         # Switch to Pan tool after opening
         self._act_pan.setChecked(True)
