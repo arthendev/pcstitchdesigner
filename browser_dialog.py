@@ -113,6 +113,30 @@ class PatternPreviewWidget(QWidget):
                     painter.setPen(line_pen)
                     painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
 
+        # Draw start/end markers for stitch formats on top of lines.
+        if self._pattern.stitch_type in ("9mm", "MAXI") and points:
+            marker_radius = 3
+            marker_outline = QPen(QColor(255, 255, 255), 1)
+            painter.setPen(marker_outline)
+
+            start_x, start_y = to_screen(points[0][0], points[0][1])
+            painter.setBrush(QColor(0, 180, 0))
+            painter.drawEllipse(
+                int(start_x - marker_radius),
+                int(start_y - marker_radius),
+                marker_radius * 2,
+                marker_radius * 2,
+            )
+
+            end_x, end_y = to_screen(points[-1][0], points[-1][1])
+            painter.setBrush(QColor(220, 0, 0))
+            painter.drawEllipse(
+                int(end_x - marker_radius),
+                int(end_y - marker_radius),
+                marker_radius * 2,
+                marker_radius * 2,
+            )
+
 
 class PatternBrowserDialog(QFileDialog):
     """Open-file dialog extended with a live stitch pattern preview panel."""
