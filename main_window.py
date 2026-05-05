@@ -1318,9 +1318,11 @@ class MainWindow(QMainWindow):
         elif new_pattern.stitch_type == "large hoop":
             self._act_large_hoop.setChecked(True)
 
+        self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_hoop_restricted_actions()
         self._update_palette_bar()
         self._act_pan.setChecked(True)
         self._on_tool_pan()
