@@ -1502,6 +1502,9 @@ class MainWindow(QMainWindow):
             "<p><b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
             "github.com/arthendev/pcstitchdesigner/releases</a></p>"
+            # "<p><b>Documentation:</b> "
+            # '<a href="https://github.com/arthendev/pcstitchdesigner/wiki">'
+            # "github.com/arthendev/pcstitchdesigner/wiki</a></p>"
             "<p>© 2026 A. Frej (arthendev)</p>"
         )
         label.setOpenExternalLinks(True)
