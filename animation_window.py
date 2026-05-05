@@ -27,11 +27,18 @@ class AnimationCanvas(QWidget):
     COLOR_BORDER = QColor(0, 80, 200)
     COLOR_LABEL = QColor(80, 80, 80)
     COLOR_LINE = QColor(0, 0, 0)
+    COLOR_POINT = QColor(0, 0, 0)
+    COLOR_FIRST = QColor(0, 200, 0)    # green  — first stitch
+    COLOR_HEAD  = QColor(255, 140, 0)  # orange — current head during animation
+    COLOR_LAST  = QColor(200, 0, 0)    # red    — final stitch (when complete)
 
-    def __init__(self, pattern, parent=None):
+    _MARKER_STITCH_TYPES = {"9mm", "MAXI"}
+
+    def __init__(self, pattern, parent=None, show_stitches=False):
         super().__init__(parent)
         self._pattern = pattern
         self._visible_count = 0
+        self._show_stitches = show_stitches
 
         # Cached geometry — invalidated on resize
         self._screen_pts = []    # [(sx, sy), ...] for every point in pattern
@@ -51,6 +58,10 @@ class AnimationCanvas(QWidget):
         self._pen_line   = QPen(self.COLOR_LINE,   2)
         self._pen_border = QPen(self.COLOR_BORDER, 1)
         self._pen_label  = QPen(self.COLOR_LABEL,  1)
+        self._brush_point = QBrush(self.COLOR_POINT)
+        self._brush_first = QBrush(self.COLOR_FIRST)
+        self._brush_head  = QBrush(self.COLOR_HEAD)
+        self._brush_last  = QBrush(self.COLOR_LAST)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMinimumSize(300, 150)
@@ -221,6 +232,36 @@ class AnimationCanvas(QWidget):
         if n >= 2:
             self._ensure_lines_pixmap(n)
             painter.drawPixmap(0, 0, self._lines_pixmap)
+
+        # Stitch markers — only for 9mm / MAXI (not embroidery hoops)
+        if self._pattern.stitch_type in self._MARKER_STITCH_TYPES:
+            r = max(2, int(3 * min(scale / 4.0, 1.5)))
+            total = len(self._pattern.points)
+            painter.setPen(Qt.NoPen)
+
+            if self._show_stitches:
+                # Interior points (all same colour — single brush set)
+                if n > 2:
+                    painter.setBrush(self._brush_point)
+                    for sx, sy in self._screen_pts[1:n - 1]:
+                        painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
+
+            # First stitch — green (always visible once n > 0)
+            painter.setBrush(self._brush_first)
+            sx, sy = self._screen_pts[0]
+            painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
+
+            # Current head — orange (replaces red when animation is not yet done)
+            if n < total:
+                painter.setBrush(self._brush_head)
+                sx, sy = self._screen_pts[n - 1]
+                painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
+
+            # Last stitch — red (only when animation is complete)
+            if n == total:
+                painter.setBrush(self._brush_last)
+                sx, sy = self._screen_pts[total - 1]
+                painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
 
         painter.end()
 
