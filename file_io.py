@@ -16,6 +16,7 @@ from model import StitchPattern
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
+DEBUG = 1
 
 def save_pattern(path, pattern):
     """Save a StitchPattern to a binary file."""
@@ -104,23 +105,58 @@ def load_pattern(path):
         # color_segments[j] = index of the first stitch that uses palette color j.
         # Files always open with a color_change record before any stitches (j=0).
         point_size = struct.calcsize(POINT_FMT)
-        for _ in range(stitch_count):
+        
+        if DEBUG:
+            print("\n\nReading " + pattern.stitch_type + " pattern with " + str(color_count) + " colors and " + str(stitch_count) + " stitch records:")
+        for i in range(stitch_count):
             point_data = f.read(point_size)
             if len(point_data) < point_size:
                 raise ValueError("Unexpected end of file while reading stitch points")
             c0, x_bytes, c1, y_bytes, control_byte = struct.unpack(POINT_FMT, point_data)
+            x = int.from_bytes(x_bytes, 'little')
+            y = int.from_bytes(y_bytes, 'little')
+            
+            if DEBUG:
+                print(f"Read point {i}:", end=" ")
+            
+                if c0 == 0x00:
+                    print(f"c0={c0:3}", end=" ")
+                else:
+                    print(f"\033[91mc0={c0:3}\033[0m", end=" ")  # Highlight non-zero c0 in red
+                
+                print(f"x={x:3}", end=" ")  # x coordinate
+                
+                if c1 == 0x00:
+                    print(f"c1={c1:3}", end=" ")
+                else:
+                    print(f"\033[91mc1={c1:3}\033[0m", end=" ")  # Highlight non-zero c1 in red
+                
+                print(f"y={y:3}", end=" ")  # y coordinate
+                
+                if control_byte == 0x00:
+                    print(f"control_byte={control_byte:#04x}")
+                else:
+                    print(f"\033[91mcontrol_byte={control_byte:#04x}\033[0m")  # Highlight non-zero control_byte in red
+
+                # if control_byte == 0x00:
+                #     print(f"Read point {i}: c0={c0:#04x}, x={x:3}, c1={c1:#04x}, y={y:3}, control_byte={control_byte:#04x}")
+                # else:
+                #     print(f"\033[91mRead point {i}: c0={c0:#04x}, x={x:3}, c1={c1:#04x}, y={y:3}, control_byte={control_byte:#04x}\033[0m")
+            
             if control_byte == 0x00:
                 # Normal stitch point
-                x = int.from_bytes(x_bytes, 'little')
-                y = int.from_bytes(y_bytes, 'little')
                 pattern.points.append((x, y))
             elif control_byte & 0x01:
                 # Color change: record the first point index for this palette color
                 if pattern.colors:
                     pattern.color_segments.append(len(pattern.points))
+            elif control_byte & 0x02:
+                # Filler point
+                pattern.points.append((x, y))
             elif control_byte & 0x04:
                 # Jump stitch: the next point starts a new segment (no connecting line)
-                pattern.jump_stitches.add(len(pattern.points))
+                pattern.points.append((x, y))
+                #pattern.jump_stitches.add(len(pattern.points))
 
     
     pattern.modified = False
