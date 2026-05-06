@@ -4,6 +4,7 @@ import re
 import time
 import serial
 import serial.tools.list_ports
+from model import elem_has_coords
 
 
 class MachineCommError(Exception):
@@ -612,7 +613,7 @@ class MachineComm:
         self._require_open()
 
         stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
-        n = len(pattern.points)
+        n = sum(1 for e in pattern.elements if elem_has_coords(e))
         expected_size = n * 2 if pattern.stitch_type == "9mm" else n * 3
 
         saved_timeout = self._serial.timeout
@@ -912,7 +913,7 @@ class MachineComm:
         Raises:
             MachineCommError: If the stitch type is not supported or pattern is empty.
         """
-        points = pattern.points
+        points = [(e[1], e[2]) for e in pattern.elements if elem_has_coords(e)]
         if not points:
             raise MachineCommError("Cannot encode header for an empty pattern.")
         xs = [x for x, y in points]
@@ -979,11 +980,11 @@ class MachineComm:
         """
         if pattern.stitch_type == "9mm":
             return ''.join(
-                f"{x:03d}{y:02d}" for x, y in pattern.points
+                f"{e[1]:03d}{e[2]:02d}" for e in pattern.elements if elem_has_coords(e)
             ).encode('ascii')
         elif pattern.stitch_type == "MAXI":
             return ''.join(
-                f"{x:03d}{y:02d}+0" for x, y in pattern.points
+                f"{e[1]:03d}{e[2]:02d}+0" for e in pattern.elements if elem_has_coords(e)
             ).encode('ascii')
         else:
             raise MachineCommError(

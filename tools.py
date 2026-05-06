@@ -4,7 +4,8 @@ import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap
 
-from model import AddPointCommand, DeletePointCommand, MovePointCommand, MoveManyPointsCommand
+from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
+                   MoveManyPointsCommand, elem_has_coords)
 
 
 class BaseTool:
@@ -52,10 +53,13 @@ class SelectPointTool(BaseTool):
         self._drag_start_idx = None  # Index of point where drag started
 
     def _find_nearest(self, canvas, cx, cy):
-        """Return index of the nearest point within hit radius, or None."""
+        """Return element index of the nearest coord element within hit radius, or None."""
         best_idx = None
         best_dist_sq = float('inf')
-        for i, (px, py) in enumerate(canvas.pattern.points):
+        for i, elem in enumerate(canvas.pattern.elements):
+            if not elem_has_coords(elem):
+                continue
+            px, py = elem[1], elem[2]
             d = (px - cx) ** 2 + (py - cy) ** 2
             if d < best_dist_sq:
                 best_dist_sq = d
@@ -82,18 +86,15 @@ class SelectPointTool(BaseTool):
     def mouse_move(self, canvas, event):
         if not self._dragging or self._drag_start_idx is None:
             return
-        
+
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-        # Find the nearest point to current cursor position
         current_idx = self._find_nearest(canvas, cx, cy)
-        
+
         if current_idx is not None:
-            # Extend selection from drag_start_idx to current_idx
             start = min(self._drag_start_idx, current_idx)
             end = max(self._drag_start_idx, current_idx)
             canvas.set_selection(start, end)
         else:
-            # If no point is near cursor, keep the original single-point selection
             canvas.set_selected_point(self._drag_start_idx)
         canvas.update()
 
@@ -196,7 +197,7 @@ class AddPointTool(BaseTool):
                     canvas.set_selected_point(insert_idx)  # Select the newly added point
                 else:
                     # No selection: append to end
-                    insert_idx = len(canvas.pattern.points)
+                    insert_idx = len(canvas.pattern.elements)
                     canvas.pattern.add_point(cx, cy)
                     canvas.set_selected_point(insert_idx)  # Select the newly added point
             canvas.update()
@@ -234,22 +235,31 @@ class AddPointTool(BaseTool):
         else:
             ref_idx = canvas.get_selected_point()
         
-        if ref_idx is not None and ref_idx < len(canvas.pattern.points):
-            # Draw line from reference point to cursor
-            prev_x, prev_y = canvas.pattern.points[ref_idx]
-            sx1, sy1 = canvas.canvas_to_screen(prev_x, prev_y)
+        ref_coords = canvas.pattern.get_coords(ref_idx) if ref_idx is not None else None
+        if ref_coords is not None:
+            sx1, sy1 = canvas.canvas_to_screen(ref_coords[0], ref_coords[1])
             painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
-            
-            # Draw line from cursor to the following point (if it exists)
-            if ref_idx + 1 < len(canvas.pattern.points):
-                next_x, next_y = canvas.pattern.points[ref_idx + 1]
-                sx2, sy2 = canvas.canvas_to_screen(next_x, next_y)
+
+            # Draw line to the next coord element (if one exists after ref_idx)
+            next_coords = None
+            for ni in range(ref_idx + 1, len(canvas.pattern.elements)):
+                nc = canvas.pattern.get_coords(ni)
+                if nc is not None:
+                    next_coords = nc
+                    break
+            if next_coords is not None:
+                sx2, sy2 = canvas.canvas_to_screen(next_coords[0], next_coords[1])
                 painter.drawLine(int(cursor_sx), int(cursor_sy), int(sx2), int(sy2))
-        elif len(canvas.pattern.points) > 0:
-            # Fallback: draw line from last point to cursor (when no point is selected)
-            prev_x, prev_y = canvas.pattern.points[-1]
-            sx1, sy1 = canvas.canvas_to_screen(prev_x, prev_y)
-            painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
+        else:
+            # Fallback: draw from last coord element to cursor
+            last_coords = None
+            for elem in reversed(canvas.pattern.elements):
+                if elem_has_coords(elem):
+                    last_coords = (elem[1], elem[2])
+                    break
+            if last_coords is not None:
+                sx1, sy1 = canvas.canvas_to_screen(last_coords[0], last_coords[1])
+                painter.drawLine(int(sx1), int(sy1), int(cursor_sx), int(cursor_sy))
         
         # Draw preview point
         sx, sy = canvas.canvas_to_screen(cx, cy)
@@ -294,7 +304,7 @@ class MovePointTool(BaseTool):
         if start is None or end is None:
             return False
 
-        n = len(canvas.pattern.points)
+        n = len(canvas.pattern.elements)
         if n == 0:
             return False
 
@@ -336,11 +346,14 @@ class MovePointTool(BaseTool):
         return False
 
     def _find_nearest(self, canvas, cx, cy):
-        """Return index of the nearest point within SNAP_RADIUS_PX screen pixels, or None."""
+        """Return element index of the nearest coord element within SNAP_RADIUS_PX, or None."""
         radius_canvas = self.SNAP_RADIUS_PX / canvas.get_scale()
         best_idx = None
         best_dist_sq = float('inf')
-        for i, (px, py) in enumerate(canvas.pattern.points):
+        for i, elem in enumerate(canvas.pattern.elements):
+            if not elem_has_coords(elem):
+                continue
+            px, py = elem[1], elem[2]
             d = (px - cx) ** 2 + (py - cy) ** 2
             if d < best_dist_sq:
                 best_dist_sq = d
@@ -368,8 +381,8 @@ class MovePointTool(BaseTool):
                 canvas.set_selected_point(idx)
                 self._dragging_indices = [idx]
             
-            # Store original positions
-            self._orig_positions = [canvas.pattern.points[i] for i in self._dragging_indices]
+            # Store original elements (full tuples)
+            self._orig_positions = [canvas.pattern.elements[i] for i in self._dragging_indices]
             self._offset_x = 0
             self._offset_y = 0
             canvas.setCursor(Qt.CrossCursor)
@@ -391,25 +404,27 @@ class MovePointTool(BaseTool):
             
             # Calculate offset from the clicked point's original position
             if self._clicked_idx is not None:
-                # Find the clicked point in the dragging indices to get its original position
                 try:
                     clicked_pos_idx = self._dragging_indices.index(self._clicked_idx)
                     clicked_orig = self._orig_positions[clicked_pos_idx]
+                    clicked_orig_xy = (clicked_orig[1], clicked_orig[2]) if elem_has_coords(clicked_orig) else (0, 0)
                 except (ValueError, IndexError):
-                    # Fallback to first point if clicked point not found
-                    clicked_orig = self._orig_positions[0]
+                    clicked_orig_xy = (self._orig_positions[0][1], self._orig_positions[0][2]) if self._orig_positions and elem_has_coords(self._orig_positions[0]) else (0, 0)
             else:
-                clicked_orig = self._orig_positions[0]
-            
-            self._offset_x = cx - clicked_orig[0]
-            self._offset_y = cy - clicked_orig[1]
-            
-            # Live preview: temporarily update positions
+                clicked_orig_xy = (self._orig_positions[0][1], self._orig_positions[0][2]) if self._orig_positions and elem_has_coords(self._orig_positions[0]) else (0, 0)
+
+            self._offset_x = cx - clicked_orig_xy[0]
+            self._offset_y = cy - clicked_orig_xy[1]
+
+            # Live preview: temporarily update positions (preserve element type)
             for i, idx in enumerate(self._dragging_indices):
-                orig_x, orig_y = self._orig_positions[i]
+                orig = self._orig_positions[i]
+                if not elem_has_coords(orig):
+                    continue
+                orig_x, orig_y = orig[1], orig[2]
                 new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
                 new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
-                canvas.pattern.points[idx] = (new_x, new_y)
+                canvas.pattern.elements[idx] = (orig[0], new_x, new_y)
             canvas.update()
 
     def mouse_release(self, canvas, event):
@@ -422,24 +437,32 @@ class MovePointTool(BaseTool):
             canvas.update()
             return
         if self._dragging_indices:
-            # Restore live-preview positions to originals, then commit all moves
-            # as a single undoable step.
+            # Restore live-preview positions to originals, then commit moves.
             for i, idx in enumerate(self._dragging_indices):
-                canvas.pattern.points[idx] = self._orig_positions[i]
+                canvas.pattern.elements[idx] = self._orig_positions[i]
 
             new_positions = []
             for i, idx in enumerate(self._dragging_indices):
-                orig_x, orig_y = self._orig_positions[i]
+                orig = self._orig_positions[i]
+                if not elem_has_coords(orig):
+                    new_positions.append(None)
+                    continue
+                orig_x, orig_y = orig[1], orig[2]
                 new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
                 new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
                 new_positions.append((new_x, new_y))
 
-            if len(self._dragging_indices) == 1:
-                idx = self._dragging_indices[0]
-                new_x, new_y = new_positions[0]
+            # Filter to only coord elements
+            coord_moves = [(idx, pos) for idx, pos in zip(self._dragging_indices, new_positions)
+                           if pos is not None]
+
+            if len(coord_moves) == 1:
+                idx, (new_x, new_y) = coord_moves[0]
                 canvas.pattern.move_point(idx, new_x, new_y)
-            else:
-                canvas.pattern.move_points(self._dragging_indices, new_positions)
+            elif coord_moves:
+                indices = [idx for idx, _ in coord_moves]
+                positions = [pos for _, pos in coord_moves]
+                canvas.pattern.move_points(indices, positions)
             
             self._dragging_indices = []
             self._orig_positions = []
@@ -482,10 +505,13 @@ class DeletePointTool(BaseTool):
         return False
 
     def _find_nearest(self, canvas, cx, cy):
-        """Return index of the nearest point within hit radius, or None."""
+        """Return element index of the nearest coord element within hit radius, or None."""
         best_idx = None
         best_dist_sq = float('inf')
-        for i, (px, py) in enumerate(canvas.pattern.points):
+        for i, elem in enumerate(canvas.pattern.elements):
+            if not elem_has_coords(elem):
+                continue
+            px, py = elem[1], elem[2]
             d = (px - cx) ** 2 + (py - cy) ** 2
             if d < best_dist_sq:
                 best_dist_sq = d

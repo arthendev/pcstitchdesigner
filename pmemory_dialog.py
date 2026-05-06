@@ -118,8 +118,9 @@ class PMemoryDialog(QDialog):
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_write)
             if self._pattern is not None:
+                from model import elem_has_coords
                 st = self._pattern.stitch_type
-                n  = len(self._pattern.points)
+                n  = sum(1 for e in self._pattern.elements if elem_has_coords(e))
                 needed = n * 2 if st == "9mm" else n * 3 if st == "MAXI" else 0
             else:
                 needed = 0

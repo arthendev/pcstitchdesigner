@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
 from PyQt5.QtGui import QDesktopServices
 
-from model import StitchPattern
+from model import StitchPattern, ELEM_STITCH, elem_has_coords
 from canvas import StitchCanvas
 from tools import PanTool, AddPointTool, MovePointTool, DeletePointTool, SelectPointTool
 import file_io
@@ -607,9 +607,11 @@ class MainWindow(QMainWindow):
     def _pattern_fits_in_canvas(self, canvas_size):
         """Check if current pattern fits in the given canvas size."""
         w, h = StitchPattern.CANVAS_SIZES[canvas_size]
-        for x, y in self._pattern.points:
-            if x < 0 or x > w or y < 0 or y > h:
-                return False
+        for e in self._pattern.elements:
+            if elem_has_coords(e):
+                x, y = e[1], e[2]
+                if x < 0 or x > w or y < 0 or y > h:
+                    return False
         return True
 
     def _on_stitch_9mm(self):
@@ -627,7 +629,7 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
-        if not self._pattern.points:
+        if not self._pattern.elements:
             self._zoom_fit_height()
 
     def _on_stitch_maxi(self):
@@ -647,7 +649,7 @@ class MainWindow(QMainWindow):
         self._update_hoop_restricted_actions()
 
         # Center the pattern in the view
-        if self._pattern.points:
+        if self._pattern.elements:
             self._fit_pattern()
         else:
             self._zoom_fit_height()
@@ -669,7 +671,7 @@ class MainWindow(QMainWindow):
         self._update_hoop_restricted_actions()
         if not was_hoop:
             self._show_hoop_info()
-        if self._pattern.points:
+        if self._pattern.elements:
             self._fit_pattern()
         else:
             self._zoom_fit_height()
@@ -691,7 +693,7 @@ class MainWindow(QMainWindow):
         self._update_hoop_restricted_actions()
         if not was_hoop:
             self._show_hoop_info()
-        if self._pattern.points:
+        if self._pattern.elements:
             self._fit_pattern()
         else:
             self._zoom_fit_height()
@@ -747,7 +749,8 @@ class MainWindow(QMainWindow):
         self._coord_label.setText(f"x: {cx_clamped:.0f}  y: {cy_clamped:.0f}")
 
     def _on_pattern_changed(self):
-        self._count_label.setText(f"Stitches: {len(self._pattern.points)}")
+        stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
+        self._count_label.setText(f"Stitches: {stitch_count}")
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
@@ -764,7 +767,7 @@ class MainWindow(QMainWindow):
         has_multiple_selection = has_selection and end > start
         hoop = self._is_hoop_type()
 
-        n = len(self._pattern.points)
+        n = len(self._pattern.elements)
         self._act_copy.setEnabled(has_multiple_selection and not hoop)
         self._act_cut.setEnabled(has_multiple_selection and not hoop)
         self._act_paste.setEnabled(self._clipboard is not None and not hoop)
@@ -970,7 +973,7 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         if start is None or end is None or end <= start:
             return
-        self._clipboard = list(self._pattern.points[start:end + 1])
+        self._clipboard = [(e[1], e[2]) for e in self._pattern.elements[start:end + 1] if elem_has_coords(e)]
         self._act_paste.setEnabled(True)
 
     def _edit_cut(self):
@@ -978,7 +981,8 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         if start is None or end is None or end <= start:
             return
-        self._clipboard = self._pattern.cut_range(start, end)
+        cut_elems = self._pattern.cut_range(start, end)
+        self._clipboard = [(e[1], e[2]) for e in cut_elems if elem_has_coords(e)]
         self._canvas.set_selection(None, None)
         self._canvas._update_size()
         self._canvas.update()
@@ -993,8 +997,8 @@ class MainWindow(QMainWindow):
 
     def _edit_select_all(self):
         """Select all stitch points in the pattern."""
-        if len(self._pattern.points) > 0:
-            self._canvas.set_selection(0, len(self._pattern.points) - 1)
+        if len(self._pattern.elements) > 0:
+            self._canvas.set_selection(0, len(self._pattern.elements) - 1)
         else:
             self._canvas.set_selection(None, None)
 
@@ -1006,7 +1010,7 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return
-        if end < len(self._pattern.points) - 1:
+        if end < len(self._pattern.elements) - 1:
             self._canvas.set_selection(start, end + 1)
         self._canvas.update()
         self._update_selection_action_state()
@@ -1033,7 +1037,7 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         if start is None or end is None:
             return
-        if end < len(self._pattern.points) - 1:
+        if end < len(self._pattern.elements) - 1:
             self._canvas.set_selection(start + 1, end + 1)
         self._canvas.update()
         self._update_selection_action_state()
@@ -1345,8 +1349,8 @@ class MainWindow(QMainWindow):
 
         if not append_on_no_selection:
             # Fall back to the last point when nothing is selected
-            if start is None and self._pattern.points:
-                start = len(self._pattern.points) - 1
+            if start is None and self._pattern.elements:
+                start = len(self._pattern.elements) - 1
                 end = start
 
         # Warn when the loaded slot type differs from the open pattern type,
@@ -1366,11 +1370,12 @@ class MainWindow(QMainWindow):
                 return
 
         # Translate loaded points so their first point aligns with
-        # pattern.points[start], then clamp to the current canvas bounds.
+        # the element at [start], then clamp to the current canvas bounds.
         cw = self._pattern.CANVAS_WIDTH
         ch = self._pattern.CANVAS_HEIGHT
-        if points and start is not None and start < len(self._pattern.points):
-            anchor_x, anchor_y = self._pattern.points[start]
+        if points and start is not None and start < len(self._pattern.elements):
+            anchor_coords = self._pattern.get_coords(start)
+            anchor_x, anchor_y = anchor_coords if anchor_coords is not None else (0, 0)
             dx = anchor_x - points[0][0]
             dy = anchor_y - points[0][1]
             translated = [(x + dx, y + dy) for x, y in points]
@@ -1410,8 +1415,8 @@ class MainWindow(QMainWindow):
         if start is None:
             if append_on_no_selection:
                 # No selection — append to end of the pattern.
-                n = len(self._pattern.points)
-                self._pattern.replace_range(n, n - 1, clamped)
+                n = len(self._pattern.elements)
+                self._pattern.replace_range(n, n - 1, [(ELEM_STITCH, x, y) for x, y in clamped])
                 if clamped:
                     self._canvas.set_selection(n, n + len(clamped) - 1)
                 else:
@@ -1422,10 +1427,11 @@ class MainWindow(QMainWindow):
                 self._canvas.set_selected_point(None)
         else:
             # When a canvas-fitting shift was applied the inserted pattern no
-            # longer starts at the anchor point, so keep pattern.points[start]
-            # in place and replace only [start+1, end] with the loaded points.
+            # longer starts at the anchor point, so keep elements[start]
+            # in place and replace [start+1, end] with the new points.
+            # Without a shift, replace from start so the anchor is overwritten.
             replace_start = start + 1 if shift_applied else start
-            self._pattern.replace_range(replace_start, end, clamped)
+            self._pattern.replace_range(replace_start, end, [(ELEM_STITCH, x, y) for x, y in clamped])
             # Update selection to cover the newly inserted points
             if clamped:
                 self._canvas.set_selection(replace_start, replace_start + len(clamped) - 1)
@@ -1440,7 +1446,7 @@ class MainWindow(QMainWindow):
         self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
 
     def _machine_send_pmemory(self):
-        if not self._pattern.points:
+        if not any(elem_has_coords(e) for e in self._pattern.elements):
             QMessageBox.warning(
                 self, "Send P-Memory",
                 "The stitch pattern is empty. Add stitch points before sending to the machine."
@@ -1553,7 +1559,7 @@ class MainWindow(QMainWindow):
                 self._on_tool_pan()
             # If AddPointTool active and last point selected, switch to Pan tool
             elif (isinstance(self._canvas._tool, AddPointTool) and
-                  self._canvas.get_selected_point() == len(self._pattern.points) - 1):
+                  self._canvas.get_selected_point() == len(self._pattern.elements) - 1):
                 self._act_pan.setChecked(True)
                 self._on_tool_pan()
             else:

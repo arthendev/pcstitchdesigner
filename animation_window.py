@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QIcon, QPixmap, QPolygon
+from model import ELEM_COLOR, ELEM_TRIM, elem_has_coords
 
 
 _ICONS = os.path.join(os.path.dirname(__file__), "icons")
@@ -41,8 +42,10 @@ class AnimationCanvas(QWidget):
         self._show_stitches = show_stitches
 
         # Cached geometry — invalidated on resize
-        self._screen_pts = []    # [(sx, sy), ...] for every point in pattern
-        self._bbox_vals = None   # (bx0, by0, bx1, by1)
+        self._screen_pts = []         # [(sx, sy), ...] for every coord element
+        self._coord_elem_indices = []  # parallel list: element index for each screen point
+        self._trim_after = set()       # coord-point indices after which a trim/break occurs
+        self._bbox_vals = None         # (bx0, by0, bx1, by1)
         self._scale = 1.0
         self._off_x = 0.0
         self._off_y = 0.0
@@ -78,6 +81,8 @@ class AnimationCanvas(QWidget):
 
     def _invalidate_cache(self):
         self._screen_pts = []
+        self._coord_elem_indices = []
+        self._trim_after = set()
         self._bbox_vals = None
         self._lines_pixmap = None
         self._lines_count = 0
@@ -114,16 +119,36 @@ class AnimationCanvas(QWidget):
         remaining_h = self.height() - 2 * self.MARGIN - self.LABEL_HEIGHT
         self._off_y = self.MARGIN + self.LABEL_HEIGHT + max(0.0, (remaining_h - draw_h) / 2)
         off_x, off_y, scale = self._off_x, self._off_y, self._scale
-        self._screen_pts = [
-            (int(off_x + (cx - bx0) * scale), int(off_y + (by1 - cy) * scale))
-            for cx, cy in self._pattern.points
-        ]
+        coord_idx = 0
+        pending_trim = False
+        self._coord_elem_indices = []
+        self._trim_after = set()
+        new_screen_pts = []
+        for elem_idx, e in enumerate(self._pattern.elements):
+            if e[0] == ELEM_TRIM:
+                pending_trim = True
+            elif e[0] == ELEM_COLOR:
+                pass
+            elif elem_has_coords(e):
+                cx, cy = e[1], e[2]
+                new_screen_pts.append(
+                    (int(off_x + (cx - bx0) * scale), int(off_y + (by1 - cy) * scale))
+                )
+                self._coord_elem_indices.append(elem_idx)
+                if pending_trim and coord_idx > 0:
+                    self._trim_after.add(coord_idx - 1)
+                pending_trim = False
+                coord_idx += 1
+        self._screen_pts = new_screen_pts
 
     def _pen_for_segment(self, seg_idx):
-        """Return the QPen for segment seg_idx (the line from point seg_idx to seg_idx+1)."""
+        """Return the QPen for segment seg_idx (the line from coord point seg_idx to seg_idx+1)."""
         if not self._pattern.has_palette:
             return self._pen_line
-        color_idx = self._pattern.get_point_color_index(seg_idx)
+        elem_idx = self._coord_elem_indices[seg_idx] if seg_idx < len(self._coord_elem_indices) else 0
+        color_idx = self._pattern.get_color_at(elem_idx)
+        if color_idx is None:
+            return self._pen_line
         if color_idx not in self._color_pens:
             r, g, b = self._pattern.colors[color_idx]
             self._color_pens[color_idx] = QPen(QColor(r, g, b), 2)
@@ -136,12 +161,12 @@ class AnimationCanvas(QWidget):
         Segment i connects screen points i and i+1.
         """
         pts = self._screen_pts
-        jump = self._pattern.jump_stitches
+        trim = self._trim_after
         run = []
         run_pen = None
         for i in range(from_seg, to_seg):
-            # A jump at point i+1 means no line from i to i+1
-            if (i + 1) in jump:
+            # A trim after point i means no line from i to i+1
+            if i in trim:
                 if len(run) >= 2:
                     painter.setPen(run_pen)
                     painter.drawPolyline(QPolygon([QPoint(sx, sy) for sx, sy in run]))
@@ -223,7 +248,7 @@ class AnimationCanvas(QWidget):
         painter.setPen(self._pen_border)
         painter.drawRect(sx0, sy_top, sx1 - sx0, sy_bot - sy_top)
 
-        n = min(self._visible_count, len(self._pattern.points))
+        n = min(self._visible_count, len(self._screen_pts))
         if n == 0 or not self._screen_pts:
             painter.end()
             return
@@ -236,7 +261,7 @@ class AnimationCanvas(QWidget):
         # Stitch markers — only for 9mm / MAXI (not embroidery hoops)
         if self._pattern.stitch_type in self._MARKER_STITCH_TYPES:
             r = max(2, int(3 * min(scale / 4.0, 1.5)))
-            total = len(self._pattern.points)
+            total = len(self._screen_pts)
             painter.setPen(Qt.NoPen)
 
             if self._show_stitches:
@@ -296,7 +321,7 @@ class AnimationWindow(QDialog):
 
         self._progress = QProgressBar()
         self._progress.setMinimum(0)
-        self._progress.setMaximum(max(1, len(pattern.points)))
+        self._progress.setMaximum(max(1, sum(1 for e in pattern.elements if elem_has_coords(e))))
         self._progress.setValue(0)
         self._progress.setFormat("Stitch %v / %m")
         self._progress.setMinimumWidth(200)
@@ -352,7 +377,7 @@ class AnimationWindow(QDialog):
     # ── Internal helpers ──
 
     def _total(self):
-        return len(self._pattern.points)
+        return sum(1 for e in self._pattern.elements if elem_has_coords(e))
 
     def _refresh(self):
         self._canvas.set_visible_count(self._current_step)

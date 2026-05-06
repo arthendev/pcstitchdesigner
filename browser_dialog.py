@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
 )
 
 import file_io
+from model import ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM, elem_has_coords
 
 
 class PatternPreviewWidget(QWidget):
@@ -47,8 +48,9 @@ class PatternPreviewWidget(QWidget):
             painter.drawText(draw_rect, Qt.AlignCenter, "Select a .pcd or .pcq file")
             return
 
-        points = self._pattern.points
-        if not points:
+        elements = self._pattern.elements
+        coord_elems = [(e[1], e[2]) for e in elements if elem_has_coords(e)]
+        if not coord_elems:
             painter.setPen(QColor(120, 120, 120))
             painter.drawText(draw_rect, Qt.AlignCenter, "No stitch points")
             return
@@ -91,35 +93,43 @@ class PatternPreviewWidget(QWidget):
         painter.setPen(border_pen)
         painter.drawRect(int(origin_x), int(origin_y), int(pattern_w), int(pattern_h))
 
-        if len(points) >= 2:
-            for idx in range(len(points) - 1):
-                x1, y1 = points[idx]
-                x2, y2 = points[idx + 1]
-                sx1, sy1 = to_screen(x1, y1)
-                sx2, sy2 = to_screen(x2, y2)
+        # Draw connecting lines, respecting color changes and trims
+        current_color_idx = 0
+        trim_pending = False
+        last_sx, last_sy = None, None
+        for elem in elements:
+            kind = elem[0]
+            if kind == ELEM_COLOR:
+                current_color_idx = elem[1]
+                continue
+            if kind == ELEM_TRIM:
+                trim_pending = True
+                continue
+            if not elem_has_coords(elem):
+                continue
 
-                # Get line color from palette if available, else use black
-                if self._pattern.has_palette:
-                    color_idx = self._pattern.get_point_color_index(idx)
-                    r, g, b = self._pattern.colors[color_idx]
+            x, y = elem[1], elem[2]
+            sx, sy = to_screen(x, y)
+
+            if last_sx is not None and not trim_pending:
+                if self._pattern.has_palette and current_color_idx < len(self._pattern.colors):
+                    r, g, b = self._pattern.colors[current_color_idx]
                     line_color = QColor(r, g, b)
                 else:
                     line_color = QColor(0, 0, 0)
+                painter.setPen(QPen(line_color, 1))
+                painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
-                # jump_stitches stores the index of the next point in a new segment.
-                # For segment idx -> idx+1, skip when idx+1 is marked as jump start.
-                if (idx + 1) not in self._pattern.jump_stitches:
-                    line_pen = QPen(line_color, 1)
-                    painter.setPen(line_pen)
-                    painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+            last_sx, last_sy = sx, sy
+            trim_pending = False
 
         # Draw start/end markers for stitch formats on top of lines.
-        if self._pattern.stitch_type in ("9mm", "MAXI") and points:
+        if self._pattern.stitch_type in ("9mm", "MAXI") and coord_elems:
             marker_radius = 3
             marker_outline = QPen(QColor(255, 255, 255), 1)
             painter.setPen(marker_outline)
 
-            start_x, start_y = to_screen(points[0][0], points[0][1])
+            start_x, start_y = to_screen(coord_elems[0][0], coord_elems[0][1])
             painter.setBrush(QColor(0, 180, 0))
             painter.drawEllipse(
                 int(start_x - marker_radius),
@@ -128,7 +138,7 @@ class PatternPreviewWidget(QWidget):
                 marker_radius * 2,
             )
 
-            end_x, end_y = to_screen(points[-1][0], points[-1][1])
+            end_x, end_y = to_screen(coord_elems[-1][0], coord_elems[-1][1])
             painter.setBrush(QColor(220, 0, 0))
             painter.drawEllipse(
                 int(end_x - marker_radius),
@@ -197,12 +207,10 @@ class PatternBrowserDialog(QFileDialog):
         self._size_label.setText(f"Size: {width_mm:.2f} x {height_mm:.2f} mm")
         info_text = (
             f"Type: {pattern.stitch_type}"
-            f", Stitches: {len(pattern.points)}"
+            f", Elements: {len(pattern.elements)}"
         )
         if pattern.has_palette:
             info_text += f", Colors: {len(pattern.colors)}"
-        if pattern.jump_stitches:
-            info_text += f", Jumps: {len(pattern.jump_stitches)}"
         self._info_label.setText(info_text)
 
     @staticmethod

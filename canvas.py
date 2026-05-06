@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap
 
-from model import StitchPattern
+from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM, elem_has_coords
 
 
 class StitchCanvas(QWidget):
@@ -248,111 +248,139 @@ class StitchCanvas(QWidget):
                          int(bx0 - bx1), int(by0 - by1))
 
         # Connecting lines
-        if len(self.pattern.points) >= 2:
+        elements = self.pattern.elements
+        if len(elements) >= 2:
             default_line_pen = QPen(self._color_line, self._line_width)
             use_palette = self.pattern.has_palette
             if not use_palette:
                 painter.setPen(default_line_pen)
-            for i in range(len(self.pattern.points) - 1):
-                x1, y1 = self.pattern.points[i]
-                x2, y2 = self.pattern.points[i + 1]
-                sx1, sy1 = self.canvas_to_screen(x1, y1)
-                sx2, sy2 = self.canvas_to_screen(x2, y2)
 
-                # Skip connecting line for jump stitches (the next point starts a new segment)
-                if (i + 1) in self.pattern.jump_stitches:
+            current_color_idx = 0  # active palette index as we walk through elements
+            trim_pending = False   # ELEM_TRIM breaks the next line segment
+            last_coord = None      # (elem_idx, sx, sy) of the previous coord element
+
+            for elem_idx, elem in enumerate(elements):
+                kind = elem[0]
+
+                if kind == ELEM_COLOR:
+                    current_color_idx = elem[1]
                     continue
 
-                # Draw blue dashed line if both points in selection and multiple selected
-                if (self._selection_start is not None and self._selection_end is not None and
-                    self._selection_end - self._selection_start >= 1 and
-                    i >= self._selection_start and i < self._selection_end):
-                    dashed_pen = QPen(QColor(0, 80, 200), 2)
-                    dashed_pen.setDashPattern([4, 4])
-                    painter.setPen(dashed_pen)
-                elif use_palette:
-                    ci = self.pattern.get_point_color_index(i)
-                    pr, pg, pb = self.pattern.colors[ci]
-                    painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
-                else:
-                    painter.setPen(default_line_pen)
-                painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
+                if kind == ELEM_TRIM:
+                    trim_pending = True
+                    continue
+
+                if kind not in (ELEM_STITCH, ELEM_AUTO):
+                    continue
+
+                x, y = elem[1], elem[2]
+                sx, sy = self.canvas_to_screen(x, y)
+
+                if last_coord is not None and not trim_pending:
+                    last_idx, last_sx, last_sy = last_coord
+                    is_in_selection = (
+                        self._selection_start is not None
+                        and self._selection_end is not None
+                        and self._selection_end - self._selection_start >= 1
+                        and last_idx >= self._selection_start
+                        and last_idx < self._selection_end
+                    )
+                    if is_in_selection:
+                        dashed_pen = QPen(QColor(0, 80, 200), 2)
+                        dashed_pen.setDashPattern([4, 4])
+                        painter.setPen(dashed_pen)
+                    elif use_palette:
+                        ci = min(current_color_idx, len(self.pattern.colors) - 1)
+                        pr, pg, pb = self.pattern.colors[ci]
+                        painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
+                    else:
+                        painter.setPen(default_line_pen)
+                    painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
+
+                last_coord = (elem_idx, sx, sy)
+                trim_pending = False
+
+        # Collect coord elements with running color for point rendering
+        # coord_elems: list of (elem_idx, x, y, color_idx, kind)
+        coord_elems = []
+        if self._show_stitch_points:
+            cur_col = 0
+            for idx, elem in enumerate(self.pattern.elements):
+                if elem[0] == ELEM_COLOR:
+                    cur_col = elem[1]
+                elif elem_has_coords(elem):
+                    coord_elems.append((idx, elem[1], elem[2], cur_col, elem[0]))
 
         # Stitch points (draw in layers to ensure selected points are on top)
         if self._show_stitch_points:
-            painter.setPen(Qt.NoPen)
             r = self._point_radius
-            num_points = len(self.pattern.points)
             use_palette = self.pattern.has_palette
+            num_coord = len(coord_elems)
+
+            def _draw_point(sx, sy, color, kind, outline=False):
+                """Draw a single stitch or auto-stitch marker."""
+                if kind == ELEM_AUTO:
+                    # Auto stitch: hollow circle
+                    painter.setPen(QPen(color, 1))
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                    painter.setPen(Qt.NoPen)
+                else:
+                    # Normal stitch: filled circle
+                    painter.setPen(Qt.NoPen)
+                    painter.setBrush(QBrush(color))
+                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
             if use_palette:
-                # Palette mode: draw all non-selected points in their palette color
-                for i, (x, y) in enumerate(self.pattern.points):
-                    if self.is_point_selected(i):
+                # Palette mode: draw non-selected in palette color, selected in blue
+                painter.setPen(Qt.NoPen)
+                for cidx, x, y, color_idx, kind in coord_elems:
+                    if self.is_point_selected(cidx):
                         continue
-                    ci = self.pattern.get_point_color_index(i)
+                    ci = min(color_idx, len(self.pattern.colors) - 1)
                     pr, pg, pb = self.pattern.colors[ci]
-                    painter.setBrush(QBrush(QColor(pr, pg, pb)))
                     sx, sy = self.canvas_to_screen(x, y)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-                # Draw selected points in blue on top
-                for i, (x, y) in enumerate(self.pattern.points):
-                    if self.is_point_selected(i):
-                        painter.setBrush(QBrush(QColor(0, 80, 200)))
+                    _draw_point(sx, sy, QColor(pr, pg, pb), kind)
+                for cidx, x, y, color_idx, kind in coord_elems:
+                    if self.is_point_selected(cidx):
                         sx, sy = self.canvas_to_screen(x, y)
-                        painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                        _draw_point(sx, sy, QColor(0, 80, 200), kind)
             else:
-                # Default mode: first=green, last=red, selected=blue, others=default color
-
-                # First layer: draw all regular points (not first, not last, not selected)
-                for i, (x, y) in enumerate(self.pattern.points):
-                    # Skip first, last, and selected points (draw them in the top layer)
-                    if num_points > 1 and (i == 0 or i == num_points - 1):
+                # Default mode: first=green, last=red, selected=blue, others=default
+                painter.setPen(Qt.NoPen)
+                # Layer 1: regular (not first, not last, not selected)
+                for j, (cidx, x, y, color_idx, kind) in enumerate(coord_elems):
+                    if num_coord > 1 and (j == 0 or j == num_coord - 1):
                         continue
-                    if self.is_point_selected(i):
+                    if self.is_point_selected(cidx):
                         continue
-
-                    # Draw regular point
-                    painter.setBrush(QBrush(self._color_point))
                     sx, sy = self.canvas_to_screen(x, y)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                    _draw_point(sx, sy, self._color_point, kind)
 
-                # Second layer: draw first, last, and selected points on top
-                if num_points > 1:
-                    # Draw first point (green unless selected)
-                    x, y = self.pattern.points[0]
-                    if self.is_point_selected(0):
-                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
-                    else:
-                        painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-                    sx, sy = self.canvas_to_screen(x, y)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                # Layer 2: first, last, selected
+                if num_coord > 1:
+                    cidx0, x0, y0, _, kind0 = coord_elems[0]
+                    c0 = QColor(0, 80, 200) if self.is_point_selected(cidx0) else self.COLOR_FIRST_POINT
+                    sx, sy = self.canvas_to_screen(x0, y0)
+                    _draw_point(sx, sy, c0, kind0)
 
-                    # Draw last point (red unless selected)
-                    x, y = self.pattern.points[num_points - 1]
-                    if self.is_point_selected(num_points - 1):
-                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
-                    else:
-                        painter.setBrush(QBrush(self.COLOR_LAST_POINT))
-                    sx, sy = self.canvas_to_screen(x, y)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
-                elif num_points == 1:
-                    # Single point: draw in green unless selected
-                    x, y = self.pattern.points[0]
-                    if self.is_point_selected(0):
-                        painter.setBrush(QBrush(QColor(0, 80, 200)))  # Blue if selected
-                    else:
-                        painter.setBrush(QBrush(self.COLOR_FIRST_POINT))
-                    sx, sy = self.canvas_to_screen(x, y)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                    cidx_n, xn, yn, _, kindn = coord_elems[-1]
+                    cn = QColor(0, 80, 200) if self.is_point_selected(cidx_n) else self.COLOR_LAST_POINT
+                    sx, sy = self.canvas_to_screen(xn, yn)
+                    _draw_point(sx, sy, cn, kindn)
+                elif num_coord == 1:
+                    cidx0, x0, y0, _, kind0 = coord_elems[0]
+                    c0 = QColor(0, 80, 200) if self.is_point_selected(cidx0) else self.COLOR_FIRST_POINT
+                    sx, sy = self.canvas_to_screen(x0, y0)
+                    _draw_point(sx, sy, c0, kind0)
 
-                # Draw all other selected points (not first, not last) on top in blue
-                for i in range(1, num_points - 1):
-                    if self.is_point_selected(i):
-                        x, y = self.pattern.points[i]
-                        painter.setBrush(QBrush(QColor(0, 80, 200)))
+                # Selected mid-points in blue
+                for j, (cidx, x, y, color_idx, kind) in enumerate(coord_elems):
+                    if j == 0 or j == num_coord - 1:
+                        continue
+                    if self.is_point_selected(cidx):
                         sx, sy = self.canvas_to_screen(x, y)
-                        painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                        _draw_point(sx, sy, QColor(0, 80, 200), kind)
 
         # Tool overlay
         if self._tool:
@@ -450,10 +478,13 @@ class StitchCanvas(QWidget):
                 moved = True
             
             if moved:
-                # Move all selected points
+                # Move all selected elements that have coordinates
                 selected_indices = self.get_selected_indices()
                 for idx in selected_indices:
-                    x, y = self.pattern.points[idx]
+                    coords = self.pattern.get_coords(idx)
+                    if coords is None:
+                        continue
+                    x, y = coords
                     x += dx
                     y += dy
                     # Clamp to canvas bounds
