@@ -120,24 +120,20 @@ class AnimationCanvas(QWidget):
         self._off_y = self.MARGIN + self.LABEL_HEIGHT + max(0.0, (remaining_h - draw_h) / 2)
         off_x, off_y, scale = self._off_x, self._off_y, self._scale
         coord_idx = 0
-        pending_trim = False
         self._coord_elem_indices = []
         self._trim_after = set()
         new_screen_pts = []
         for elem_idx, e in enumerate(self._pattern.elements):
-            if e[0] == ELEM_TRIM:
-                pending_trim = True
-            elif e[0] == ELEM_COLOR:
+            if e[0] == ELEM_COLOR:
                 pass
-            elif elem_has_coords(e):
+            elif e[0] == ELEM_TRIM or elem_has_coords(e):
                 cx, cy = e[1], e[2]
                 new_screen_pts.append(
                     (int(off_x + (cx - bx0) * scale), int(off_y + (by1 - cy) * scale))
                 )
                 self._coord_elem_indices.append(elem_idx)
-                if pending_trim and coord_idx > 0:
-                    self._trim_after.add(coord_idx - 1)
-                pending_trim = False
+                if e[0] == ELEM_TRIM:
+                    self._trim_after.add(coord_idx)  # break line after this point
                 coord_idx += 1
         self._screen_pts = new_screen_pts
 

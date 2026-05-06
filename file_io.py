@@ -12,7 +12,7 @@ Element encoding:
   control == 0: ELEM_STITCH  — normal stitch point, coords in x/y
   control == 2: ELEM_AUTO    — automatic stitch point, coords in x/y
   control == 3: ELEM_COLOR   — color change; new palette index stored in c0
-  control == 4: ELEM_TRIM    — trim (ignored for 9mm/MAXI, recorded for small/large hoop)
+  control == 4: ELEM_TRIM    — trim point; line is drawn to it, line broken after it
 
 Legacy format (read-only, produced by old save_pattern):
   control == 1: old-style color-change marker; treated as ELEM_COLOR with
@@ -64,7 +64,8 @@ def save_pattern(path, pattern):
                 color_idx = elem[1]
                 f.write(struct.pack(POINT_FMT, color_idx, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x03))
             elif kind == ELEM_TRIM:
-                f.write(struct.pack(POINT_FMT, 0, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x04))
+                x, y = elem[1], elem[2]
+                f.write(struct.pack(POINT_FMT, 0, x.to_bytes(3, 'little'), 0, y.to_bytes(3, 'little'), 0x04))
     pattern.modified = False
 
 
@@ -160,11 +161,8 @@ def load_pattern(path):
                 # Color change: palette index in c0
                 pattern.elements.append((ELEM_COLOR, c0))
             elif control_byte == 0x04:
-                # Trim for small/large hoop; unknown for 9mm/MAXI (treat as normal stitch point)
-                if pattern.stitch_type in ('small hoop', 'large hoop'):
-                    pattern.elements.append((ELEM_TRIM,))
-                else:
-                    pattern.elements.append((ELEM_STITCH, x, y))
+                # Trim: line is drawn to this point, line broken after it
+                pattern.elements.append((ELEM_TRIM, x, y))
             # Any other control byte is silently ignored.
 
     pattern.modified = False
