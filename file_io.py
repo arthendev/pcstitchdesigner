@@ -27,7 +27,7 @@ from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
-DEBUG = 1
+DEBUG = 2  # 1: print details of each element record; 2: print only for non-zero control bytes
 
 
 def save_pattern(path, pattern):
@@ -128,7 +128,7 @@ def load_pattern(path):
             x = int.from_bytes(x_bytes, 'little')
             y = int.from_bytes(y_bytes, 'little')
 
-            if DEBUG:
+            if DEBUG == 1 or (DEBUG > 1 and control_byte != 0x00):
                 print(f"Read record {i}:", end=" ")
                 if c0 == 0x00:
                     print(f"c0={c0:3}", end=" ")
