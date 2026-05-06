@@ -6,7 +6,7 @@
 ELEM_STITCH = 0   # (ELEM_STITCH, x, y)  — normal stitch point
 ELEM_AUTO   = 2   # (ELEM_AUTO, x, y)    — automatic stitch (hollow circle)
 ELEM_COLOR  = 3   # (ELEM_COLOR, color_index) — color change
-ELEM_TRIM   = 4   # (ELEM_TRIM, x, y)   — trim (line drawn to it, line broken after)
+ELEM_TRIM   = 4   # (ELEM_TRIM, x, y)   — trim (line broken before it, line drawn from it)
 
 
 def elem_has_coords(e):

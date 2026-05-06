@@ -133,7 +133,8 @@ class AnimationCanvas(QWidget):
                 )
                 self._coord_elem_indices.append(elem_idx)
                 if e[0] == ELEM_TRIM:
-                    self._trim_after.add(coord_idx)  # break line after this point
+                    if coord_idx > 0:
+                        self._trim_after.add(coord_idx - 1)  # break line before this point
                 coord_idx += 1
         self._screen_pts = new_screen_pts
 

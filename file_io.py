@@ -12,7 +12,7 @@ Element encoding:
   control == 0: ELEM_STITCH  — normal stitch point, coords in x/y
   control == 2: ELEM_AUTO    — automatic stitch point, coords in x/y
   control == 3: ELEM_COLOR   — color change; new palette index stored in c0
-  control == 4: ELEM_TRIM    — trim point; line is drawn to it, line broken after it
+  control == 4: ELEM_TRIM    — trim point; line broken before it, line drawn from it to next
 
 Legacy format (read-only, produced by old save_pattern):
   control == 1: old-style color-change marker; treated as ELEM_COLOR with

@@ -272,7 +272,7 @@ class StitchCanvas(QWidget):
                 x, y = elem[1], elem[2]
                 sx, sy = self.canvas_to_screen(x, y)
 
-                if last_coord is not None and not trim_pending:
+                if last_coord is not None and not trim_pending and kind != ELEM_TRIM:
                     last_idx, last_sx, last_sy = last_coord
                     is_in_selection = (
                         self._selection_start is not None
@@ -294,7 +294,7 @@ class StitchCanvas(QWidget):
                     painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
                 last_coord = (elem_idx, sx, sy)
-                trim_pending = (kind == ELEM_TRIM)
+                trim_pending = False
 
         # Collect coord elements with running color for point rendering
         # coord_elems: list of (elem_idx, x, y, color_idx, kind)
