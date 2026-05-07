@@ -6,12 +6,12 @@
 ELEM_STITCH = 0   # (ELEM_STITCH, x, y)  — normal stitch point
 ELEM_AUTO   = 2   # (ELEM_AUTO, x, y)    — automatic stitch (hollow circle)
 ELEM_COLOR  = 3   # (ELEM_COLOR, color_index) — color change
-ELEM_TRIM   = 4   # (ELEM_TRIM, x, y)   — trim (line broken before it, line drawn from it)
+ELEM_TRIM   = 4   # (ELEM_TRIM, x, y)   — trim; line suppressed only between two consecutive trims
 
 
 def elem_has_coords(e):
     """Return True when element *e* carries x,y coordinates."""
-    return e[0] in (ELEM_STITCH, ELEM_AUTO)
+    return e[0] in (ELEM_STITCH, ELEM_AUTO, ELEM_TRIM)
 
 
 class Command:

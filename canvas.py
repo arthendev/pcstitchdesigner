@@ -256,8 +256,7 @@ class StitchCanvas(QWidget):
                 painter.setPen(default_line_pen)
 
             current_color_idx = 0  # active palette index as we walk through elements
-            trim_pending = False   # ELEM_TRIM breaks the next line segment
-            last_coord = None      # (elem_idx, sx, sy) of the previous coord element
+            last_coord = None      # (elem_idx, sx, sy, kind) of the previous coord element
 
             for elem_idx, elem in enumerate(elements):
                 kind = elem[0]
@@ -272,29 +271,30 @@ class StitchCanvas(QWidget):
                 x, y = elem[1], elem[2]
                 sx, sy = self.canvas_to_screen(x, y)
 
-                if last_coord is not None and not trim_pending and kind != ELEM_TRIM:
-                    last_idx, last_sx, last_sy = last_coord
-                    is_in_selection = (
-                        self._selection_start is not None
-                        and self._selection_end is not None
-                        and self._selection_end - self._selection_start >= 1
-                        and last_idx >= self._selection_start
-                        and last_idx < self._selection_end
-                    )
-                    if is_in_selection:
-                        dashed_pen = QPen(QColor(0, 80, 200), 2)
-                        dashed_pen.setDashPattern([4, 4])
-                        painter.setPen(dashed_pen)
-                    elif use_palette:
-                        ci = min(current_color_idx, len(self.pattern.colors) - 1)
-                        pr, pg, pb = self.pattern.colors[ci]
-                        painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
-                    else:
-                        painter.setPen(default_line_pen)
-                    painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
+                if last_coord is not None:
+                    last_idx, last_sx, last_sy, last_kind = last_coord
+                    # Suppress line only between two consecutive ELEM_TRIM elements
+                    if not (kind == ELEM_TRIM and last_kind == ELEM_TRIM):
+                        is_in_selection = (
+                            self._selection_start is not None
+                            and self._selection_end is not None
+                            and self._selection_end - self._selection_start >= 1
+                            and last_idx >= self._selection_start
+                            and last_idx < self._selection_end
+                        )
+                        if is_in_selection:
+                            dashed_pen = QPen(QColor(0, 80, 200), 2)
+                            dashed_pen.setDashPattern([4, 4])
+                            painter.setPen(dashed_pen)
+                        elif use_palette:
+                            ci = min(current_color_idx, len(self.pattern.colors) - 1)
+                            pr, pg, pb = self.pattern.colors[ci]
+                            painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
+                        else:
+                            painter.setPen(default_line_pen)
+                        painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
-                last_coord = (elem_idx, sx, sy)
-                trim_pending = False
+                last_coord = (elem_idx, sx, sy, kind)
 
         # Collect coord elements with running color for point rendering
         # coord_elems: list of (elem_idx, x, y, color_idx, kind)
