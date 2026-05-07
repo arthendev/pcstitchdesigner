@@ -56,10 +56,16 @@ def save_pattern(path, pattern):
             kind = elem[0]
             if kind == ELEM_STITCH:
                 x, y = elem[1], elem[2]
-                f.write(struct.pack(POINT_FMT, 0, x.to_bytes(3, 'little'), 0, y.to_bytes(3, 'little'), 0x00))
+                x_int, y_int = int(x), int(y)
+                c0 = round((x - x_int) * 256) % 256
+                c1 = round((y - y_int) * 256) % 256
+                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x00))
             elif kind == ELEM_AUTO:
                 x, y = elem[1], elem[2]
-                f.write(struct.pack(POINT_FMT, 0, x.to_bytes(3, 'little'), 0, y.to_bytes(3, 'little'), 0x02))
+                x_int, y_int = int(x), int(y)
+                c0 = round((x - x_int) * 256) % 256
+                c1 = round((y - y_int) * 256) % 256
+                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x02))
             elif kind == ELEM_COLOR:
                 color_idx = elem[1]
                 f.write(struct.pack(POINT_FMT, color_idx, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x03))
@@ -147,16 +153,16 @@ def load_pattern(path):
                     print(f"\033[91mcontrol_byte={control_byte:#04x}\033[0m")
 
             if control_byte == 0x00:
-                # Normal stitch point
-                pattern.elements.append((ELEM_STITCH, x, y))
+                # Normal stitch point; c0/c1 are fractional parts of x/y
+                pattern.elements.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
             elif control_byte == 0x01:
                 # Legacy color-change marker: infer sequential palette index
                 if pattern.colors:
                     pattern.elements.append((ELEM_COLOR, legacy_color_idx))
                     legacy_color_idx += 1
             elif control_byte == 0x02:
-                # Automatic stitch point (hollow circle on canvas)
-                pattern.elements.append((ELEM_AUTO, x, y))
+                # Automatic stitch point (hollow circle on canvas); c0/c1 are fractional parts of x/y
+                pattern.elements.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256))
             elif control_byte == 0x03:
                 # Color change: palette index in c0
                 pattern.elements.append((ELEM_COLOR, c0))
