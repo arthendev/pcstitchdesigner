@@ -7,14 +7,59 @@ debug = 0
 
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QSlider,
-    QPushButton, QLabel, QSizePolicy, QWidget,
+    QPushButton, QLabel, QSizePolicy, QWidget, QStyle, QStyleOptionProgressBar,
 )
-from PyQt5.QtCore import Qt, QTimer, QPoint
+from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QIcon, QPixmap, QPolygon
 from model import ELEM_COLOR, ELEM_TRIM, elem_has_coords
 
 
 _ICONS = os.path.join(os.path.dirname(__file__), "icons")
+
+
+class ClickableProgressBar(QProgressBar):
+    """QProgressBar that emits *step_requested* when the user clicks or drags.
+
+    Only the painted bar groove is interactive; the text area is ignored.
+    """
+
+    step_requested = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._seeking = False
+
+    def _groove_rect(self):
+        """Return the style-computed rect of the bar groove (excludes text area)."""
+        opt = QStyleOptionProgressBar()
+        self.initStyleOption(opt)
+        return self.style().subElementRect(QStyle.SE_ProgressBarGroove, opt, self)
+
+    def _value_at(self, x):
+        """Map an x pixel position (clamped to groove) to a progress value."""
+        groove = self._groove_rect()
+        gx = max(groove.left(), min(groove.right(), x))
+        ratio = (gx - groove.left()) / max(1, groove.width())
+        span = self.maximum() - self.minimum()
+        return self.minimum() + int(round(ratio * span))
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._groove_rect().contains(event.pos()):
+            self._seeking = True
+            self.step_requested.emit(self._value_at(event.x()))
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if (event.buttons() & Qt.LeftButton) and self._seeking:
+            self.step_requested.emit(self._value_at(event.x()))
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._seeking = False
+        super().mouseReleaseEvent(event)
 
 
 class AnimationCanvas(QWidget):
@@ -120,6 +165,7 @@ class AnimationCanvas(QWidget):
         self._off_y = self.MARGIN + self.LABEL_HEIGHT + max(0.0, (remaining_h - draw_h) / 2)
         off_x, off_y, scale = self._off_x, self._off_y, self._scale
         coord_idx = 0
+        prev_kind = None
         self._coord_elem_indices = []
         self._trim_after = set()
         new_screen_pts = []
@@ -133,8 +179,9 @@ class AnimationCanvas(QWidget):
                 )
                 self._coord_elem_indices.append(elem_idx)
                 if e[0] == ELEM_TRIM:
-                    if coord_idx > 0:
-                        self._trim_after.add(coord_idx - 1)  # break line before this point
+                    if coord_idx > 0 and prev_kind == ELEM_TRIM:
+                        self._trim_after.add(coord_idx - 1)  # break between two consecutive TRIMs
+                prev_kind = e[0]
                 coord_idx += 1
         self._screen_pts = new_screen_pts
 
@@ -316,12 +363,14 @@ class AnimationWindow(QDialog):
 
         self._canvas = AnimationCanvas(pattern)
 
-        self._progress = QProgressBar()
+        self._progress = ClickableProgressBar()
         self._progress.setMinimum(0)
         self._progress.setMaximum(max(1, sum(1 for e in pattern.elements if elem_has_coords(e))))
         self._progress.setValue(0)
         self._progress.setFormat("Stitch %v / %m")
         self._progress.setMinimumWidth(200)
+        self._progress.setCursor(Qt.PointingHandCursor)
+        self._progress.step_requested.connect(self._on_progress_seek)
 
         self._speed_label = QLabel(f"Speed: {self._speed} st/s")
         self._speed_slider = QSlider(Qt.Horizontal)
@@ -424,6 +473,11 @@ class AnimationWindow(QDialog):
     def _go_to_end(self):
         self._set_playing(False)
         self._current_step = self._total()
+        self._refresh()
+
+    def _on_progress_seek(self, step):
+        self._set_playing(False)
+        self._current_step = max(0, min(step, self._total()))
         self._refresh()
 
     def _on_tick(self):
