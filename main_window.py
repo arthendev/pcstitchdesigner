@@ -859,6 +859,7 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
         self._update_palette_bar()
+        self._last_auto_stitch_length_mm = None
 
     def _file_open(self):
         if not self._confirm_discard():
@@ -893,6 +894,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selected_point(None)
         self._file_path = path
         self._add_recent_file(path)
+        self._last_auto_stitch_length_mm = None
         
         # Update stitch type selection based on loaded pattern
         if self._pattern.stitch_type == "9mm":
