@@ -227,6 +227,25 @@ class MirrorHorizontalCommand(Command):
                 pattern.elements[self.start + i] = e
 
 
+class ConvertAutoStitchesCommand(Command):
+    """Converts all ELEM_AUTO elements to ELEM_STITCH in one undoable step."""
+
+    def __init__(self):
+        self._saved = None  # snapshot of indices and original tuples
+
+    def redo(self, pattern):
+        self._saved = [
+            (i, e) for i, e in enumerate(pattern.elements) if e[0] == ELEM_AUTO
+        ]
+        for i, e in self._saved:
+            pattern.elements[i] = (ELEM_STITCH, round(e[1]), round(e[2]))
+
+    def undo(self, pattern):
+        if self._saved is not None:
+            for i, e in self._saved:
+                pattern.elements[i] = e
+
+
 class StitchPattern:
     """Ordered list of pattern elements with undo/redo.
 
@@ -511,6 +530,12 @@ class StitchPattern:
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = True
+
+    def convert_auto_to_normal(self):
+        """Convert all ELEM_AUTO elements to ELEM_STITCH (undoable)."""
+        if not any(e[0] == ELEM_AUTO for e in self.elements):
+            return
+        self._exec(ConvertAutoStitchesCommand())
 
     def recalculate_auto_stitches(self, max_length_mm, align_to_grid=False):
         """Remove all ELEM_AUTO elements and re-insert them so that no gap

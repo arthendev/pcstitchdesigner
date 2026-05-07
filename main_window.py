@@ -417,6 +417,9 @@ class MainWindow(QMainWindow):
         self._act_remove_auto_stitches = QAction("Remove &All", self)
         self._act_remove_auto_stitches.triggered.connect(self._design_remove_auto_stitches)
 
+        self._act_convert_auto_stitches = QAction("&Convert to Normal Stitches", self)
+        self._act_convert_auto_stitches.triggered.connect(self._design_convert_auto_stitches)
+
         self._act_auto_stitch_align_grid = QAction("&Align to Grid", self)
         self._act_auto_stitch_align_grid.setCheckable(True)
         self._act_auto_stitch_align_grid.setChecked(False)
@@ -532,6 +535,7 @@ class MainWindow(QMainWindow):
         auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
         auto_stitches_menu.addAction(self._act_set_auto_stitch_length)
         auto_stitches_menu.addAction(self._act_remove_auto_stitches)
+        auto_stitches_menu.addAction(self._act_convert_auto_stitches)
         auto_stitches_menu.addSeparator()
         auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
 
@@ -1581,6 +1585,11 @@ class MainWindow(QMainWindow):
             return  # nothing to remove
         self._pattern.elements = new_elements
         self._pattern.modified = True
+        self._canvas.update()
+        self._on_pattern_changed()
+
+    def _design_convert_auto_stitches(self):
+        self._pattern.convert_auto_to_normal()
         self._canvas.update()
         self._on_pattern_changed()
 
