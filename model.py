@@ -47,18 +47,20 @@ class MovePointCommand(Command):
         self.old_y = old_y
         self.new_x = new_x
         self.new_y = new_y
+        self._original_element = None
 
     def redo(self, pattern):
         if 0 <= self.index < len(pattern.elements):
+            if self._original_element is None:
+                self._original_element = pattern.elements[self.index]
             e = pattern.elements[self.index]
             if elem_has_coords(e):
-                pattern.elements[self.index] = (e[0], self.new_x, self.new_y)
+                kind = ELEM_STITCH if e[0] == ELEM_AUTO else e[0]
+                pattern.elements[self.index] = (kind, self.new_x, self.new_y)
 
     def undo(self, pattern):
-        if 0 <= self.index < len(pattern.elements):
-            e = pattern.elements[self.index]
-            if elem_has_coords(e):
-                pattern.elements[self.index] = (e[0], self.old_x, self.old_y)
+        if self._original_element is not None and 0 <= self.index < len(pattern.elements):
+            pattern.elements[self.index] = self._original_element
 
 
 class MoveManyPointsCommand(Command):
@@ -69,20 +71,27 @@ class MoveManyPointsCommand(Command):
     """
     def __init__(self, moves):
         self.moves = moves  # [(index, old_x, old_y, new_x, new_y), ...]
+        self._affected_elements = None
 
     def redo(self, pattern):
+        if self._affected_elements is None:
+            self._affected_elements = {
+                idx: pattern.elements[idx]
+                for idx, old_x, old_y, new_x, new_y in self.moves
+                if 0 <= idx < len(pattern.elements)
+            }
         for index, old_x, old_y, new_x, new_y in self.moves:
             if 0 <= index < len(pattern.elements):
                 e = pattern.elements[index]
                 if elem_has_coords(e):
-                    pattern.elements[index] = (e[0], new_x, new_y)
+                    kind = ELEM_STITCH if e[0] == ELEM_AUTO else e[0]
+                    pattern.elements[index] = (kind, new_x, new_y)
 
     def undo(self, pattern):
-        for index, old_x, old_y, new_x, new_y in self.moves:
-            if 0 <= index < len(pattern.elements):
-                e = pattern.elements[index]
-                if elem_has_coords(e):
-                    pattern.elements[index] = (e[0], old_x, old_y)
+        if self._affected_elements is not None:
+            for idx, element in self._affected_elements.items():
+                if 0 <= idx < len(pattern.elements):
+                    pattern.elements[idx] = element
 
 
 class DeletePointCommand(Command):
