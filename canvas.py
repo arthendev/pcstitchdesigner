@@ -53,6 +53,7 @@ class StitchCanvas(QWidget):
         self._point_radius = 4  # medium
         self._show_grid = True
         self._show_stitch_points = True
+        self._show_auto_stitch_points = True
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -296,19 +297,24 @@ class StitchCanvas(QWidget):
 
                 last_coord = (elem_idx, sx, sy, kind)
 
-        # Collect coord elements with running color for point rendering
+        # Collect coord elements with running color for point rendering.
         # coord_elems: list of (elem_idx, x, y, color_idx, kind)
         coord_elems = []
-        if self._show_stitch_points:
+        if self._show_stitch_points or self._show_auto_stitch_points:
             cur_col = 0
             for idx, elem in enumerate(self.pattern.elements):
                 if elem[0] == ELEM_COLOR:
                     cur_col = elem[1]
                 elif elem_has_coords(elem):
-                    coord_elems.append((idx, elem[1], elem[2], cur_col, elem[0]))
+                    kind = elem[0]
+                    if kind == ELEM_AUTO and not self._show_auto_stitch_points:
+                        continue
+                    if kind != ELEM_AUTO and not self._show_stitch_points:
+                        continue
+                    coord_elems.append((idx, elem[1], elem[2], cur_col, kind))
 
         # Stitch points (draw in layers to ensure selected points are on top)
-        if self._show_stitch_points:
+        if coord_elems:
             r = self._point_radius
             use_palette = self.pattern.has_palette
             num_coord = len(coord_elems)
@@ -316,11 +322,20 @@ class StitchCanvas(QWidget):
             def _draw_point(sx, sy, color, kind, outline=False):
                 """Draw a single stitch or auto-stitch marker."""
                 if kind == ELEM_AUTO:
-                    # Auto stitch: hollow circle
-                    painter.setPen(QPen(color, 1))
+                    # Auto stitch: cross
+                    cross_line = 2 if self._point_radius >= 3 else 1
+                    cross_r = r-1
+                    painter.setPen(QPen(color, cross_line))
                     painter.setBrush(Qt.NoBrush)
-                    painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                    painter.drawLine(int(sx - cross_r), int(sy - cross_r), int(sx + cross_r), int(sy + cross_r))
+                    painter.drawLine(int(sx - cross_r), int(sy + cross_r), int(sx + cross_r), int(sy - cross_r))
                     painter.setPen(Qt.NoPen)
+
+                    # # Auto stitch: hollow circle
+                    # painter.setPen(QPen(color, 1))
+                    # painter.setBrush(self.COLOR_BG)
+                    # painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
+                    # painter.setPen(Qt.NoPen)
                 else:
                     # Normal stitch: filled circle
                     painter.setPen(Qt.NoPen)

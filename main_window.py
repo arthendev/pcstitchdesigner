@@ -312,6 +312,26 @@ class MainWindow(QMainWindow):
         self._act_show_stitch_points_menu.triggered.connect(self._act_show_stitch_points.setChecked)
         self._act_show_stitch_points.triggered.connect(self._act_show_stitch_points_menu.setChecked)
 
+        self._act_show_auto_stitch_points = QAction(
+            QIcon(os.path.join(_icons, "stitch_cross.svg")),
+            "Show Automatic Stitch Points",
+            self,
+        )
+        self._act_show_auto_stitch_points.setCheckable(True)
+        self._act_show_auto_stitch_points.setChecked(True)
+        self._act_show_auto_stitch_points.triggered.connect(self._toggle_show_auto_stitch_points)
+
+        self._act_show_auto_stitch_points_menu = QAction("Show Automatic Stitch Points", self)
+        self._act_show_auto_stitch_points_menu.setCheckable(True)
+        self._act_show_auto_stitch_points_menu.setChecked(True)
+        self._act_show_auto_stitch_points_menu.triggered.connect(self._toggle_show_auto_stitch_points)
+        self._act_show_auto_stitch_points_menu.triggered.connect(
+            self._act_show_auto_stitch_points.setChecked
+        )
+        self._act_show_auto_stitch_points.triggered.connect(
+            self._act_show_auto_stitch_points_menu.setChecked
+        )
+
         self._act_animate = QAction(
             QIcon(os.path.join(_icons, "player.svg")),
             "&Animate Stitching", self
@@ -481,6 +501,7 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
         view_menu.addAction(self._act_show_grid_menu)
         view_menu.addAction(self._act_show_stitch_points_menu)
+        view_menu.addAction(self._act_show_auto_stitch_points_menu)
         view_menu.addSeparator()
         view_menu.addAction(self._act_animate)
 
@@ -535,6 +556,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_toggle_orientation)
         tb.addAction(self._act_show_grid)
         tb.addAction(self._act_show_stitch_points)
+        tb.addAction(self._act_show_auto_stitch_points)
         tb.addSeparator()
         tb.addAction(self._act_animate)
         tb.addSeparator()
@@ -1188,8 +1210,26 @@ class MainWindow(QMainWindow):
         self._canvas.update()
 
     def _toggle_show_stitch_points(self, checked):
+        self._act_show_stitch_points.setChecked(checked)
+        self._act_show_stitch_points_menu.setChecked(checked)
         self._canvas._show_stitch_points = checked
+        self._sync_auto_stitch_point_visibility(checked)
         self._canvas.update()
+
+    def _toggle_show_auto_stitch_points(self, checked):
+        self._act_show_auto_stitch_points.setChecked(checked)
+        self._act_show_auto_stitch_points_menu.setChecked(checked)
+        self._sync_auto_stitch_point_visibility(self._act_show_stitch_points.isChecked())
+        self._canvas.update()
+
+    def _sync_auto_stitch_point_visibility(self, show_stitch_points=None):
+        if show_stitch_points is None:
+            show_stitch_points = self._act_show_stitch_points.isChecked()
+        self._act_show_auto_stitch_points.setEnabled(show_stitch_points)
+        self._act_show_auto_stitch_points_menu.setEnabled(show_stitch_points)
+        self._canvas._show_auto_stitch_points = (
+            show_stitch_points and self._act_show_auto_stitch_points.isChecked()
+        )
 
     # ── Machine ──
 
@@ -1505,6 +1545,7 @@ class MainWindow(QMainWindow):
         self._act_show_grid_menu.setChecked(bool(show_grid))
         self._act_show_stitch_points.setChecked(bool(show_stitch_points))
         self._act_show_stitch_points_menu.setChecked(bool(show_stitch_points))
+        self._sync_auto_stitch_point_visibility()
 
     # ── Help ──
 
