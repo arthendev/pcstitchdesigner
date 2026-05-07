@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
 from PyQt5.QtGui import QDesktopServices
 
-from model import StitchPattern, ELEM_STITCH, elem_has_coords
+from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
 from canvas import StitchCanvas
 from tools import PanTool, AddPointTool, MovePointTool, DeletePointTool, SelectPointTool
 import file_io
@@ -407,6 +407,10 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_small_hoop)
         self._stitch_group.addAction(self._act_large_hoop)
 
+        # Design – Automatic Stitches
+        self._act_remove_auto_stitches = QAction("Remove &All", self)
+        self._act_remove_auto_stitches.triggered.connect(self._design_remove_auto_stitches)
+
         # Machine
         self._act_machine_load_pmem = QAction("Load P-Memory", self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
@@ -513,6 +517,9 @@ class MainWindow(QMainWindow):
         design_menu.addAction(self._act_maxi)
         design_menu.addAction(self._act_small_hoop)
         design_menu.addAction(self._act_large_hoop)
+        design_menu.addSeparator()
+        auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
+        auto_stitches_menu.addAction(self._act_remove_auto_stitches)
 
         machine_menu = mb.addMenu("&Machine")
         machine_menu.addAction(self._act_machine_load_pmem)
@@ -1546,6 +1553,17 @@ class MainWindow(QMainWindow):
         self._act_show_stitch_points.setChecked(bool(show_stitch_points))
         self._act_show_stitch_points_menu.setChecked(bool(show_stitch_points))
         self._sync_auto_stitch_point_visibility()
+
+    # ── Design ──
+
+    def _design_remove_auto_stitches(self):
+        new_elements = [e for e in self._pattern.elements if e[0] != ELEM_AUTO]
+        if len(new_elements) == len(self._pattern.elements):
+            return  # nothing to remove
+        self._pattern.elements = new_elements
+        self._pattern.modified = True
+        self._canvas.update()
+        self._on_pattern_changed()
 
     # ── Help ──
 
