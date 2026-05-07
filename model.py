@@ -386,6 +386,7 @@ class StitchPattern:
         self._undo_stack.append(cmd)
         self._redo_stack.clear()
         self.modified = True
+        self._rebuild_display_no_auto()
 
     # ── Element addition ──
 
@@ -414,6 +415,7 @@ class StitchPattern:
         self._undo_stack.clear()   # simple insert — no undo support yet
         self._redo_stack.clear()
         self.modified = True
+        self._rebuild_display_no_auto()
 
     def add_trim(self, index=None):
         """Insert a trim element (ELEM_TRIM) at *index*."""
@@ -424,6 +426,7 @@ class StitchPattern:
         self._undo_stack.clear()   # simple insert — no undo support yet
         self._redo_stack.clear()
         self.modified = True
+        self._rebuild_display_no_auto()
 
     # ── Element movement ──
 
