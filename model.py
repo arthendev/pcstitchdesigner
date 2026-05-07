@@ -512,10 +512,11 @@ class StitchPattern:
         self._redo_stack.clear()
         self.modified = True
 
-    def recalculate_auto_stitches(self, max_length_mm):
+    def recalculate_auto_stitches(self, max_length_mm, align_to_grid=False):
         """Remove all ELEM_AUTO elements and re-insert them so that no gap
         between consecutive coord-bearing elements exceeds *max_length_mm*.
-        Automatic stitch points may have fractional coordinates.
+        When *align_to_grid* is True, inserted points are rounded to integer
+        coordinates; otherwise fractional coordinates are preserved.
         """
         base = [e for e in self.elements if e[0] != ELEM_AUTO]
         new_elements = []
@@ -530,9 +531,12 @@ class StitchPattern:
                         n = math.ceil(dist_mm / max_length_mm)
                         for i in range(1, n):
                             t = i / n
-                            new_elements.append(
-                                (ELEM_AUTO, x1 + t * (x2 - x1), y1 + t * (y2 - y1))
-                            )
+                            ax = x1 + t * (x2 - x1)
+                            ay = y1 + t * (y2 - y1)
+                            if align_to_grid:
+                                ax = round(ax)
+                                ay = round(ay)
+                            new_elements.append((ELEM_AUTO, ax, ay))
                 prev = elem
             new_elements.append(elem)
         self.elements = new_elements

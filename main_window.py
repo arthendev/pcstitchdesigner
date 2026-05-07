@@ -417,6 +417,11 @@ class MainWindow(QMainWindow):
         self._act_remove_auto_stitches = QAction("Remove &All", self)
         self._act_remove_auto_stitches.triggered.connect(self._design_remove_auto_stitches)
 
+        self._act_auto_stitch_align_grid = QAction("&Align to Grid", self)
+        self._act_auto_stitch_align_grid.setCheckable(True)
+        self._act_auto_stitch_align_grid.setChecked(False)
+        self._act_auto_stitch_align_grid.triggered.connect(self._design_auto_stitch_align_grid_toggled)
+
         # Machine
         self._act_machine_load_pmem = QAction("Load P-Memory", self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
@@ -527,6 +532,8 @@ class MainWindow(QMainWindow):
         auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
         auto_stitches_menu.addAction(self._act_set_auto_stitch_length)
         auto_stitches_menu.addAction(self._act_remove_auto_stitches)
+        auto_stitches_menu.addSeparator()
+        auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
 
         machine_menu = mb.addMenu("&Machine")
         machine_menu.addAction(self._act_machine_load_pmem)
@@ -896,6 +903,11 @@ class MainWindow(QMainWindow):
             self._act_large_hoop.setChecked(True)
             self._on_pdesign_selected()
         
+        # Update last auto stitch length from the loaded pattern if it contains auto stitches
+        gap = self._pattern.get_max_stitch_gap_mm()
+        if gap:
+            self._last_auto_stitch_length_mm = gap
+
         # Update canvas
         self._apply_display_settings()
         self._canvas._update_size()
@@ -1577,9 +1589,20 @@ class MainWindow(QMainWindow):
         dlg = AutoStitchLengthDialog(prefill, parent=self)
         if dlg.exec_() == QDialog.Accepted:
             self._last_auto_stitch_length_mm = dlg.max_length_mm
-            self._pattern.recalculate_auto_stitches(dlg.max_length_mm)
+            self._pattern.recalculate_auto_stitches(
+                dlg.max_length_mm,
+                align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+            )
             self._canvas.update()
             self._on_pattern_changed()
+
+    def _design_auto_stitch_align_grid_toggled(self):
+        self._pattern.recalculate_auto_stitches(
+            self._last_auto_stitch_length_mm,
+            align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+        )
+        self._canvas.update()
+        self._on_pattern_changed()
 
     # ── Help ──
 
