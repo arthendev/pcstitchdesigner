@@ -275,6 +275,14 @@ class StitchPattern:
         """Backward-compatible alias for get_color_at."""
         return self.get_color_at(i)
 
+    def rounded_elements(self):
+        """Yield elements with x/y coordinates rounded and converted to int on demand."""
+        for e in self.elements:
+            if elem_has_coords(e):
+                yield (e[0], int(round(e[1])), int(round(e[2])))
+            else:
+                yield e
+
     def get_coords(self, idx):
         """Return (x, y) for elements[idx], or None if the element has no coords."""
         if 0 <= idx < len(self.elements):
