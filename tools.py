@@ -171,6 +171,7 @@ class AddPointTool(BaseTool):
                 canvas.pattern.undo()
                 canvas.update()
                 canvas.notify_change()
+                canvas.drag_finished.emit()
                 event.accept()
                 return True
         return False
@@ -202,6 +203,7 @@ class AddPointTool(BaseTool):
                     canvas.set_selected_point(insert_idx)  # Select the newly added point
             canvas.update()
             canvas.notify_change()
+            canvas.drag_finished.emit()
 
     def mouse_move(self, canvas, event):
         self._cursor_x, self._cursor_y = canvas.screen_to_canvas(event.x(), event.y())
@@ -316,6 +318,7 @@ class MovePointTool(BaseTool):
                 canvas.pattern.undo()
                 canvas.update()
                 canvas.notify_change()
+                canvas.drag_finished.emit()
                 event.accept()
                 return True
         elif key == Qt.Key_Right:
@@ -425,6 +428,7 @@ class MovePointTool(BaseTool):
                 new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
                 new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
                 canvas.pattern.elements[idx] = (orig[0], new_x, new_y)
+            canvas.pattern._rebuild_display_no_auto()
             canvas.update()
 
     def mouse_release(self, canvas, event):
@@ -472,6 +476,7 @@ class MovePointTool(BaseTool):
             canvas.setCursor(self.cursor)
             canvas.update()
             canvas.notify_change()
+            canvas.drag_finished.emit()
 
 
 class DeletePointTool(BaseTool):
@@ -500,6 +505,7 @@ class DeletePointTool(BaseTool):
                 canvas.pattern.undo()
                 canvas.update()
                 canvas.notify_change()
+                canvas.drag_finished.emit()
                 event.accept()
                 return True
         return False
@@ -529,3 +535,4 @@ class DeletePointTool(BaseTool):
             canvas.pattern.delete_point(idx)
             canvas.update()
             canvas.notify_change()
+            canvas.drag_finished.emit()

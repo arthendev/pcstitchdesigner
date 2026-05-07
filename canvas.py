@@ -20,6 +20,7 @@ class StitchCanvas(QWidget):
     changed = pyqtSignal()  # emitted when pattern data changes
     cursor_moved = pyqtSignal(float, float)  # canvas x, y under cursor
     selection_changed = pyqtSignal()  # emitted when selection changes
+    drag_finished = pyqtSignal()  # emitted after a stitch drag is committed
 
     MARGIN = 20  # pixel margin around the drawing area
 
@@ -248,18 +249,20 @@ class StitchCanvas(QWidget):
         painter.drawRect(int(bx1), int(by1),
                          int(bx0 - bx1), int(by0 - by1))
 
-        # Connecting lines
-        elements = self.pattern.elements
-        if len(elements) >= 2:
+        # Connecting lines — iterate the display layer (includes ELEM_AUTO)
+        display_elems = self.pattern.display_elements
+        display_map = self.pattern.display_base_map
+        if len(display_elems) >= 2:
             default_line_pen = QPen(self._color_line, self._line_width)
             use_palette = self.pattern.has_palette
             if not use_palette:
                 painter.setPen(default_line_pen)
 
             current_color_idx = 0  # active palette index as we walk through elements
-            last_coord = None      # (elem_idx, sx, sy, kind) of the previous coord element
+            last_coord = None      # (display_idx, sx, sy, kind) of the previous coord element
+            last_eff_base_idx = None  # base index of the last non-auto coord element seen
 
-            for elem_idx, elem in enumerate(elements):
+            for elem_idx, elem in enumerate(display_elems):
                 kind = elem[0]
 
                 if kind == ELEM_COLOR:
@@ -271,17 +274,24 @@ class StitchCanvas(QWidget):
 
                 x, y = elem[1], elem[2]
                 sx, sy = self.canvas_to_screen(x, y)
+                curr_base_idx = display_map[elem_idx]
 
                 if last_coord is not None:
-                    last_idx, last_sx, last_sy, last_kind = last_coord
+                    last_display_idx, last_sx, last_sy, last_kind = last_coord
                     # Suppress line only between two consecutive ELEM_TRIM elements
                     if not (kind == ELEM_TRIM and last_kind == ELEM_TRIM):
+                        # Determine which base index to use for selection highlight.
+                        # For ELEM_AUTO starting points, fall back to the last known base index.
+                        start_base = display_map[last_display_idx]
+                        if start_base is None:
+                            start_base = last_eff_base_idx
                         is_in_selection = (
                             self._selection_start is not None
                             and self._selection_end is not None
                             and self._selection_end - self._selection_start >= 1
-                            and last_idx >= self._selection_start
-                            and last_idx < self._selection_end
+                            and start_base is not None
+                            and start_base >= self._selection_start
+                            and start_base < self._selection_end
                         )
                         if is_in_selection:
                             dashed_pen = QPen(QColor(0, 80, 200), 2)
@@ -295,14 +305,17 @@ class StitchCanvas(QWidget):
                             painter.setPen(default_line_pen)
                         painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
+                if curr_base_idx is not None:
+                    last_eff_base_idx = curr_base_idx
                 last_coord = (elem_idx, sx, sy, kind)
 
         # Collect coord elements with running color for point rendering.
-        # coord_elems: list of (elem_idx, x, y, color_idx, kind)
+        # coord_elems: list of (base_idx_or_neg1, x, y, color_idx, kind)
+        # base_idx is -1 for ELEM_AUTO (they cannot be selected).
         coord_elems = []
         if self._show_stitch_points or self._show_auto_stitch_points:
             cur_col = 0
-            for idx, elem in enumerate(self.pattern.elements):
+            for disp_idx, elem in enumerate(self.pattern.display_elements):
                 if elem[0] == ELEM_COLOR:
                     cur_col = elem[1]
                 elif elem_has_coords(elem):
@@ -311,7 +324,9 @@ class StitchCanvas(QWidget):
                         continue
                     if kind != ELEM_AUTO and not self._show_stitch_points:
                         continue
-                    coord_elems.append((idx, elem[1], elem[2], cur_col, kind))
+                    base_idx = display_map[disp_idx]
+                    sel_idx = base_idx if base_idx is not None else -1
+                    coord_elems.append((sel_idx, elem[1], elem[2], cur_col, kind))
 
         # Stitch points (draw in layers to ensure selected points are on top)
         if coord_elems:

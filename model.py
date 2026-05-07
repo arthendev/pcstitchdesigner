@@ -57,8 +57,7 @@ class MovePointCommand(Command):
                 self._original_element = pattern.elements[self.index]
             e = pattern.elements[self.index]
             if elem_has_coords(e):
-                kind = ELEM_STITCH if e[0] == ELEM_AUTO else e[0]
-                pattern.elements[self.index] = (kind, self.new_x, self.new_y)
+                pattern.elements[self.index] = (e[0], self.new_x, self.new_y)
 
     def undo(self, pattern):
         if self._original_element is not None and 0 <= self.index < len(pattern.elements):
@@ -86,8 +85,7 @@ class MoveManyPointsCommand(Command):
             if 0 <= index < len(pattern.elements):
                 e = pattern.elements[index]
                 if elem_has_coords(e):
-                    kind = ELEM_STITCH if e[0] == ELEM_AUTO else e[0]
-                    pattern.elements[index] = (kind, new_x, new_y)
+                    pattern.elements[index] = (e[0], new_x, new_y)
 
     def undo(self, pattern):
         if self._affected_elements is not None:
@@ -228,22 +226,32 @@ class MirrorHorizontalCommand(Command):
 
 
 class ConvertAutoStitchesCommand(Command):
-    """Converts all ELEM_AUTO elements to ELEM_STITCH in one undoable step."""
+    """Promotes all ELEM_AUTO elements from the display layer into base elements."""
 
     def __init__(self):
-        self._saved = None  # snapshot of indices and original tuples
+        self._old_elements = None
+        self._old_display = None
+        self._old_map = None
 
     def redo(self, pattern):
-        self._saved = [
-            (i, e) for i, e in enumerate(pattern.elements) if e[0] == ELEM_AUTO
-        ]
-        for i, e in self._saved:
-            pattern.elements[i] = (ELEM_STITCH, round(e[1]), round(e[2]))
+        self._old_elements = list(pattern.elements)
+        self._old_display = list(pattern._display_elements)
+        self._old_map = list(pattern._display_base_map)
+        # Flatten display into new base elements, rounding auto-stitch coords to grid
+        new_elems = []
+        for e in pattern._display_elements:
+            if e[0] == ELEM_AUTO:
+                new_elems.append((ELEM_STITCH, round(e[1]), round(e[2])))
+            else:
+                new_elems.append(e)
+        pattern.elements = new_elems
+        pattern._rebuild_display_no_auto()
 
     def undo(self, pattern):
-        if self._saved is not None:
-            for i, e in self._saved:
-                pattern.elements[i] = e
+        if self._old_elements is not None:
+            pattern.elements = self._old_elements
+            pattern._display_elements = self._old_display
+            pattern._display_base_map = self._old_map
 
 
 class StitchPattern:
@@ -264,7 +272,9 @@ class StitchPattern:
     STITCH_RES_MM = 1/6  # 1 stitch = 0.166... mm
 
     def __init__(self):
-        self.elements = []  # list of element tuples
+        self.elements = []  # list of base element tuples (never contains ELEM_AUTO)
+        self._display_elements = []  # derived display list (includes ELEM_AUTO)
+        self._display_base_map = []  # parallel to _display_elements: base index or None for ELEM_AUTO
         self.colors = []    # list of (r, g, b) tuples representing thread colors
         self.modified = False
         self._undo_stack = []
@@ -275,6 +285,41 @@ class StitchPattern:
     def has_palette(self):
         """True when the pattern has a defined color palette."""
         return len(self.colors) > 0
+
+    @property
+    def display_elements(self):
+        """Display element list including ELEM_AUTO stitches."""
+        return self._display_elements
+
+    @property
+    def display_base_map(self):
+        """Parallel list to display_elements: base index (int) or None for ELEM_AUTO."""
+        return self._display_base_map
+
+    @property
+    def has_auto_stitches(self):
+        """True when the display layer currently contains auto-stitches."""
+        return any(e[0] == ELEM_AUTO for e in self._display_elements)
+
+    def _rebuild_display_no_auto(self):
+        """Reset display to a copy of base elements with an identity index map."""
+        self._display_elements = list(self.elements)
+        self._display_base_map = list(range(len(self.elements)))
+
+    def _load_elements(self, all_elems):
+        """Called after loading a file. Splits ELEM_AUTO out of the flat list
+        into the display layer; non-auto elements become the base."""
+        self.elements = [e for e in all_elems if e[0] != ELEM_AUTO]
+        self._display_elements = list(all_elems)
+        base_idx = 0
+        self._display_base_map = []
+        for e in all_elems:
+            if e[0] != ELEM_AUTO:
+                self._display_base_map.append(base_idx)
+                base_idx += 1
+            else:
+                self._display_base_map.append(None)
+        self.modified = False
 
     def get_color_at(self, elem_idx):
         """Return the active palette color index at elements[elem_idx].
@@ -311,6 +356,10 @@ class StitchPattern:
             if elem_has_coords(e):
                 return (e[1], e[2])
         return None
+
+    def clear_auto_stitches(self):
+        """Remove all ELEM_AUTO from the display layer (does not modify base elements)."""
+        self._rebuild_display_no_auto()
 
     @property
     def CANVAS_WIDTH(self):
@@ -353,19 +402,8 @@ class StitchPattern:
         self._exec(AddPointCommand(index, x, y))
 
     def add_auto_stitch(self, x, y, index=None):
-        """Append or insert an automatic stitch element (ELEM_AUTO)."""
-        if index is None:
-            index = len(self.elements)
-        x = max(0, min(self.CANVAS_WIDTH, int(round(x))))
-        y = max(0, min(self.CANVAS_HEIGHT, int(round(y))))
-        # Reuse AddPointCommand but override element type after exec
-        cmd = AddPointCommand(index, x, y)
-        cmd.redo(self)
-        # Fix the inserted element type to ELEM_AUTO
-        self.elements[cmd.actual_index] = (ELEM_AUTO, x, y)
-        self._undo_stack.append(cmd)
-        self._redo_stack.clear()
-        self.modified = True
+        """No-op: auto-stitches are managed exclusively via recalculate_auto_stitches."""
+        pass  # kept for API compatibility
 
     def add_color_change(self, color_index, index=None):
         """Insert a color-change element (ELEM_COLOR) at *index*."""
@@ -479,6 +517,7 @@ class StitchPattern:
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = False
+        self._rebuild_display_no_auto()
 
     def can_undo(self):
         return len(self._undo_stack) > 0
@@ -493,6 +532,7 @@ class StitchPattern:
         cmd.undo(self)
         self._redo_stack.append(cmd)
         self.modified = True
+        self._rebuild_display_no_auto()
 
     def redo(self):
         if not self._redo_stack:
@@ -501,6 +541,7 @@ class StitchPattern:
         cmd.redo(self)
         self._undo_stack.append(cmd)
         self.modified = True
+        self._rebuild_display_no_auto()
 
     def set_machine_data(self, points, slot_type):
         """Load raw (x, y) pairs received from the machine.
@@ -530,26 +571,26 @@ class StitchPattern:
         self._undo_stack.clear()
         self._redo_stack.clear()
         self.modified = True
+        self._rebuild_display_no_auto()
 
     def convert_auto_to_normal(self):
-        """Convert all ELEM_AUTO elements to ELEM_STITCH (undoable)."""
-        if not any(e[0] == ELEM_AUTO for e in self.elements):
+        """Promote all ELEM_AUTO elements from the display layer to base elements (undoable)."""
+        if not self.has_auto_stitches:
             return
         self._exec(ConvertAutoStitchesCommand())
 
     def recalculate_auto_stitches(self, max_length_mm, align_to_grid=False):
-        """Remove all ELEM_AUTO elements and re-insert them so that no gap
-        between consecutive coord-bearing elements exceeds *max_length_mm*.
-        When *align_to_grid* is True, inserted points are rounded to integer
-        coordinates; otherwise fractional coordinates are preserved.
+        """Rebuild the display layer by inserting ELEM_AUTO elements wherever the gap
+        between consecutive base coord elements exceeds *max_length_mm*.
+        Base elements (``self.elements``) and the undo stack are never modified.
         """
-        base = [e for e in self.elements if e[0] != ELEM_AUTO]
-        new_elements = []
-        prev = None
-        for elem in base:
+        new_display = []
+        new_map = []
+        prev_coord = None  # (x, y) of previous coord-bearing element
+        for base_idx, elem in enumerate(self.elements):
             if elem_has_coords(elem):
-                if prev is not None:
-                    x1, y1 = prev[1], prev[2]
+                if prev_coord is not None:
+                    x1, y1 = prev_coord
                     x2, y2 = elem[1], elem[2]
                     dist_mm = math.hypot(x2 - x1, y2 - y1) * self.STITCH_RES_MM
                     if dist_mm > max_length_mm:
@@ -561,13 +602,13 @@ class StitchPattern:
                             if align_to_grid:
                                 ax = round(ax)
                                 ay = round(ay)
-                            new_elements.append((ELEM_AUTO, ax, ay))
-                prev = elem
-            new_elements.append(elem)
-        self.elements = new_elements
-        self._undo_stack.clear()
-        self._redo_stack.clear()
-        self.modified = True
+                            new_display.append((ELEM_AUTO, ax, ay))
+                            new_map.append(None)
+                prev_coord = (elem[1], elem[2])
+            new_display.append(elem)
+            new_map.append(base_idx)
+        self._display_elements = new_display
+        self._display_base_map = new_map
 
     def get_stitch_bounds(self):
         """Return stitch bounds as (min_x, min_y, max_x, max_y), or None if empty."""
@@ -579,11 +620,12 @@ class StitchPattern:
         return min(xs), min(ys), max(xs), max(ys)
 
     def get_max_stitch_gap_mm(self):
-        """Return the maximum distance in mm between consecutive coord-bearing elements.
+        """Return the maximum distance in mm between consecutive coord-bearing elements
+        in the display layer (includes auto-stitches when active).
 
-        Returns 0.0 when the pattern has fewer than two coord-bearing elements.
+        Returns 0.0 when the display has fewer than two coord-bearing elements.
         """
-        coords = [(e[1], e[2]) for e in self.elements if elem_has_coords(e)]
+        coords = [(e[1], e[2]) for e in self._display_elements if elem_has_coords(e)]
         if len(coords) < 2:
             return 0.0
         return max(

@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         self._canvas.changed.connect(self._on_pattern_changed)
         self._canvas.cursor_moved.connect(self._on_cursor_moved)
         self._canvas.selection_changed.connect(self._update_selection_action_state)
+        self._canvas.drag_finished.connect(self._on_drag_finished)
         
         # View orientation state
         self._view_orientation = "default"  # "default" or "sewing_direction"
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         # Apply saved display settings to canvas
         self._apply_display_settings()
-        self._last_auto_stitch_length_mm = 5.0
+        self._last_auto_stitch_length_mm = None
 
     # ── Ctrl temporary tool switch ──
 
@@ -908,9 +909,10 @@ class MainWindow(QMainWindow):
             self._on_pdesign_selected()
         
         # Update last auto stitch length from the loaded pattern if it contains auto stitches
-        gap = self._pattern.get_max_stitch_gap_mm()
-        if gap:
-            self._last_auto_stitch_length_mm = gap
+        if self._pattern.has_auto_stitches:
+            gap = self._pattern.get_max_stitch_gap_mm()
+            if gap:
+                self._last_auto_stitch_length_mm = gap
 
         # Update canvas
         self._apply_display_settings()
@@ -1013,12 +1015,14 @@ class MainWindow(QMainWindow):
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+        self._recalculate_auto_if_active()
 
     def _edit_redo(self):
         self._pattern.redo()
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+        self._recalculate_auto_if_active()
 
     def _edit_copy(self):
         """Copy selected stitch points to the internal clipboard."""
@@ -1040,6 +1044,7 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
         self._act_paste.setEnabled(True)
+        self._recalculate_auto_if_active()
 
     def _edit_paste(self):
         """Paste clipboard points using the same logic as Insert P-Memory."""
@@ -1106,6 +1111,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+        self._recalculate_auto_if_active()
 
     def _edit_invert_selected(self):
         """Invert the order of selected stitch points."""
@@ -1511,6 +1517,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
+        self._recalculate_auto_if_active()
 
     def _machine_load_pmemory(self):
         self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
@@ -1580,11 +1587,10 @@ class MainWindow(QMainWindow):
     # ── Design ──
 
     def _design_remove_auto_stitches(self):
-        new_elements = [e for e in self._pattern.elements if e[0] != ELEM_AUTO]
-        if len(new_elements) == len(self._pattern.elements):
-            return  # nothing to remove
-        self._pattern.elements = new_elements
-        self._pattern.modified = True
+        if not self._pattern.has_auto_stitches:
+            return
+        self._pattern.clear_auto_stitches()
+        self._last_auto_stitch_length_mm = None
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -1593,8 +1599,22 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
 
+    def _on_drag_finished(self):
+        """Called after a stitch drag is committed. Recalculates auto stitches."""
+        self._recalculate_auto_if_active()
+
+    def _recalculate_auto_if_active(self):
+        """Recalculate auto stitches if a length has been configured."""
+        if self._last_auto_stitch_length_mm is not None:
+            self._pattern.recalculate_auto_stitches(
+                self._last_auto_stitch_length_mm,
+                align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+            )
+            self._canvas.update()
+            self._on_pattern_changed()
+
     def _design_set_auto_stitch_length(self):
-        prefill = self._pattern.get_max_stitch_gap_mm() or self._last_auto_stitch_length_mm
+        prefill = self._pattern.get_max_stitch_gap_mm() or self._last_auto_stitch_length_mm or 5.0
         dlg = AutoStitchLengthDialog(prefill, parent=self)
         if dlg.exec_() == QDialog.Accepted:
             self._last_auto_stitch_length_mm = dlg.max_length_mm
@@ -1606,12 +1626,13 @@ class MainWindow(QMainWindow):
             self._on_pattern_changed()
 
     def _design_auto_stitch_align_grid_toggled(self):
-        self._pattern.recalculate_auto_stitches(
-            self._last_auto_stitch_length_mm,
-            align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
-        )
-        self._canvas.update()
-        self._on_pattern_changed()
+        if self._last_auto_stitch_length_mm is not None:
+            self._pattern.recalculate_auto_stitches(
+                self._last_auto_stitch_length_mm,
+                align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+            )
+            self._canvas.update()
+            self._on_pattern_changed()
 
     # ── Help ──
 

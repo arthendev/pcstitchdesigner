@@ -50,9 +50,9 @@ def save_pattern(path, pattern):
         for r, g, b in pattern.colors:
             f.write(struct.pack('BBBx', r, g, b))
         # Element record count
-        f.write(struct.pack('<H', len(pattern.elements)))
+        f.write(struct.pack('<H', len(pattern.display_elements)))
         # Element records
-        for elem in pattern.elements:
+        for elem in pattern.display_elements:
             kind = elem[0]
             if kind == ELEM_STITCH:
                 x, y = elem[1], elem[2]
@@ -127,6 +127,8 @@ def load_pattern(path):
                   + str(color_count) + " colors and "
                   + str(stitch_count) + " stitch records:")
 
+        all_elems = []
+
         for i in range(stitch_count):
             point_data = f.read(point_size)
             if len(point_data) < point_size:
@@ -154,22 +156,22 @@ def load_pattern(path):
 
             if control_byte == 0x00:
                 # Normal stitch point; c0/c1 are fractional parts of x/y
-                pattern.elements.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
             elif control_byte == 0x01:
                 # Legacy color-change marker: infer sequential palette index
                 if pattern.colors:
-                    pattern.elements.append((ELEM_COLOR, legacy_color_idx))
+                    all_elems.append((ELEM_COLOR, legacy_color_idx))
                     legacy_color_idx += 1
             elif control_byte == 0x02:
                 # Automatic stitch point (hollow circle on canvas); c0/c1 are fractional parts of x/y
-                pattern.elements.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256))
+                all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256))
             elif control_byte == 0x03:
                 # Color change: palette index in c0
-                pattern.elements.append((ELEM_COLOR, c0))
+                all_elems.append((ELEM_COLOR, c0))
             elif control_byte == 0x04:
                 # Trim: line is drawn to this point, line broken after it
-                pattern.elements.append((ELEM_TRIM, x, y))
+                all_elems.append((ELEM_TRIM, x, y))
             # Any other control byte is silently ignored.
 
-    pattern.modified = False
+    pattern._load_elements(all_elems)
     return pattern
