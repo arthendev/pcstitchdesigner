@@ -1,5 +1,7 @@
 """Stitch pattern data model with undo/redo support."""
 
+import math
+
 # ---------------------------------------------------------------------------
 # Element type constants (values match file-format control bytes)
 # ---------------------------------------------------------------------------
@@ -510,6 +512,34 @@ class StitchPattern:
         self._redo_stack.clear()
         self.modified = True
 
+    def recalculate_auto_stitches(self, max_length_mm):
+        """Remove all ELEM_AUTO elements and re-insert them so that no gap
+        between consecutive coord-bearing elements exceeds *max_length_mm*.
+        Automatic stitch points may have fractional coordinates.
+        """
+        base = [e for e in self.elements if e[0] != ELEM_AUTO]
+        new_elements = []
+        prev = None
+        for elem in base:
+            if elem_has_coords(elem):
+                if prev is not None:
+                    x1, y1 = prev[1], prev[2]
+                    x2, y2 = elem[1], elem[2]
+                    dist_mm = math.hypot(x2 - x1, y2 - y1) * self.STITCH_RES_MM
+                    if dist_mm > max_length_mm:
+                        n = math.ceil(dist_mm / max_length_mm)
+                        for i in range(1, n):
+                            t = i / n
+                            new_elements.append(
+                                (ELEM_AUTO, x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+                            )
+                prev = elem
+            new_elements.append(elem)
+        self.elements = new_elements
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self.modified = True
+
     def get_stitch_bounds(self):
         """Return stitch bounds as (min_x, min_y, max_x, max_y), or None if empty."""
         coords = [(e[1], e[2]) for e in self.elements if elem_has_coords(e)]
@@ -518,6 +548,20 @@ class StitchPattern:
         xs = [x for x, _ in coords]
         ys = [y for _, y in coords]
         return min(xs), min(ys), max(xs), max(ys)
+
+    def get_max_stitch_gap_mm(self):
+        """Return the maximum distance in mm between consecutive coord-bearing elements.
+
+        Returns 0.0 when the pattern has fewer than two coord-bearing elements.
+        """
+        coords = [(e[1], e[2]) for e in self.elements if elem_has_coords(e)]
+        if len(coords) < 2:
+            return 0.0
+        return max(
+            math.hypot(coords[i + 1][0] - coords[i][0], coords[i + 1][1] - coords[i][1])
+            * self.STITCH_RES_MM
+            for i in range(len(coords) - 1)
+        )
 
     def get_stitch_size_mm(self):
         """Return stitch width/height in mm using preview stitch resolution."""

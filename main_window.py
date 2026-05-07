@@ -23,6 +23,8 @@ from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
 
+from auto_stitch_dialog import AutoStitchLengthDialog
+
 
 class MainWindow(QMainWindow):
 
@@ -97,6 +99,7 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         # Apply saved display settings to canvas
         self._apply_display_settings()
+        self._last_auto_stitch_length_mm = 5.0
 
     # ── Ctrl temporary tool switch ──
 
@@ -408,6 +411,9 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_large_hoop)
 
         # Design – Automatic Stitches
+        self._act_set_auto_stitch_length = QAction("Set Maximum &Length…", self)
+        self._act_set_auto_stitch_length.triggered.connect(self._design_set_auto_stitch_length)
+
         self._act_remove_auto_stitches = QAction("Remove &All", self)
         self._act_remove_auto_stitches.triggered.connect(self._design_remove_auto_stitches)
 
@@ -519,6 +525,7 @@ class MainWindow(QMainWindow):
         design_menu.addAction(self._act_large_hoop)
         design_menu.addSeparator()
         auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
+        auto_stitches_menu.addAction(self._act_set_auto_stitch_length)
         auto_stitches_menu.addAction(self._act_remove_auto_stitches)
 
         machine_menu = mb.addMenu("&Machine")
@@ -1564,6 +1571,15 @@ class MainWindow(QMainWindow):
         self._pattern.modified = True
         self._canvas.update()
         self._on_pattern_changed()
+
+    def _design_set_auto_stitch_length(self):
+        prefill = self._pattern.get_max_stitch_gap_mm() or self._last_auto_stitch_length_mm
+        dlg = AutoStitchLengthDialog(prefill, parent=self)
+        if dlg.exec_() == QDialog.Accepted:
+            self._last_auto_stitch_length_mm = dlg.max_length_mm
+            self._pattern.recalculate_auto_stitches(dlg.max_length_mm)
+            self._canvas.update()
+            self._on_pattern_changed()
 
     # ── Help ──
 
