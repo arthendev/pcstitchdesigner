@@ -156,21 +156,26 @@ def load_pattern(path):
 
             if control_byte == 0x00:
                 # Normal stitch point; c0/c1 are fractional parts of x/y
-                all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                # all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
             elif control_byte == 0x01:
                 # Legacy color-change marker: infer sequential palette index
                 if pattern.colors:
                     all_elems.append((ELEM_COLOR, legacy_color_idx))
                     legacy_color_idx += 1
             elif control_byte == 0x02:
-                # Automatic stitch point (hollow circle on canvas); c0/c1 are fractional parts of x/y
-                all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256))
+                # Automatic stitch point; treated as normal stitch for hoop patterns
+                if pattern.stitch_type in ("small hoop", "large hoop"):
+                    # all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                    all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                else:
+                    all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
             elif control_byte == 0x03:
                 # Color change: palette index in c0
                 all_elems.append((ELEM_COLOR, c0))
             elif control_byte == 0x04:
                 # Trim: line is drawn to this point, line broken after it
-                all_elems.append((ELEM_TRIM, x, y))
+                all_elems.append((ELEM_TRIM, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
             # Any other control byte is silently ignored.
 
     pattern._load_elements(all_elems)

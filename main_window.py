@@ -713,6 +713,10 @@ class MainWindow(QMainWindow):
             return
         was_hoop = self._is_hoop_type()
         self._pattern.stitch_type = "small hoop"
+        if self._pattern.has_auto_stitches:
+            self._pattern.clear_auto_stitches()
+        self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = False
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
@@ -735,6 +739,10 @@ class MainWindow(QMainWindow):
             return
         was_hoop = self._is_hoop_type()
         self._pattern.stitch_type = "large hoop"
+        if self._pattern.has_auto_stitches:
+            self._pattern.clear_auto_stitches()
+        self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = False
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
@@ -787,6 +795,11 @@ class MainWindow(QMainWindow):
             # Force back to default orientation for hoop types
             self._act_orientation_default.setChecked(True)
             self._on_orientation_default()
+        # Automatic stitches — disabled entirely for hoop types
+        self._act_set_auto_stitch_length.setEnabled(enabled)
+        self._act_remove_auto_stitches.setEnabled(enabled)
+        self._act_convert_auto_stitches.setEnabled(enabled)
+        self._act_auto_stitch_align_grid.setEnabled(enabled)
         # If hoop type is active and the current tool is add/delete, switch to pan
         if not enabled and self._canvas._tool in (self._add_tool, self._delete_tool):
             self._act_pan.setChecked(True)
@@ -918,6 +931,10 @@ class MainWindow(QMainWindow):
             gap = self._pattern.get_max_stitch_gap_mm()
             if gap:
                 self._last_auto_stitch_length_mm = gap
+
+        # Hoop patterns never use auto-stitches
+        if self._is_hoop_type():
+            self._last_auto_stitch_max_dx_active = False
 
         # Update canvas
         self._apply_display_settings()
