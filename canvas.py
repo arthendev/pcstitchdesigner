@@ -315,6 +315,7 @@ class StitchCanvas(QWidget):
         coord_elems = []
         if self._show_stitch_points or self._show_auto_stitch_points:
             cur_col = 0
+            last_auto_sel_idx = -1  # effective base idx to use for auto-stitch selection colouring
             for disp_idx, elem in enumerate(self.pattern.display_elements):
                 if elem[0] == ELEM_COLOR:
                     cur_col = elem[1]
@@ -325,7 +326,13 @@ class StitchCanvas(QWidget):
                     if kind != ELEM_AUTO and not self._show_stitch_points:
                         continue
                     base_idx = display_map[disp_idx]
-                    sel_idx = base_idx if base_idx is not None else -1
+                    if base_idx is not None:
+                        sel_idx = base_idx
+                        last_auto_sel_idx = base_idx
+                    else:
+                        # Auto-stitch: inherit the preceding base index so that
+                        # is_point_selected() returns True when the segment is selected.
+                        sel_idx = last_auto_sel_idx
                     coord_elems.append((sel_idx, elem[1], elem[2], cur_col, kind))
 
         # Stitch points (draw in layers to ensure selected points are on top)
