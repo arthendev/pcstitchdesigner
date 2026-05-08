@@ -809,7 +809,7 @@ class MachineComm:
 
         return {
             'num_slots': num_slots,
-            'free_memory': free_memory,
+            'free_memory': free_memory-1, # Original SW shows 1 byte less than machine reports, reason unknown
             'slots': slots,
         }
 
