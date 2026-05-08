@@ -101,6 +101,7 @@ class MainWindow(QMainWindow):
         # Apply saved display settings to canvas
         self._apply_display_settings()
         self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = True
 
     # ── Ctrl temporary tool switch ──
 
@@ -860,6 +861,7 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
         self._update_palette_bar()
         self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = True
 
     def _file_open(self):
         if not self._confirm_discard():
@@ -895,6 +897,7 @@ class MainWindow(QMainWindow):
         self._file_path = path
         self._add_recent_file(path)
         self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = True
         
         # Update stitch type selection based on loaded pattern
         if self._pattern.stitch_type == "9mm":
@@ -1593,6 +1596,7 @@ class MainWindow(QMainWindow):
             return
         self._pattern.clear_auto_stitches()
         self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = False
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -1606,23 +1610,27 @@ class MainWindow(QMainWindow):
         self._recalculate_auto_if_active()
 
     def _recalculate_auto_if_active(self):
-        """Recalculate auto stitches if a length has been configured."""
-        if self._last_auto_stitch_length_mm is not None:
+        """Recalculate auto stitches if a length or dx constraint has been configured."""
+        if self._last_auto_stitch_length_mm is not None or self._last_auto_stitch_max_dx_active:
+            max_length = self._last_auto_stitch_length_mm if self._last_auto_stitch_length_mm is not None else float('inf')
             self._pattern.recalculate_auto_stitches(
-                self._last_auto_stitch_length_mm,
+                max_length,
                 align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+                max_dx_mm=6.0 if self._last_auto_stitch_max_dx_active else None,
             )
             self._canvas.update()
             self._on_pattern_changed()
 
     def _design_set_auto_stitch_length(self):
         prefill = self._pattern.get_max_stitch_gap_mm() or self._last_auto_stitch_length_mm or 5.0
-        dlg = AutoStitchLengthDialog(prefill, parent=self)
+        dlg = AutoStitchLengthDialog(prefill, self._last_auto_stitch_max_dx_active, parent=self)
         if dlg.exec_() == QDialog.Accepted:
             self._last_auto_stitch_length_mm = dlg.max_length_mm
+            self._last_auto_stitch_max_dx_active = dlg.max_dx_active
             self._pattern.recalculate_auto_stitches(
                 dlg.max_length_mm,
                 align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+                max_dx_mm=6.0 if dlg.max_dx_active else None,
             )
             self._canvas.update()
             self._on_pattern_changed()
@@ -1632,6 +1640,7 @@ class MainWindow(QMainWindow):
             self._pattern.recalculate_auto_stitches(
                 self._last_auto_stitch_length_mm,
                 align_to_grid=self._act_auto_stitch_align_grid.isChecked(),
+                max_dx_mm=6.0 if self._last_auto_stitch_max_dx_active else None,
             )
             self._canvas.update()
             self._on_pattern_changed()

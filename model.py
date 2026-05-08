@@ -582,9 +582,10 @@ class StitchPattern:
             return
         self._exec(ConvertAutoStitchesCommand())
 
-    def recalculate_auto_stitches(self, max_length_mm, align_to_grid=False):
+    def recalculate_auto_stitches(self, max_length_mm, align_to_grid=False, max_dx_mm=None):
         """Rebuild the display layer by inserting ELEM_AUTO elements wherever the gap
-        between consecutive base coord elements exceeds *max_length_mm*.
+        between consecutive base coord elements exceeds *max_length_mm* or, when
+        *max_dx_mm* is given, wherever the horizontal (x) distance exceeds *max_dx_mm*.
         Base elements (``self.elements``) and the undo stack are never modified.
         """
         new_display = []
@@ -596,8 +597,12 @@ class StitchPattern:
                     x1, y1 = prev_coord
                     x2, y2 = elem[1], elem[2]
                     dist_mm = math.hypot(x2 - x1, y2 - y1) * self.STITCH_RES_MM
-                    if dist_mm > max_length_mm:
-                        n = math.ceil(dist_mm / max_length_mm)
+                    n = math.ceil(dist_mm / max_length_mm) if dist_mm > max_length_mm else 1
+                    if max_dx_mm is not None:
+                        dx_mm = abs(x2 - x1) * self.STITCH_RES_MM
+                        if dx_mm > max_dx_mm:
+                            n = max(n, math.ceil(dx_mm / max_dx_mm))
+                    if n >= 2:
                         for i in range(1, n):
                             t = i / n
                             ax = x1 + t * (x2 - x1)
