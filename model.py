@@ -349,6 +349,14 @@ class StitchPattern:
             else:
                 yield e
 
+    def rounded_display_elements(self):
+        """Like rounded_elements but over the display layer (includes ELEM_AUTO)."""
+        for e in self._display_elements:
+            if elem_has_coords(e):
+                yield (e[0], int(round(e[1])), int(round(e[2])))
+            else:
+                yield e
+
     def get_coords(self, idx):
         """Return (x, y) for elements[idx], or None if the element has no coords."""
         if 0 <= idx < len(self.elements):

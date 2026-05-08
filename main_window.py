@@ -1420,12 +1420,17 @@ class MainWindow(QMainWindow):
         elif new_pattern.stitch_type == "large hoop":
             self._act_large_hoop.setChecked(True)
 
+        is_hoop = new_pattern.stitch_type in ("small hoop", "large hoop")
+        self._last_auto_stitch_length_mm = None
+        self._last_auto_stitch_max_dx_active = not is_hoop
+
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
         self._update_palette_bar()
+        self._recalculate_auto_if_active()
         self._act_pan.setChecked(True)
         self._on_tool_pan()
         self._fit_pattern()
