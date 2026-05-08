@@ -27,7 +27,7 @@ from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
-DEBUG = 2  # 1: print details of each element record; 2: print only for non-zero control bytes
+DEBUG = 0  # 1: print details of each element record; 2: print only for non-zero control bytes
 
 
 def save_pattern(path, pattern):
