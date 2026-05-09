@@ -1121,40 +1121,53 @@ class MachineComm:
             )
         
     @staticmethod
-    @staticmethod
     def _translate_maxi_points(raw_elems):
         """Translate raw MAXI stitch elements into a list of (x, stored_y, delta) tuples.
 
         Applies a y-offset so the first stitch begins at stored_y = 27 (centre of
         the valid machine range [0, 54]).  Assigns a per-stitch transport_delta of
         0, +6, or -6 so that ``stored_y = effective_y - cumulative_transport`` stays
-        within [0, 54].  When a single ±6 step at the current stitch is not enough,
-        the algorithm walks backwards and retroactively shifts the most recent
-        earlier stitch where the correction can be applied without pushing any
-        intermediate stitch out of range, then retries.
+        within [0, 54].
+
+        The first stitch's delta is always 0 (stored_y = 27 guaranteed by the
+        y-offset) and is never modified by any later adjustment.
+
+        When a stitch cannot be reached from the current transport position:
+          1. A retroactive ±6 fix is attempted on earlier stitches at indices ≥ 1
+             (stitch 0 is never touched).
+          2. If that also fails, equally-spaced intermediate stitches are inserted
+             between the preceding stitch and the unreachable one; each intermediate
+             carries delta = ±6 and stored_y = 27.
+
+        The last stitch's stored_y is steered towards 27 by adjusting earlier
+        stitches (indices ≥ 1, never 0) in ±6 steps.  The last stitch itself may
+        carry any integer delta in [-6, 6].
 
         Args:
             raw_elems: Iterable of elements with coords (e[1]=x, e[2]=y).
 
         Returns:
             list[tuple[int, int, int]]: Each entry is (x, stored_y, delta)
-                where delta is 0, +6, or -6.
+                where delta is 0 or ±6 for all stitches except possibly the last.
         """
         pts = [[e[1], e[2], 0] for e in raw_elems]
         if not pts:
             return []
 
-        # Step 1: offset y so first stitch lands at y=27.
+        # Step 1: y-offset so the first stitch lands at stored_y = 27.
         y_offset = 27 - pts[0][1]
         for pt in pts:
             pt[1] += y_offset
 
         # Step 2: forward pass – assign transport_deltas so stored_y stays in [0, 54].
-        n = len(pts)
-        transport_at = [0] * n
+        # Stitch 0 is never modified (delta stays 0, stored_y = 27).
+        # When a stitch is unreachable even after retroactive fixes on stitches ≥ 1,
+        # equally-spaced intermediate stitches (delta = ±6, stored_y = 27) are
+        # inserted before it.
+        transport_at = [0] * len(pts)
 
         i = 0
-        while i < n:
+        while i < len(pts):
             ey = pts[i][1]
             prev_t = transport_at[i - 1] if i > 0 else 0
 
@@ -1168,33 +1181,60 @@ class MachineComm:
                 pts[i][2] = chosen
                 transport_at[i] = prev_t + chosen
                 i += 1
-            else:
-                direction = 6 if (ey - prev_t > 54) else -6
-                fixed = False
-                for j in range(i - 1, -1, -1):
-                    new_delta_j = pts[j][2] + direction
-                    if abs(new_delta_j) > 6:
-                        continue
-                    if all(
-                        0 <= pts[k][1] - (transport_at[k] + direction) <= 54
-                        for k in range(j, i)
-                    ):
-                        pts[j][2] = new_delta_j
-                        for k in range(j, i):
-                            transport_at[k] += direction
-                        fixed = True
-                        break
+                continue
 
-                if not fixed:
-                    best_d = min([0, 6, -6], key=lambda d: abs(ey - (prev_t + d) - 27))
-                    pts[i][2] = best_d
-                    transport_at[i] = prev_t + best_d
-                    i += 1
+            # Not directly reachable – try retroactive fix on stitches 1..i-1.
+            gap = ey - prev_t
+            direction = 6 if gap > 54 else -6
+            fixed = False
+            for j in range(i - 1, 0, -1):   # never touches stitch 0
+                new_delta_j = pts[j][2] + direction
+                if abs(new_delta_j) > 6:
+                    continue
+                if all(
+                    0 <= pts[k][1] - (transport_at[k] + direction) <= 54
+                    for k in range(j, i)
+                ):
+                    pts[j][2] = new_delta_j
+                    for k in range(j, i):
+                        transport_at[k] += direction
+                    fixed = True
+                    break
 
-        # Step 2b: iteratively adjust earlier stitches (in ±6 steps) until the
-        # remaining delta needed for the last stitch falls within [-6, 6], then
-        # assign that exact value so the last stitch lands at stored_y = 27.
-        # The last stitch's delta is not restricted to multiples of 6.
+            if fixed:
+                continue  # retry stitch i with updated transport
+
+            # Retroactive fix also failed – insert intermediate stitches.
+            # Compute how many ±6 steps are needed so that the original stitch
+            # becomes reachable (gap lands in [-6, 60]).
+            if gap > 60:
+                step_dir = 6
+                n_inter = max(1, (gap - 55) // 6)   # ceil((gap - 60) / 6)
+            else:  # gap < -6
+                step_dir = -6
+                n_inter = max(1, (-1 - gap) // 6)   # ceil((-6 - gap) / 6)
+
+            prev_x = pts[i - 1][0] if i > 0 else pts[i][0]
+            curr_x = pts[i][0]
+            intermediates = []
+            inter_transport = []
+            running_t = prev_t
+            for k in range(n_inter):
+                frac = (k + 1) / (n_inter + 1)
+                inter_x = round(prev_x + frac * (curr_x - prev_x))
+                running_t += step_dir
+                intermediates.append([inter_x, 27 + running_t, step_dir])
+                inter_transport.append(running_t)
+
+            pts[i:i] = intermediates
+            transport_at[i:i] = inter_transport
+            i += n_inter  # skip inserted intermediates; retry the original stitch
+
+        # Step 2b: steer the last stitch's stored_y towards 27.
+        # Adjust earlier stitches (indices 1..n-2, never 0) in ±6 steps until
+        # the remaining gap for the last stitch is within [-6, 6], then assign
+        # an exact delta in [-6, 6] to the last stitch.
+        n = len(pts)
         if n >= 2:
             ey_last = pts[n - 1][1]
             needed_final = ey_last - 27  # desired cumulative transport after last stitch
@@ -1206,7 +1246,7 @@ class MachineComm:
                     break
                 direction = 6 if remaining > 6 else -6
                 applied = False
-                for j in range(n - 2, -1, -1):
+                for j in range(n - 2, 0, -1):  # never touches stitch 0
                     new_delta_j = pts[j][2] + direction
                     if abs(new_delta_j) > 6:
                         continue
