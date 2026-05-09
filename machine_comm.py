@@ -1039,9 +1039,9 @@ class MachineComm:
         pn_x          = xs[-1]
         span_x        = max(xs) - min(xs)
         span_y        = max(ys) - min(ys)
-        y_min_to_bound = 0x36 - min(ys)
 
         if pattern.stitch_type == "9mm":
+            y_min_to_bound = 0x36 - min(ys)
             return (
                 f"{y_min          & 0xFF:02X}"   # byte  0   y_min
                 f"{y_max          & 0xFF:02X}"   # byte  1   y_max
@@ -1057,6 +1057,8 @@ class MachineComm:
                 f"{0              & 0xFFFF:04X}" # bytes 16-17
             ).encode('ascii')
         elif pattern.stitch_type == "MAXI":
+            ys_norm_27 = [y - ys[0] + 27 for y in ys]
+            y_min_to_bound = 0x36 - min(ys_norm_27)
             return (
                 f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
                 f"{(span_y // 2)  & 0xFF:02X}"   # byte  1   y_max_norm_div_2
