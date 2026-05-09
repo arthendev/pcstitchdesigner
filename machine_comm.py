@@ -1215,15 +1215,18 @@ class MachineComm:
                 n_inter = max(1, (-1 - gap) // 6)   # ceil((-6 - gap) / 6)
 
             prev_x = pts[i - 1][0] if i > 0 else pts[i][0]
+            prev_ey = pts[i - 1][1] if i > 0 else pts[i][1]
             curr_x = pts[i][0]
+            curr_ey = pts[i][1]
             intermediates = []
             inter_transport = []
             running_t = prev_t
             for k in range(n_inter):
                 frac = (k + 1) / (n_inter + 1)
                 inter_x = round(prev_x + frac * (curr_x - prev_x))
+                inter_ey = round(prev_ey + frac * (curr_ey - prev_ey))
                 running_t += step_dir
-                intermediates.append([inter_x, 27 + running_t, step_dir])
+                intermediates.append([inter_x, inter_ey, step_dir])
                 inter_transport.append(running_t)
 
             pts[i:i] = intermediates
