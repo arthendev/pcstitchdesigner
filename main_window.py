@@ -805,6 +805,8 @@ class MainWindow(QMainWindow):
             # Force back to default orientation for hoop types
             self._act_orientation_default.setChecked(True)
             self._on_orientation_default()
+        # Normal stitches — disabled entirely for hoop types
+        self._act_std_stitch_align_grid.setEnabled(enabled)
         # Automatic stitches — disabled entirely for hoop types
         self._act_set_auto_stitch_length.setEnabled(enabled)
         self._act_remove_auto_stitches.setEnabled(enabled)
