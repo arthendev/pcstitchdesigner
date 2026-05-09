@@ -1387,7 +1387,8 @@ class MainWindow(QMainWindow):
         dlg = PMemoryDialog(
             pmem_info,
             action,
-            self._machine_comm,
+            comm=self._machine_comm,
+            machine_model=machine_model,
             pattern=self._pattern if action == PMemoryDialog.ACTION_SEND else None,
             parent=self,
         )

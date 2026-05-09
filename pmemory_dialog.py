@@ -53,10 +53,11 @@ class PMemoryDialog(QDialog):
         "QProgressBar::chunk { background: transparent; }"
     )
 
-    def __init__(self, pmem_info, action, comm, pattern=None, parent=None):
+    def __init__(self, pmem_info, action, comm, machine_model, pattern=None, parent=None):
         super().__init__(parent)
         self._comm = comm
         self._action = action
+        self._machine_model = machine_model
         self._pattern = pattern
         self._pmem_info = pmem_info or {"num_slots": 0, "free_memory": 0, "slots": []}
         self._transmission_ended = False
@@ -240,7 +241,7 @@ class PMemoryDialog(QDialog):
             # Refresh the table so the slot shows as empty.
             try:
                 raw = self._comm.query_pmemory()
-                pmem_info = MachineComm.decode_pmemory(raw, "")
+                pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
             except Exception as exc:
                 QMessageBox.critical(
                     self, "Machine Error",
@@ -307,7 +308,7 @@ class PMemoryDialog(QDialog):
         # Refresh P-Memory info from the machine
         try:
             raw = self._comm.query_pmemory()
-            pmem_info = MachineComm.decode_pmemory(raw, "")
+            pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
         except Exception as exc:
             QMessageBox.critical(self, "Machine Error", f"Error during communication")
             self._end_transmission()
