@@ -1149,7 +1149,7 @@ class MachineComm:
         for pt in pts:
             pt[1] += y_offset
 
-        # Step 2: assign transport_deltas.
+        # Step 2: forward pass – assign transport_deltas so stored_y stays in [0, 54].
         n = len(pts)
         transport_at = [0] * n
 
@@ -1190,6 +1190,42 @@ class MachineComm:
                     pts[i][2] = best_d
                     transport_at[i] = prev_t + best_d
                     i += 1
+
+        # Step 2b: iteratively adjust earlier stitches (in ±6 steps) until the
+        # remaining delta needed for the last stitch falls within [-6, 6], then
+        # assign that exact value so the last stitch lands at stored_y = 27.
+        # The last stitch's delta is not restricted to multiples of 6.
+        if n >= 2:
+            ey_last = pts[n - 1][1]
+            needed_final = ey_last - 27  # desired cumulative transport after last stitch
+
+            while True:
+                prev_t = transport_at[n - 2]
+                remaining = needed_final - prev_t
+                if -6 <= remaining <= 6:
+                    break
+                direction = 6 if remaining > 6 else -6
+                applied = False
+                for j in range(n - 2, -1, -1):
+                    new_delta_j = pts[j][2] + direction
+                    if abs(new_delta_j) > 6:
+                        continue
+                    if all(
+                        0 <= pts[k][1] - (transport_at[k] + direction) <= 54
+                        for k in range(j, n - 1)
+                    ):
+                        pts[j][2] = new_delta_j
+                        for k in range(j, n - 1):
+                            transport_at[k] += direction
+                        applied = True
+                        break
+                if not applied:
+                    break
+
+            prev_t = transport_at[n - 2]
+            final_delta = max(-6, min(6, needed_final - prev_t))
+            pts[n - 1][2] = final_delta
+            transport_at[n - 1] = prev_t + final_delta
 
         # Step 3: resolve stored_y for each stitch.
         result = []
