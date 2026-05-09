@@ -812,7 +812,10 @@ class MainWindow(QMainWindow):
 
     def _on_pattern_changed(self):
         stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
-        self._count_label.setText(f"Stitches: {stitch_count}")
+        auto_count = sum(1 for e in self._pattern.display_elements if e[0] == ELEM_AUTO)
+        total = stitch_count + auto_count
+        label = f"Stitches: {total}" + (f" ({auto_count} auto)" if auto_count else "")
+        self._count_label.setText(label)
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
