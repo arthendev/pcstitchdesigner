@@ -626,13 +626,16 @@ class MachineComm:
         """
         self._require_open()
 
-        stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
-        n = sum(1 for e in pattern.rounded_display_elements() if elem_has_coords(e))
-        expected_size = n * 2 if pattern.stitch_type == "9mm" else n * 3
-
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
+        
         try:
+            stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
+
+            # ── Pre-compute stitch data and final machine-side points ──────
+            stitch_data, final_points = self.encode_machine_stitch_data(pattern)
+            expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
+
             # ── Phase 1: write command ─────────────────────────────────────
             cmd_payload = (
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
@@ -657,7 +660,7 @@ class MachineComm:
                 )
 
             # ── Phase 2: header ────────────────────────────────────────────
-            header = self.encode_machine_header_75xx(pattern)
+            header = self.encode_machine_header_75xx(pattern, final_points)
             cs = self.checksum(header)
             self._serial.write(
                 header
@@ -678,10 +681,9 @@ class MachineComm:
                 )
 
             # ── Phase 3: stitch data chunks ────────────────────────────────
-            data = self.encode_machine_stitch_data(pattern)
-            total = len(data)
+            total = len(stitch_data)
             for offset in range(0, total, chunk_size):
-                chunk = data[offset:offset + chunk_size]
+                chunk = stitch_data[offset:offset + chunk_size]
                 cs = self.checksum(chunk)
                 is_last_chunk = (offset + chunk_size) >= total
                 self._serial.write(
@@ -737,15 +739,17 @@ class MachineComm:
         """
         self._require_open()
 
-        stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
-        n = sum(1 for e in pattern.rounded_display_elements() if elem_has_coords(e))
-        expected_size = n * 2 if pattern.stitch_type == "9mm" else n * 3
-
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
+            stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
+
+            # ── Pre-compute stitch data and final machine-side points ──────
+            stitch_data, final_points = self.encode_machine_stitch_data(pattern)
+            expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
+
             # ── Phase 1: write command with header ─────────────────────────
-            header = self.encode_machine_header_1475cd(pattern)
+            header = self.encode_machine_header_1475cd(pattern, final_points)
             cmd_payload = (
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii') + header
@@ -769,10 +773,9 @@ class MachineComm:
                 )
 
             # ── Phase 2: stitch data chunks ────────────────────────────────
-            data = self.encode_machine_stitch_data(pattern)
-            total = len(data)
+            total = len(stitch_data)
             for offset in range(0, total, chunk_size):
-                chunk = data[offset:offset + chunk_size]
+                chunk = stitch_data[offset:offset + chunk_size]
                 cs = self.checksum(chunk)
                 is_last_chunk = (offset + chunk_size) >= total
                 self._serial.write(
@@ -1014,17 +1017,27 @@ class MachineComm:
         return points
 
     @staticmethod
-    def encode_machine_header_75xx(pattern):
+    def encode_machine_header_75xx(pattern, points=None):
         """Encode the fixed header for the given pattern. Valid for Creative 7550/7570.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
         32 chars (16 bytes) — bytes 0-15.
         Each byte is represented as two uppercase hex digits.
 
+        Args:
+            pattern: StitchPattern instance; ``stitch_type`` is always read from here.
+            points: Optional list of ``(x, y)`` tuples representing the final
+                machine-side coordinates (as returned by
+                :meth:`encode_machine_stitch_data`).  When supplied these are
+                used directly so the header reflects any transport adjustments or
+                inserted intermediate stitches.  When ``None``, coordinates are
+                derived from ``pattern.rounded_display_elements()``.
+
         Raises:
             MachineCommError: If the stitch type is not supported or pattern is empty.
         """
-        points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+        if points is None:
+            points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
             raise MachineCommError("Cannot encode header for an empty pattern.")
         xs = [x for x, y in points]
@@ -1079,17 +1092,27 @@ class MachineComm:
             )
 
     @staticmethod
-    def encode_machine_header_1475cd(pattern):
+    def encode_machine_header_1475cd(pattern, points=None):
         """Encode the fixed header for the given pattern. Valid for Creative 1475 CD.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
         16 chars (8 bytes) — bytes 0-7.
         Each byte is represented as two uppercase hex digits.
 
+        Args:
+            pattern: StitchPattern instance; ``stitch_type`` is always read from here.
+            points: Optional list of ``(x, y)`` tuples representing the final
+                machine-side coordinates (as returned by
+                :meth:`encode_machine_stitch_data`).  When supplied these are
+                used directly so the header reflects any transport adjustments or
+                inserted intermediate stitches.  When ``None``, coordinates are
+                derived from ``pattern.rounded_display_elements()``.
+
         Raises:
             MachineCommError: If the stitch type is not supported or pattern is empty.
         """
-        points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+        if points is None:
+            points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
             raise MachineCommError("Cannot encode header for an empty pattern.")
         xs = [x for x, y in points]
@@ -1149,6 +1172,7 @@ class MachineComm:
         Returns:
             list[tuple[int, int, int]]: Each entry is (x, stored_y, delta)
                 where delta is 0 or ±6 for all stitches except possibly the last.
+            list[tuple[int, int]]: Each entry is (x, y), matching the final stitch coordinates after applying all transport adjustments.
         """
         pts = [[e[1], e[2], 0] for e in raw_elems]
         if not pts:
@@ -1271,13 +1295,15 @@ class MachineComm:
             transport_at[n - 1] = prev_t + final_delta
 
         # Step 3: resolve stored_y for each stitch.
-        result = []
+        result_xyt = []
+        result_xy = []
         transport = 0
         for x, ey, delta in pts:
             transport += delta
             stored_y = max(0, min(54, ey - transport))
-            result.append((x, stored_y, delta))
-        return result
+            result_xyt.append((x, stored_y, delta))
+            result_xy.append((x, stored_y + transport))
+        return result_xyt, result_xy
 
     @staticmethod
     def encode_machine_stitch_data(pattern):
@@ -1288,24 +1314,30 @@ class MachineComm:
               where s is '+' or '-' and T is the transport-delta magnitude (0 or 6).
 
         Returns:
-            bytes: ASCII-encoded stitch data.
+            tuple[bytes, list[tuple[int, int]]]: A pair of
+                ``(encoded_bytes, final_points)`` where ``final_points`` is the
+                list of ``(x, y)`` coordinates exactly as the machine will
+                interpret them — after the y-offset, any inserted intermediate
+                stitches, and all transport adjustments applied by
+                :meth:`_translate_maxi_points`.
 
         Raises:
             MachineCommError: If the stitch type is not supported.
         """
         if pattern.stitch_type == "9mm":
-            return ''.join(
-                f"{e[1]:03d}{e[2]:02d}" for e in pattern.rounded_display_elements() if elem_has_coords(e)
-            ).encode('ascii')
+            elems = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+            encoded = ''.join(f"{x:03d}{y:02d}" for x, y in elems).encode('ascii')
+            return encoded, elems
         elif pattern.stitch_type == "MAXI":
             raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
             if not raw_elems:
-                return b''
-            translated = MachineComm._translate_maxi_points(raw_elems)
-            return ''.join(
+                return b'', []
+            translated_xyt, translated_xy = MachineComm._translate_maxi_points(raw_elems)
+            encoded = ''.join(
                 f"{x:03d}{sy:02d}{'+' if d >= 0 else '-'}{abs(d):1d}"
-                for x, sy, d in translated
+                for x, sy, d in translated_xyt
             ).encode('ascii')
+            return encoded, translated_xy
         else:
             raise MachineCommError(
                 f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
