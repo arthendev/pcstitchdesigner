@@ -264,7 +264,7 @@ class PMemoryDialog(QDialog):
 
         try:
             self._comm.send_pmemory_slot(
-                slot_index, self._pattern, progress_callback=_send_progress
+                slot_index, self._pattern, machine_model=self._machine_model, progress_callback=_send_progress
             )
         except Exception as exc:
             self._progress_bar.setValue(0)

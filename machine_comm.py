@@ -580,7 +580,21 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot(self, slot_index, pattern, chunk_size=250, timeout=1.0,
+    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250,
+                          timeout=1.0, progress_callback=None):
+        """Dispatch to the appropriate send method based on machine_model.
+        """
+
+        if "1475" in machine_model:
+            self.send_pmemory_slot_1475cd(slot_index, pattern,
+                                          chunk_size=chunk_size, timeout=timeout,
+                                          progress_callback=progress_callback)
+        else:
+            self.send_pmemory_slot_75xx(slot_index, pattern,
+                                        chunk_size=chunk_size, timeout=timeout,
+                                        progress_callback=progress_callback)
+
+    def send_pmemory_slot_75xx(self, slot_index, pattern, chunk_size=250, timeout=1.0,
                           progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
@@ -643,7 +657,7 @@ class MachineComm:
                 )
 
             # ── Phase 2: header ────────────────────────────────────────────
-            header = self.encode_machine_header(pattern)
+            header = self.encode_machine_header_75xx(pattern)
             cs = self.checksum(header)
             self._serial.write(
                 header
@@ -664,6 +678,97 @@ class MachineComm:
                 )
 
             # ── Phase 3: stitch data chunks ────────────────────────────────
+            data = self.encode_machine_stitch_data(pattern)
+            total = len(data)
+            for offset in range(0, total, chunk_size):
+                chunk = data[offset:offset + chunk_size]
+                cs = self.checksum(chunk)
+                is_last_chunk = (offset + chunk_size) >= total
+                self._serial.write(
+                    chunk
+                    + bytes([self.CTRL_ETB])
+                    + f"{cs:02X}".encode('ascii')
+                    + (bytes([self.CTRL_ETX]) if is_last_chunk else b'')
+                )
+                resp = self._serial.read(1)
+                if not resp:
+                    raise MachineCommError(
+                        f"Timeout waiting for acknowledgement after chunk "
+                        f"{offset // chunk_size + 1}."
+                    )
+                if resp[0] == self.CTRL_NAK:
+                    raise MachineCommError("Machine rejected a stitch data chunk.")
+                if resp[0] != self.CTRL_ACK:
+                    raise MachineCommError(
+                        f"Unexpected response 0x{resp[0]:02X} during stitch data transfer."
+                    )
+                if progress_callback is not None:
+                    progress_callback(min(offset + chunk_size, total), total)
+        finally:
+            self._serial.timeout = saved_timeout
+
+    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0,
+                          progress_callback=None):
+        """Write a pattern to a specific P-Memory slot in three phases.
+
+        Phase 1 - Write command:
+            ``PN<xx><yy><zzzz><hhhhhhhh>`` + CTRL_ETB + 2-hex checksum + CTRL_ETX
+            where xx = slot index (hex), yy = stitch-type byte (00 = 9mm, 01 = MAXI),
+            zzzz = expected machine-side storage size (hex), hhhhhhhh = additional header info (hex).
+        Phase 2 - Stitch data (split into chunk_size-byte chunks):
+            chunk + CTRL_ETB + 2-hex checksum
+            last chunk has CTRL_ETX appended after the checksum.
+            CTRL_EOT is sent after the last chunk to signal end of transmission.
+
+        The machine must reply with CTRL_ENQ after write command, 
+        and CTRL_ACK after every chunk.
+
+        Args:
+            slot_index (int): 0-based slot number to write to.
+            pattern: StitchPattern instance (stitch_type + points).
+            chunk_size (int): Stitch-data payload bytes per chunk. Default: 250.
+            timeout (float): Per-response read timeout in seconds. Default: 1.0.
+            progress_callback: Optional ``(done_bytes, total_bytes)`` callable
+                called after each stitch-data chunk is acknowledged.
+
+        Raises:
+            serial.SerialException: If the port is not open.
+            MachineCommError: On timeout, CTRL_NAK, or unexpected response.
+        """
+        self._require_open()
+
+        stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
+        n = sum(1 for e in pattern.rounded_display_elements() if elem_has_coords(e))
+        expected_size = n * 2 if pattern.stitch_type == "9mm" else n * 3
+
+        saved_timeout = self._serial.timeout
+        self._serial.timeout = timeout
+        try:
+            # ── Phase 1: write command with header ─────────────────────────
+            header = self.encode_machine_header_1475cd(pattern)
+            cmd_payload = (
+                f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
+            ).encode('ascii') + header
+            cs = self.checksum(cmd_payload)
+            self._serial.write(
+                cmd_payload
+                + bytes([self.CTRL_ETB])
+                + f"{cs:02X}".encode('ascii')
+                + bytes([self.CTRL_ETX])
+            )
+            resp = self._serial.read(1)
+            if not resp:
+                raise MachineCommError(
+                    "Timeout waiting for acknowledgement after write command."
+                )
+            if resp[0] == self.CTRL_NAK:
+                raise MachineCommError("Machine rejected the write command.")
+            if resp[0] != self.CTRL_ENQ:
+                raise MachineCommError(
+                    f"Unexpected response 0x{resp[0]:02X} after write command."
+                )
+
+            # ── Phase 2: stitch data chunks ────────────────────────────────
             data = self.encode_machine_stitch_data(pattern)
             total = len(data)
             for offset in range(0, total, chunk_size):
@@ -768,7 +873,7 @@ class MachineComm:
                 f"Invalid slot count encoding: {text[0:2]!r}"
             ) from exc
 
-        if machine_model == "PFAFF Creative 1475 CD":
+        if "1475" in machine_model:
             bytes_per_slot = 14
         else:
             bytes_per_slot = 10
@@ -909,8 +1014,8 @@ class MachineComm:
         return points
 
     @staticmethod
-    def encode_machine_header(pattern):
-        """Encode the fixed header for the given pattern.
+    def encode_machine_header_75xx(pattern):
+        """Encode the fixed header for the given pattern. Valid for Creative 7550/7570.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
         32 chars (16 bytes) — bytes 0-15.
@@ -971,6 +1076,48 @@ class MachineComm:
                 f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
             )
 
+    @staticmethod
+    def encode_machine_header_1475cd(pattern):
+        """Encode the fixed header for the given pattern. Valid for Creative 1475 CD.
+
+        Returns ASCII-encoded bytes (no framing, no checksum).
+        16 chars (8 bytes) — bytes 0-7.
+        Each byte is represented as two uppercase hex digits.
+
+        Raises:
+            MachineCommError: If the stitch type is not supported or pattern is empty.
+        """
+        points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+        if not points:
+            raise MachineCommError("Cannot encode header for an empty pattern.")
+        xs = [x for x, y in points]
+        ys = [y for x, y in points]
+        dxs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
+
+        y_min         = min(ys)
+        y_max         = max(ys)
+        dx_abs_max    = max((abs(dx) for dx in dxs), default=0)
+        span_y        = max(ys) - min(ys)
+
+        if pattern.stitch_type == "9mm":
+            return (
+                f"{y_min          & 0xFF:02X}"   # byte  0   y_min
+                f"{y_max          & 0xFF:02X}"   # byte  1   y_max
+                f"{dx_abs_max     & 0xFF:02X}"   # byte  2   dx_abs_max
+                f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
+            ).encode('ascii')
+        elif pattern.stitch_type == "MAXI":
+            return (
+                f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
+                f"{span_y         & 0xFF:02X}"   # byte  1   y_max_norm
+                f"{(span_y // 2)  & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
+                f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
+            ).encode('ascii')
+        else:
+            raise MachineCommError(
+                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
+            )
+        
     @staticmethod
     def encode_machine_stitch_data(pattern):
         """Encode only the stitch point coordinates (no header, no framing).
