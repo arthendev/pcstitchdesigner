@@ -169,9 +169,10 @@ class InvertRangeCommand(Command):
 
 class MirrorVerticalCommand(Command):
     """Mirrors coord elements vertically around the center of a [start, end] range."""
-    def __init__(self, start, end):
+    def __init__(self, start, end, snap=True):
         self.start = start
         self.end = end
+        self.snap = snap
         self.original_points = None
 
     def redo(self, pattern):
@@ -185,7 +186,9 @@ class MirrorVerticalCommand(Command):
 
         for i, e in enumerate(self.original_points):
             if elem_has_coords(e):
-                mirrored_y = int(round(2 * center_y - e[2]))
+                mirrored_y = 2 * center_y - e[2]
+                if self.snap:
+                    mirrored_y = int(round(mirrored_y))
                 pattern.elements[self.start + i] = (e[0], e[1], mirrored_y)
             else:
                 pattern.elements[self.start + i] = e
@@ -198,9 +201,10 @@ class MirrorVerticalCommand(Command):
 
 class MirrorHorizontalCommand(Command):
     """Mirrors coord elements horizontally around the center of a [start, end] range."""
-    def __init__(self, start, end):
+    def __init__(self, start, end, snap=True):
         self.start = start
         self.end = end
+        self.snap = snap
         self.original_points = None
 
     def redo(self, pattern):
@@ -214,7 +218,9 @@ class MirrorHorizontalCommand(Command):
 
         for i, e in enumerate(self.original_points):
             if elem_has_coords(e):
-                mirrored_x = int(round(2 * center_x - e[1]))
+                mirrored_x = 2 * center_x - e[1]
+                if self.snap:
+                    mirrored_x = int(round(mirrored_x))
                 pattern.elements[self.start + i] = (e[0], mirrored_x, e[2])
             else:
                 pattern.elements[self.start + i] = e
@@ -398,16 +404,20 @@ class StitchPattern:
 
     # ── Element addition ──
 
-    def add_point(self, x, y, index=None):
+    def add_point(self, x, y, index=None, snap=True):
         """Add a normal stitch element. Alias for add_stitch."""
-        return self.add_stitch(x, y, index=index)
+        return self.add_stitch(x, y, index=index, snap=snap)
 
-    def add_stitch(self, x, y, index=None):
+    def add_stitch(self, x, y, index=None, snap=True):
         """Append or insert a normal stitch element (ELEM_STITCH)."""
         if index is None:
             index = len(self.elements)
-        x = max(0, min(self.CANVAS_WIDTH, int(round(x))))
-        y = max(0, min(self.CANVAS_HEIGHT, int(round(y))))
+        if snap:
+            x = max(0, min(self.CANVAS_WIDTH, int(round(x))))
+            y = max(0, min(self.CANVAS_HEIGHT, int(round(y))))
+        else:
+            x = max(0.0, min(float(self.CANVAS_WIDTH), float(x)))
+            y = max(0.0, min(float(self.CANVAS_HEIGHT), float(y)))
         self._exec(AddPointCommand(index, x, y))
 
     def add_auto_stitch(self, x, y, index=None):
@@ -438,18 +448,22 @@ class StitchPattern:
 
     # ── Element movement ──
 
-    def move_point(self, index, new_x, new_y):
+    def move_point(self, index, new_x, new_y, snap=True):
         e = self.elements[index]
         if not elem_has_coords(e):
             return
         old_x, old_y = e[1], e[2]
-        new_x = max(0, min(self.CANVAS_WIDTH, int(round(new_x))))
-        new_y = max(0, min(self.CANVAS_HEIGHT, int(round(new_y))))
+        if snap:
+            new_x = max(0, min(self.CANVAS_WIDTH, int(round(new_x))))
+            new_y = max(0, min(self.CANVAS_HEIGHT, int(round(new_y))))
+        else:
+            new_x = max(0.0, min(float(self.CANVAS_WIDTH), float(new_x)))
+            new_y = max(0.0, min(float(self.CANVAS_HEIGHT), float(new_y)))
         if (old_x, old_y) == (new_x, new_y):
             return
         self._exec(MovePointCommand(index, old_x, old_y, new_x, new_y))
 
-    def move_points(self, indices, new_positions):
+    def move_points(self, indices, new_positions, snap=True):
         """Move multiple coord elements as a single undoable step."""
         moves = []
         for idx, (new_x, new_y) in zip(indices, new_positions):
@@ -457,8 +471,12 @@ class StitchPattern:
             if not elem_has_coords(e):
                 continue
             old_x, old_y = e[1], e[2]
-            new_x = max(0, min(self.CANVAS_WIDTH, int(round(new_x))))
-            new_y = max(0, min(self.CANVAS_HEIGHT, int(round(new_y))))
+            if snap:
+                new_x = max(0, min(self.CANVAS_WIDTH, int(round(new_x))))
+                new_y = max(0, min(self.CANVAS_HEIGHT, int(round(new_y))))
+            else:
+                new_x = max(0.0, min(float(self.CANVAS_WIDTH), float(new_x)))
+                new_y = max(0.0, min(float(self.CANVAS_HEIGHT), float(new_y)))
             if (old_x, old_y) != (new_x, new_y):
                 moves.append((idx, old_x, old_y, new_x, new_y))
         if moves:
@@ -504,17 +522,17 @@ class StitchPattern:
             return
         self._exec(InvertRangeCommand(start, end))
 
-    def mirror_vertical(self, start, end):
+    def mirror_vertical(self, start, end, snap=True):
         """Mirror selected coord elements vertically around the center of selection."""
         if start is None or end is None or start > end:
             return
-        self._exec(MirrorVerticalCommand(start, end))
+        self._exec(MirrorVerticalCommand(start, end, snap=snap))
 
-    def mirror_horizontal(self, start, end):
+    def mirror_horizontal(self, start, end, snap=True):
         """Mirror selected coord elements horizontally around the center of selection."""
         if start is None or end is None or start > end:
             return
-        self._exec(MirrorHorizontalCommand(start, end))
+        self._exec(MirrorHorizontalCommand(start, end, snap=snap))
 
     def replace_range(self, start, end, new_elements):
         """Replace elements at indices [start, end] (inclusive) with new_elements."""

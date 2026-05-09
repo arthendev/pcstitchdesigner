@@ -412,6 +412,12 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_small_hoop)
         self._stitch_group.addAction(self._act_large_hoop)
 
+        # Design – Normal Stitches
+        self._act_std_stitch_align_grid = QAction("&Align to Grid", self)
+        self._act_std_stitch_align_grid.setCheckable(True)
+        self._act_std_stitch_align_grid.setChecked(True)
+        self._act_std_stitch_align_grid.triggered.connect(self._design_std_stitch_align_grid_toggled)
+
         # Design – Automatic Stitches
         self._act_set_auto_stitch_length = QAction("Set Maximum &Length…", self)
         self._act_set_auto_stitch_length.triggered.connect(self._design_set_auto_stitch_length)
@@ -534,6 +540,10 @@ class MainWindow(QMainWindow):
         design_menu.addAction(self._act_small_hoop)
         design_menu.addAction(self._act_large_hoop)
         design_menu.addSeparator()
+
+        std_stitches_menu = design_menu.addMenu("&Normal Stitches")
+        std_stitches_menu.addAction(self._act_std_stitch_align_grid)
+
         auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
         auto_stitches_menu.addAction(self._act_set_auto_stitch_length)
         auto_stitches_menu.addAction(self._act_remove_auto_stitches)
@@ -910,6 +920,27 @@ class MainWindow(QMainWindow):
         self._pattern = pattern
         self._canvas.pattern = pattern
         self._canvas.set_selected_point(None)
+        # Check whether the file contains any fractional stitch coordinates
+        has_fractional = any(
+            e[0] == ELEM_STITCH and (e[1] != int(e[1]) or e[2] != int(e[2]))
+            for e in self._pattern.elements
+        )
+        if has_fractional:
+            # Deactivate both align-to-grid options and keep fractional coords as-is
+            self._act_std_stitch_align_grid.setChecked(False)
+            self._canvas.snap_normal_to_grid = False
+            self._act_auto_stitch_align_grid.setChecked(False)
+        elif self._act_std_stitch_align_grid.isChecked():
+            # Align normal stitch coordinates to integer grid if the option is enabled
+            for i, e in enumerate(self._pattern.elements):
+                if e[0] == ELEM_STITCH:
+                    self._pattern.elements[i] = (ELEM_STITCH, int(round(e[1])), int(round(e[2])))
+            # Only sync display layer when there are no auto stitches; if auto stitches
+            # are present the display layer from _load_elements is already correct and
+            # must not be overwritten here (it would erase the auto stitches).
+            if not self._pattern.has_auto_stitches:
+                self._pattern._rebuild_display_no_auto()
+            self._pattern.modified = False
         self._file_path = path
         self._add_recent_file(path)
         self._last_auto_stitch_length_mm = None
@@ -945,6 +976,9 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
         self._update_hoop_restricted_actions()
+        # For patterns loaded without auto stitches, apply the default max-dx rule
+        if not self._pattern.has_auto_stitches and not self._is_hoop_type():
+            self._recalculate_auto_if_active()
         self._update_palette_bar()
         if self._is_hoop_type():
             self._show_hoop_info()
@@ -1154,7 +1188,7 @@ class MainWindow(QMainWindow):
         if start is None or end is None:
             return  # No selection
         
-        self._pattern.mirror_vertical(start, end)
+        self._pattern.mirror_vertical(start, end, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -1164,7 +1198,7 @@ class MainWindow(QMainWindow):
         if start is None or end is None:
             return  # No selection
         
-        self._pattern.mirror_horizontal(start, end)
+        self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
     # ── Zoom actions ──
@@ -1670,6 +1704,24 @@ class MainWindow(QMainWindow):
             )
             self._canvas.update()
             self._on_pattern_changed()
+
+    def _design_std_stitch_align_grid_toggled(self):
+        checked = self._act_std_stitch_align_grid.isChecked()
+        self._canvas.snap_normal_to_grid = checked
+        if checked:
+            changed = False
+            for i, e in enumerate(self._pattern.elements):
+                if e[0] == ELEM_STITCH:
+                    rx, ry = int(round(e[1])), int(round(e[2]))
+                    if rx != e[1] or ry != e[2]:
+                        self._pattern.elements[i] = (ELEM_STITCH, rx, ry)
+                        changed = True
+            self._pattern._rebuild_display_no_auto()
+            self._recalculate_auto_if_active()
+            self._canvas.update()
+            if changed:
+                self._pattern.modified = True
+                self._on_pattern_changed()
 
     # ── Help ──
 

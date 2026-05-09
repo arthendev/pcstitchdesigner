@@ -180,26 +180,27 @@ class AddPointTool(BaseTool):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-        cx, cy = int(round(cx)), int(round(cy))
+        if canvas.snap_normal_to_grid:
+            cx, cy = int(round(cx)), int(round(cy))
         if 0 <= cx <= canvas.pattern.CANVAS_WIDTH and 0 <= cy <= canvas.pattern.CANVAS_HEIGHT:
             # If points are selected, insert after the end of selection; otherwise append
             start, end = canvas.get_selection()
             if start is not None and end is not None:
                 # Use end index for range selection
                 insert_idx = end + 1
-                canvas.pattern.add_point(cx, cy, index=insert_idx)
+                canvas.pattern.add_point(cx, cy, index=insert_idx, snap=canvas.snap_normal_to_grid)
                 canvas.set_selected_point(insert_idx)  # Select the newly added point
             else:
                 # Fallback: use start of selection if only single point selected
                 selected_idx = canvas.get_selected_point()
                 if selected_idx is not None:
                     insert_idx = selected_idx + 1
-                    canvas.pattern.add_point(cx, cy, index=insert_idx)
+                    canvas.pattern.add_point(cx, cy, index=insert_idx, snap=canvas.snap_normal_to_grid)
                     canvas.set_selected_point(insert_idx)  # Select the newly added point
                 else:
                     # No selection: append to end
                     insert_idx = len(canvas.pattern.elements)
-                    canvas.pattern.add_point(cx, cy)
+                    canvas.pattern.add_point(cx, cy, snap=canvas.snap_normal_to_grid)
                     canvas.set_selected_point(insert_idx)  # Select the newly added point
             canvas.update()
             canvas.notify_change()
@@ -207,6 +208,9 @@ class AddPointTool(BaseTool):
 
     def mouse_move(self, canvas, event):
         self._cursor_x, self._cursor_y = canvas.screen_to_canvas(event.x(), event.y())
+        if canvas.snap_normal_to_grid:
+            self._cursor_x = round(self._cursor_x)
+            self._cursor_y = round(self._cursor_y)
         canvas.update()
 
     def on_deselect(self, canvas):
@@ -402,8 +406,12 @@ class MovePointTool(BaseTool):
                 self._press_screen_pos = None
         if self._dragging_indices:
             cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-            cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
-            cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, int(round(cy))))
+            if canvas.snap_normal_to_grid:
+                cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
+                cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, int(round(cy))))
+            else:
+                cx = max(0.0, min(float(canvas.pattern.CANVAS_WIDTH), cx))
+                cy = max(0.0, min(float(canvas.pattern.CANVAS_HEIGHT), cy))
             
             # Calculate offset from the clicked point's original position
             if self._clicked_idx is not None:
@@ -462,11 +470,11 @@ class MovePointTool(BaseTool):
 
             if len(coord_moves) == 1:
                 idx, (new_x, new_y) = coord_moves[0]
-                canvas.pattern.move_point(idx, new_x, new_y)
+                canvas.pattern.move_point(idx, new_x, new_y, snap=canvas.snap_normal_to_grid)
             elif coord_moves:
                 indices = [idx for idx, _ in coord_moves]
                 positions = [pos for _, pos in coord_moves]
-                canvas.pattern.move_points(indices, positions)
+                canvas.pattern.move_points(indices, positions, snap=canvas.snap_normal_to_grid)
             
             self._dragging_indices = []
             self._orig_positions = []

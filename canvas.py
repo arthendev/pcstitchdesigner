@@ -55,6 +55,7 @@ class StitchCanvas(QWidget):
         self._show_grid = True
         self._show_stitch_points = True
         self._show_auto_stitch_points = True
+        self.snap_normal_to_grid = True
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -332,7 +333,13 @@ class StitchCanvas(QWidget):
                     else:
                         # Auto-stitch: inherit the preceding base index so that
                         # is_point_selected() returns True when the segment is selected.
-                        sel_idx = last_auto_sel_idx
+                        # However, if the preceding base index is at or beyond selection_end,
+                        # the auto-stitch lies after the last selected point — don't highlight it.
+                        if (self._selection_end is not None
+                                and last_auto_sel_idx >= self._selection_end):
+                            sel_idx = -1
+                        else:
+                            sel_idx = last_auto_sel_idx
                     coord_elems.append((sel_idx, elem[1], elem[2], cur_col, kind))
 
         # Stitch points (draw in layers to ensure selected points are on top)

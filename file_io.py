@@ -156,8 +156,8 @@ def load_pattern(path):
 
             if control_byte == 0x00:
                 # Normal stitch point; c0/c1 are fractional parts of x/y
-                # all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
-                all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                # all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
             elif control_byte == 0x01:
                 # Legacy color-change marker: infer sequential palette index
                 if pattern.colors:
@@ -166,8 +166,8 @@ def load_pattern(path):
             elif control_byte == 0x02:
                 # Automatic stitch point; treated as normal stitch for hoop patterns
                 if pattern.stitch_type in ("small hoop", "large hoop"):
-                    # all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
-                    all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                    all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
+                    # all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
                 else:
                     all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
             elif control_byte == 0x03:
