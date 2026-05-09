@@ -705,15 +705,15 @@ class MachineComm:
         Payload structure (all values ASCII-hex encoded):
             [0:2]                     - number of slots (1 byte, hex)
             repeated num_slots times:
-              [+0:+2]                 - stitch type (0x00 = 9mm, 0x01 = MAXI)
-              [+2:+6]                 - number of stitches (2 bytes, hex)
-              [+6:+10]                - unknown (4 chars, ignored)
-            last 4 chars              - total free memory (2 bytes, unsigned hex)
+              [0:2]                 - stitch type (0x00 = 9mm, 0x01 = MAXI)
+              [2:6]                 - number of stitches (2 bytes, hex)
+              [6:10]                - unknown (4 chars, ignored)
+              [6:14]                - unknown (8 chars, ignored) - only for PFAFF Creative 1475 CD, other models have only 4 chars total for the unknown field
+            last 4 chars            - total free memory (2 bytes, unsigned hex)
 
         Args:
             raw_bytes (bytes): Raw bytes returned by query_pmemory().
-            machine_model (str): Machine model string from configuration (reserved
-                for future model-specific variations).
+            machine_model (str): Machine model string from configuration
 
         Returns:
             dict: {
@@ -768,7 +768,12 @@ class MachineComm:
                 f"Invalid slot count encoding: {text[0:2]!r}"
             ) from exc
 
-        expected_len = 2 + num_slots * 10 + 4
+        if machine_model == "PFAFF Creative 1475 CD":
+            bytes_per_slot = 14
+        else:
+            bytes_per_slot = 10
+
+        expected_len = 2 + num_slots * bytes_per_slot + 4
         if len(text) != expected_len:
             raise MachineCommError(
                 f"P-Memory payload length mismatch: expected {expected_len} chars, "
@@ -778,11 +783,12 @@ class MachineComm:
         slots = []
         offset = 2
         for i in range(num_slots):
-            slot_text = text[offset:offset + 10]
+            slot_text = text[offset:offset + bytes_per_slot]
             try:
                 type_byte = int(slot_text[0:2], 16)
                 size = int(slot_text[2:6], 16)
                 # slot_text[6:10] - purpose unknown, ignored
+                # slot_text[6:14] - purpose unknown, ignored; 1475CD has 4 extra chars here compared to other models
             except ValueError as exc:
                 raise MachineCommError(
                     f"Invalid data for slot {i + 1}: {slot_text!r}"
@@ -798,7 +804,7 @@ class MachineComm:
                 stitch_type = f"unknown(0x{type_byte:02X})"
 
             slots.append({'type': stitch_type, 'size': size})
-            offset += 10
+            offset += bytes_per_slot
 
         try:
             free_memory = int(text[offset:offset + 4], 16)
