@@ -226,6 +226,14 @@ class PMemoryDialog(QDialog):
         if slot_index is None:
             return
 
+        # MAXI stitches are not yet supported for PFAFF Creative 1475 CD.
+        if "1475" in self._machine_model and self._pattern.stitch_type == "MAXI":
+            QMessageBox.critical(
+                self, "Not Supported",
+                "Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD"
+            )
+            return
+
         # If the selected slot is not empty, ask the user to clear it first.
         if self._selected_slot_size() > 0:
             answer = QMessageBox.question(
