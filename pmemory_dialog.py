@@ -64,6 +64,21 @@ class PMemoryDialog(QDialog):
         self.loaded_points = None
         self.loaded_slot_type = None
 
+        # Pre-compute the actual byte count that will be sent to the machine.
+        # encode_machine_stitch_data accounts for auto-stitches and any MAXI
+        # intermediate stitches that _translate_maxi_points may insert.
+        if self._action == self.ACTION_SEND and self._pattern is not None:
+            try:
+                _, final_points = MachineComm.encode_machine_stitch_data(self._pattern)
+                st = self._pattern.stitch_type
+                self._needed_bytes = (len(final_points) * 2 if st == "9mm"
+                                      else len(final_points) * 3 if st == "MAXI"
+                                      else 0)
+            except Exception:
+                self._needed_bytes = 0
+        else:
+            self._needed_bytes = 0
+
         self._setup_ui()
 
     # ── UI construction ──────────────────────────────────────────────────────
@@ -118,14 +133,7 @@ class PMemoryDialog(QDialog):
             self._action_btn = QPushButton("Write")
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_write)
-            if self._pattern is not None:
-                from model import elem_has_coords
-                st = self._pattern.stitch_type
-                n  = sum(1 for e in self._pattern.elements if elem_has_coords(e))
-                needed = n * 2 if st == "9mm" else n * 3 if st == "MAXI" else 0
-            else:
-                needed = 0
-            mem_label = QLabel(f"Needed memory:\n{needed} bytes")
+            mem_label = QLabel(f"Needed memory:\n{self._needed_bytes} bytes")
             mem_label.setAlignment(Qt.AlignCenter)
             right.addWidget(mem_label)
         elif self._action == self.ACTION_DELETE:
@@ -252,6 +260,17 @@ class PMemoryDialog(QDialog):
                 return
             self._pmem_info = pmem_info
             self._populate_table(pmem_info)
+
+        # Check available free memory before attempting to write.
+        free = self._pmem_info.get('free_memory', 0)
+        if self._needed_bytes > free:
+            QMessageBox.warning(
+                self, "Insufficient Memory",
+                f"The pattern requires {self._needed_bytes} bytes but only "
+                f"{free} bytes are free in P-Memory.\n\n"
+                "Please delete one or more slots to free up space."
+            )
+            return
 
         self._action_btn.setEnabled(False)
         self._progress_bar.setValue(0)
