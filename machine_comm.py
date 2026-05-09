@@ -1119,17 +1119,92 @@ class MachineComm:
             )
         
     @staticmethod
+    @staticmethod
+    def _translate_maxi_points(raw_elems):
+        """Translate raw MAXI stitch elements into a list of (x, stored_y, delta) tuples.
+
+        Applies a y-offset so the first stitch begins at stored_y = 27 (centre of
+        the valid machine range [0, 54]).  Assigns a per-stitch transport_delta of
+        0, +6, or -6 so that ``stored_y = effective_y - cumulative_transport`` stays
+        within [0, 54].  When a single ±6 step at the current stitch is not enough,
+        the algorithm walks backwards and retroactively shifts the most recent
+        earlier stitch where the correction can be applied without pushing any
+        intermediate stitch out of range, then retries.
+
+        Args:
+            raw_elems: Iterable of elements with coords (e[1]=x, e[2]=y).
+
+        Returns:
+            list[tuple[int, int, int]]: Each entry is (x, stored_y, delta)
+                where delta is 0, +6, or -6.
+        """
+        pts = [[e[1], e[2], 0] for e in raw_elems]
+        if not pts:
+            return []
+
+        # Step 1: offset y so first stitch lands at y=27.
+        y_offset = 27 - pts[0][1]
+        for pt in pts:
+            pt[1] += y_offset
+
+        # Step 2: assign transport_deltas.
+        n = len(pts)
+        transport_at = [0] * n
+
+        i = 0
+        while i < n:
+            ey = pts[i][1]
+            prev_t = transport_at[i - 1] if i > 0 else 0
+
+            chosen = None
+            for d in [0, 6, -6]:
+                if 0 <= ey - (prev_t + d) <= 54:
+                    chosen = d
+                    break
+
+            if chosen is not None:
+                pts[i][2] = chosen
+                transport_at[i] = prev_t + chosen
+                i += 1
+            else:
+                direction = 6 if (ey - prev_t > 54) else -6
+                fixed = False
+                for j in range(i - 1, -1, -1):
+                    new_delta_j = pts[j][2] + direction
+                    if abs(new_delta_j) > 6:
+                        continue
+                    if all(
+                        0 <= pts[k][1] - (transport_at[k] + direction) <= 54
+                        for k in range(j, i)
+                    ):
+                        pts[j][2] = new_delta_j
+                        for k in range(j, i):
+                            transport_at[k] += direction
+                        fixed = True
+                        break
+
+                if not fixed:
+                    best_d = min([0, 6, -6], key=lambda d: abs(ey - (prev_t + d) - 27))
+                    pts[i][2] = best_d
+                    transport_at[i] = prev_t + best_d
+                    i += 1
+
+        # Step 3: resolve stored_y for each stitch.
+        result = []
+        transport = 0
+        for x, ey, delta in pts:
+            transport += delta
+            stored_y = max(0, min(54, ey - transport))
+            result.append((x, stored_y, delta))
+        return result
+
+    @staticmethod
     def encode_machine_stitch_data(pattern):
         """Encode only the stitch point coordinates (no header, no framing).
 
         9mm:  each stitch → 5 ASCII decimal chars ``XXX`` + ``YY``.
         MAXI: each stitch → 7 ASCII decimal chars ``XXX`` + ``YY`` + ``sT``
               where s is '+' or '-' and T is the transport-delta magnitude (0 or 6).
-              A y-offset is applied so the first stitch begins at stored_y = 27
-              (centre of the valid [0, 54] range).  A running transport accumulator
-              is maintained and adjusted in steps of ±6 whenever stored_y would
-              leave [0, 54].  If a single ±6 step is not enough, earlier stitches
-              are corrected retroactively.
 
         Returns:
             bytes: ASCII-encoded stitch data.
@@ -1145,81 +1220,11 @@ class MachineComm:
             raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
             if not raw_elems:
                 return b''
-
-            # Step 1: Build [x, effective_y, transport_delta] list.
-            # Apply a y-offset so the first stitch starts at y=27 (centre of [0, 54]).
-            # effective_y values may become negative after the offset – that is fine.
-            pts = [[e[1], e[2], 0] for e in raw_elems]
-            y_offset = 27 - pts[0][1]
-            for pt in pts:
-                pt[1] += y_offset
-
-            # Step 2: Assign transport_deltas (0, +6, or -6) so that
-            #   stored_y = effective_y − cumulative_transport  stays in [0, 54].
-            # When a single ±6 step at the current stitch is insufficient, the
-            # algorithm walks backwards and retroactively adds a correction to the
-            # most recent earlier stitch where it can be applied safely (i.e.
-            # without pushing any intermediate stitch out of range).  It then
-            # retries the current stitch with the updated transport.
-            n = len(pts)
-            transport_at = [0] * n  # cumulative transport after stitch i
-
-            i = 0
-            while i < n:
-                ey = pts[i][1]
-                prev_t = transport_at[i - 1] if i > 0 else 0
-
-                # Prefer no change; fall back to ±6.
-                chosen = None
-                for d in [0, 6, -6]:
-                    if 0 <= ey - (prev_t + d) <= 54:
-                        chosen = d
-                        break
-
-                if chosen is not None:
-                    pts[i][2] = chosen
-                    transport_at[i] = prev_t + chosen
-                    i += 1
-                else:
-                    # stored_y is out of [0, 54] even after the maximum single-step
-                    # correction; retroactively add a correction to an earlier stitch.
-                    direction = 6 if (ey - prev_t > 54) else -6
-                    fixed = False
-                    for j in range(i - 1, -1, -1):
-                        new_delta_j = pts[j][2] + direction
-                        if abs(new_delta_j) > 6:
-                            continue
-                        # Verify that shifting the transport by 'direction' for all
-                        # stitches j..i-1 keeps their stored_y values in [0, 54].
-                        if all(
-                            0 <= pts[k][1] - (transport_at[k] + direction) <= 54
-                            for k in range(j, i)
-                        ):
-                            pts[j][2] = new_delta_j
-                            for k in range(j, i):
-                                transport_at[k] += direction
-                            fixed = True
-                            break
-
-                    if not fixed:
-                        # No safe retroactive fix found; use the nearest valid delta
-                        # (minimises distance from centre 27) and move on.
-                        best_d = min([0, 6, -6], key=lambda d: abs(ey - (prev_t + d) - 27))
-                        pts[i][2] = best_d
-                        transport_at[i] = prev_t + best_d
-                        i += 1
-                    # If fixed, retry stitch i with the updated transport_at[i-1].
-
-            # Step 3: Encode each stitch as XXXYYsT.
-            result = []
-            transport = 0
-            for pt in pts:
-                x, ey, delta = pt
-                transport += delta
-                stored_y = max(0, min(54, ey - transport))  # clamp as safety net
-                sign = '+' if delta >= 0 else '-'
-                result.append(f"{x:03d}{stored_y:02d}{sign}{abs(delta):1d}")
-            return ''.join(result).encode('ascii')
+            translated = MachineComm._translate_maxi_points(raw_elems)
+            return ''.join(
+                f"{x:03d}{sy:02d}{'+' if d >= 0 else '-'}{abs(d):1d}"
+                for x, sy, d in translated
+            ).encode('ascii')
         else:
             raise MachineCommError(
                 f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
