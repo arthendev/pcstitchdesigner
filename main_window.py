@@ -890,6 +890,18 @@ class MainWindow(QMainWindow):
         self._update_palette_bar()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
+        if self._pattern.stitch_type in ("9mm", "MAXI"):
+            # Grid on
+            self._act_show_grid.setChecked(True)
+            self._act_show_grid_menu.setChecked(True)
+            self._canvas._show_grid = True
+            # Snap to grid: on for normal stitches, off for auto stitches
+            self._act_std_stitch_align_grid.setChecked(True)
+            self._canvas.snap_normal_to_grid = True
+            self._act_auto_stitch_align_grid.setChecked(False)
+            # Show stitch points and auto stitch points
+            self._toggle_show_stitch_points(True)
+            self._toggle_show_auto_stitch_points(True)
 
     def _file_open(self):
         if not self._confirm_discard():
