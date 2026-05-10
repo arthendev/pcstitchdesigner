@@ -73,8 +73,10 @@ class MainWindow(QMainWindow):
         self._tool_label = QLabel("Tool: —")
         self._coord_label = QLabel("x: — y: —")
         self._count_label = QLabel("Points: 0")
+        self._size_label = QLabel("W: — mm  H: — mm")
         self.statusBar().addWidget(self._tool_label)
         self.statusBar().addPermanentWidget(self._coord_label)
+        self.statusBar().addPermanentWidget(self._size_label)
         self.statusBar().addPermanentWidget(self._count_label)
 
         self._build_actions()
@@ -957,6 +959,11 @@ class MainWindow(QMainWindow):
         total = stitch_count + auto_count
         label = f"Stitches: {total}" + (f" ({auto_count} auto)" if auto_count else "")
         self._count_label.setText(label)
+        w_mm, h_mm = self._pattern.get_stitch_size_mm()
+        if w_mm or h_mm:
+            self._size_label.setText(f"W: {w_mm:.1f} mm  H: {h_mm:.1f} mm")
+        else:
+            self._size_label.setText("W: — mm  H: — mm")
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
