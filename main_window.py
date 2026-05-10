@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
         self._act_sel_tb_move_forward.triggered.connect(self._edit_sel_move_forward)
 
         # Edit – Resize/Rotate selection
-        self._act_sel_xform = QAction("Resize/Rotate Selection…", self)
+        self._act_sel_xform = QAction("Resize/Rotate", self)
         self._act_sel_xform.setEnabled(False)
         self._act_sel_xform.triggered.connect(self._edit_sel_xform_activate)
 
@@ -573,7 +573,6 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_invert_selected)
         edit_menu.addAction(self._act_mirror_vertical)
         edit_menu.addAction(self._act_mirror_horizontal)
-        edit_menu.addSeparator()
         edit_menu.addAction(self._act_sel_xform)
 
         tools_menu = mb.addMenu("&Tools")

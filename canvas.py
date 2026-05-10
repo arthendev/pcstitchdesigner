@@ -801,6 +801,13 @@ class StitchCanvas(QWidget):
         # Connecting lines — iterate the display layer (includes ELEM_AUTO)
         display_elems = self.pattern.display_elements
         display_map = self.pattern.display_base_map
+
+        # Live preview coords for sel-xform mode (fractional, not snapped)
+        xform_preview = {}
+        if self._sel_xform_active:
+            for _idx, _nx, _ny in self.get_sel_xform_result(snap=False):
+                xform_preview[_idx] = (_nx, _ny)
+
         if len(display_elems) >= 2:
             default_line_pen = QPen(self._color_line, self._line_width)
             use_palette = self.pattern.has_palette
@@ -822,8 +829,10 @@ class StitchCanvas(QWidget):
                     continue
 
                 x, y = elem[1], elem[2]
-                sx, sy = self.canvas_to_screen(x, y)
                 curr_base_idx = display_map[elem_idx]
+                if curr_base_idx is not None and curr_base_idx in xform_preview:
+                    x, y = xform_preview[curr_base_idx]
+                sx, sy = self.canvas_to_screen(x, y)
 
                 if last_coord is not None:
                     last_display_idx, last_sx, last_sy, last_kind = last_coord
@@ -888,7 +897,10 @@ class StitchCanvas(QWidget):
                             sel_idx = -1
                         else:
                             sel_idx = last_auto_sel_idx
-                    coord_elems.append((sel_idx, elem[1], elem[2], cur_col, kind))
+                    px, py = elem[1], elem[2]
+                    if base_idx is not None and base_idx in xform_preview:
+                        px, py = xform_preview[base_idx]
+                    coord_elems.append((sel_idx, px, py, cur_col, kind))
 
         # Stitch points (draw in layers to ensure selected points are on top)
         if coord_elems:
