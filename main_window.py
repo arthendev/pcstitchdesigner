@@ -433,6 +433,17 @@ class MainWindow(QMainWindow):
         self._act_auto_stitch_align_grid.setChecked(False)
         self._act_auto_stitch_align_grid.triggered.connect(self._design_auto_stitch_align_grid_toggled)
 
+        # Design – Template
+        self._act_template_load = QAction("Load &Image…", self)
+        self._act_template_load.triggered.connect(self._design_template_load)
+
+        self._act_template_resize = QAction("&Resize", self)
+        self._act_template_resize.setCheckable(True)
+        self._act_template_resize.triggered.connect(self._design_template_resize)
+
+        self._act_template_delete = QAction("&Delete", self)
+        self._act_template_delete.triggered.connect(self._design_template_delete)
+
         # Machine
         self._act_machine_load_pmem = QAction("Load P-Memory", self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
@@ -550,6 +561,14 @@ class MainWindow(QMainWindow):
         auto_stitches_menu.addAction(self._act_convert_auto_stitches)
         auto_stitches_menu.addSeparator()
         auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
+
+        auto_stitches_menu.addSeparator()
+
+        template_menu = design_menu.addMenu("&Template")
+        template_menu.addAction(self._act_template_load)
+        template_menu.addAction(self._act_template_resize)
+        template_menu.addSeparator()
+        template_menu.addAction(self._act_template_delete)
 
         machine_menu = mb.addMenu("&Machine")
         machine_menu.addAction(self._act_machine_load_pmem)
@@ -1736,6 +1755,35 @@ class MainWindow(QMainWindow):
             if changed:
                 self._pattern.modified = True
                 self._on_pattern_changed()
+
+    # ── Template ──
+
+    def _design_template_load(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Template Image",
+            "",
+            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif)",
+        )
+        if not path:
+            return
+        from PyQt5.QtGui import QPixmap
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            QMessageBox.warning(self, "Load Template Image", "Could not load the selected image.")
+            return
+        # Deactivate resize mode before loading a new image
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._canvas.set_template_image(pixmap)
+
+    def _design_template_resize(self, checked):
+        self._canvas.set_template_resize_mode(checked)
+
+    def _design_template_delete(self):
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._canvas.set_template_image(None)
 
     # ── Help ──
 

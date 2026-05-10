@@ -3,7 +3,7 @@
 import os
 
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QSize, pyqtSignal
+from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap
 
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM, elem_has_coords
@@ -56,6 +56,15 @@ class StitchCanvas(QWidget):
         self._show_stitch_points = True
         self._show_auto_stitch_points = True
         self.snap_normal_to_grid = True
+        self._template_image = None  # QPixmap used as tracing underlay
+        self._template_resize_mode = False
+        self._tpl_nx = 0.0   # (screen_left - MARGIN) / _scale  (zoom-invariant)
+        self._tpl_ny = 0.0   # (screen_top  - MARGIN) / _scale
+        self._tpl_nw = 0.0   # screen_width  / _scale
+        self._tpl_nh = 0.0   # screen_height / _scale
+        self._tpl_drag_handle = None      # active handle name or None
+        self._tpl_drag_start_screen = None  # (sx, sy) at drag start
+        self._tpl_drag_start_rect = None    # (nx, ny, nw, nh) at drag start
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -71,6 +80,172 @@ class StitchCanvas(QWidget):
             self._pan_cursor = QCursor(_pan_pixmap)
         else:
             self._pan_cursor = QCursor(Qt.OpenHandCursor)
+
+    def set_template_image(self, pixmap):
+        """Set (or clear) the template underlay image. Pass None to remove."""
+        self._template_image = pixmap
+        if pixmap is not None and not pixmap.isNull():
+            bx0, by0 = self.canvas_to_screen(0, 0)
+            bx1, by1 = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, self.pattern.CANVAS_HEIGHT)
+            canvas_w_px = abs(bx1 - bx0)
+            canvas_h_px = abs(by1 - by0)
+            img_w = pixmap.width()
+            img_h = pixmap.height()
+            fit_px = min(canvas_w_px / img_w, canvas_h_px / img_h)
+            self._tpl_nx = 0.0
+            self._tpl_ny = 0.0
+            self._tpl_nw = img_w * fit_px / self._scale
+            self._tpl_nh = img_h * fit_px / self._scale
+        self.update()
+
+    def set_template_resize_mode(self, active):
+        """Activate or deactivate the template resize/move overlay."""
+        self._template_resize_mode = active
+        self._tpl_drag_handle = None
+        self._tpl_drag_start_screen = None
+        self._tpl_drag_start_rect = None
+        if not active:
+            self.setCursor(self._tool.cursor if self._tool else Qt.ArrowCursor)
+        self.update()
+
+    def _tpl_screen_rect(self):
+        """Return (sx, sy, sw, sh) of the template in screen pixels."""
+        sx = int(self.MARGIN + self._tpl_nx * self._scale)
+        sy = int(self.MARGIN + self._tpl_ny * self._scale)
+        sw = max(1, int(self._tpl_nw * self._scale))
+        sh = max(1, int(self._tpl_nh * self._scale))
+        return sx, sy, sw, sh
+
+    def _tpl_handle_positions(self, sx, sy, sw, sh):
+        """Return dict of handle name → (hx, hy) in screen pixels."""
+        return {
+            'TL': (sx,           sy),
+            'TC': (sx + sw / 2,  sy),
+            'TR': (sx + sw,      sy),
+            'ML': (sx,           sy + sh / 2),
+            'MR': (sx + sw,      sy + sh / 2),
+            'BL': (sx,           sy + sh),
+            'BC': (sx + sw / 2,  sy + sh),
+            'BR': (sx + sw,      sy + sh),
+        }
+
+    def _tpl_hit_handle(self, ex, ey):
+        """Return handle name if near a handle, 'MOVE' if inside rect, else None."""
+        if not self._template_resize_mode or self._template_image is None:
+            return None
+        sx, sy, sw, sh = self._tpl_screen_rect()
+        HIT = 6
+        for name, (hx, hy) in self._tpl_handle_positions(sx, sy, sw, sh).items():
+            if abs(ex - hx) <= HIT and abs(ey - hy) <= HIT:
+                return name
+        if sx <= ex <= sx + sw and sy <= ey <= sy + sh:
+            return 'MOVE'
+        return None
+
+    def _tpl_cursor_for_handle(self, handle):
+        if handle in ('TL', 'BR'):
+            return Qt.SizeFDiagCursor
+        if handle in ('TR', 'BL'):
+            return Qt.SizeBDiagCursor
+        if handle in ('TC', 'BC'):
+            return Qt.SizeVerCursor
+        if handle in ('ML', 'MR'):
+            return Qt.SizeHorCursor
+        if handle == 'MOVE':
+            return Qt.SizeAllCursor
+        return Qt.ArrowCursor
+
+    def _tpl_mouse_press(self, event):
+        handle = self._tpl_hit_handle(event.x(), event.y())
+        if handle:
+            self._tpl_drag_handle = handle
+            self._tpl_drag_start_screen = (event.x(), event.y())
+            self._tpl_drag_start_rect = (self._tpl_nx, self._tpl_ny,
+                                         self._tpl_nw, self._tpl_nh)
+            self.setCursor(self._tpl_cursor_for_handle(handle))
+
+    def _tpl_mouse_move(self, event):
+        if self._tpl_drag_handle is None:
+            handle = self._tpl_hit_handle(event.x(), event.y())
+            self.setCursor(self._tpl_cursor_for_handle(handle)
+                           if handle else Qt.ArrowCursor)
+            return
+        sx0, sy0 = self._tpl_drag_start_screen
+        dnx = (event.x() - sx0) / self._scale
+        dny = (event.y() - sy0) / self._scale
+        nx, ny, nw, nh = self._tpl_drag_start_rect
+        MIN = 1.0
+        ratio = nw / nh if nh != 0 else 1.0  # original aspect ratio
+        h = self._tpl_drag_handle
+        if h == 'TL':
+            # Use the larger absolute delta to drive both dimensions proportionally
+            if abs(dnx) >= abs(dny) * ratio:
+                dx_c = min(dnx, nw - MIN)
+                dy_c = dx_c / ratio
+            else:
+                dy_c = min(dny, nh - MIN)
+                dx_c = dy_c * ratio
+            self._tpl_nx = nx + dx_c
+            self._tpl_ny = ny + dy_c
+            self._tpl_nw = max(nw - dx_c, MIN)
+            self._tpl_nh = max(nh - dy_c, MIN)
+        elif h == 'TC':
+            dy_c = min(dny, nh - MIN)
+            self._tpl_nx, self._tpl_nw = nx, nw
+            self._tpl_ny = ny + dy_c
+            self._tpl_nh = nh - dy_c
+        elif h == 'TR':
+            # Anchor: left & top edges fixed; width grows right, height shrinks from top
+            new_w = max(nw + dnx, MIN)
+            new_h = new_w / ratio
+            dy_c = nh - new_h
+            self._tpl_nx = nx
+            self._tpl_ny = ny + dy_c
+            self._tpl_nw = new_w
+            self._tpl_nh = max(new_h, MIN)
+        elif h == 'ML':
+            dx_c = min(dnx, nw - MIN)
+            self._tpl_nx = nx + dx_c
+            self._tpl_ny, self._tpl_nh = ny, nh
+            self._tpl_nw = nw - dx_c
+        elif h == 'MR':
+            self._tpl_nx, self._tpl_ny, self._tpl_nh = nx, ny, nh
+            self._tpl_nw = max(nw + dnx, MIN)
+        elif h == 'BL':
+            # Anchor: right & top edges fixed; height grows down, width shrinks from left
+            new_h = max(nh + dny, MIN)
+            new_w = new_h * ratio
+            dx_c = nw - new_w
+            self._tpl_nx = nx + dx_c
+            self._tpl_ny = ny
+            self._tpl_nw = max(new_w, MIN)
+            self._tpl_nh = new_h
+        elif h == 'BC':
+            self._tpl_nx, self._tpl_ny, self._tpl_nw = nx, ny, nw
+            self._tpl_nh = max(nh + dny, MIN)
+        elif h == 'BR':
+            # Anchor: left & top fixed; pick dominant delta
+            if abs(dnx) >= abs(dny) * ratio:
+                new_w = max(nw + dnx, MIN)
+                new_h = new_w / ratio
+            else:
+                new_h = max(nh + dny, MIN)
+                new_w = new_h * ratio
+            self._tpl_nx, self._tpl_ny = nx, ny
+            self._tpl_nw = new_w
+            self._tpl_nh = new_h
+        elif h == 'MOVE':
+            self._tpl_nx = nx + dnx
+            self._tpl_ny = ny + dny
+        self.update()
+
+    def _tpl_mouse_release(self, event):
+        self._tpl_drag_handle = None
+        self._tpl_drag_start_screen = None
+        self._tpl_drag_start_rect = None
+        handle = self._tpl_hit_handle(event.x(), event.y())
+        self.setCursor(self._tpl_cursor_for_handle(handle)
+                       if handle else Qt.ArrowCursor)
 
     def set_tool(self, tool):
         # Deselect the old tool if it has a deselect method
@@ -228,6 +403,15 @@ class StitchCanvas(QWidget):
 
         # Background
         painter.fillRect(self.rect(), self.COLOR_BG)
+
+        # Template underlay image (drawn before grid so it appears beneath everything)
+        if self._template_image is not None and not self._template_image.isNull():
+            sx, sy, sw, sh = self._tpl_screen_rect()
+            target = QRect(sx, sy, sw, sh)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform)
+            painter.setOpacity(0.5)
+            painter.drawPixmap(target, self._template_image)
+            painter.setOpacity(1.0)
 
         # Grid lines (every integer unit)
         if self._show_grid:
@@ -422,6 +606,20 @@ class StitchCanvas(QWidget):
                         sx, sy = self.canvas_to_screen(x, y)
                         _draw_point(sx, sy, QColor(0, 80, 200), kind)
 
+        # Template resize frame and handles (drawn on top of stitches, below tool overlay)
+        if (self._template_resize_mode
+                and self._template_image is not None
+                and not self._template_image.isNull()):
+            sx, sy, sw, sh = self._tpl_screen_rect()
+            HANDLE = 8
+            painter.setPen(QPen(QColor(255, 140, 0), 1, Qt.DashLine))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(sx, sy, sw, sh)
+            painter.setPen(QPen(QColor(200, 100, 0), 1))
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            for hx, hy in self._tpl_handle_positions(sx, sy, sw, sh).values():
+                painter.drawRect(int(hx) - HANDLE // 2, int(hy) - HANDLE // 2, HANDLE, HANDLE)
+
         # Tool overlay
         if self._tool:
             self._tool.paint_overlay(self, painter)
@@ -447,6 +645,10 @@ class StitchCanvas(QWidget):
             self.setCursor(self._pan_cursor)
             event.accept()
             return
+        if (self._template_resize_mode and self._template_image is not None
+                and event.button() == Qt.LeftButton):
+            self._tpl_mouse_press(event)
+            return
         if self._tool:
             self._tool.mouse_press(self, event)
 
@@ -464,6 +666,9 @@ class StitchCanvas(QWidget):
                     scroll_area.verticalScrollBar().value() + delta.y())
             self._pan_last_global_pos = current_pos
             return
+        if self._template_resize_mode and self._template_image is not None:
+            self._tpl_mouse_move(event)
+            return
         if self._tool:
             self._tool.mouse_move(self, event)
 
@@ -477,6 +682,10 @@ class StitchCanvas(QWidget):
             else:
                 self.setCursor(Qt.ArrowCursor)
             event.accept()
+            return
+        if (self._template_resize_mode and self._template_image is not None
+                and event.button() == Qt.LeftButton):
+            self._tpl_mouse_release(event)
             return
         if self._tool:
             self._tool.mouse_release(self, event)
