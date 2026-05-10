@@ -651,6 +651,16 @@ class StitchCanvas(QWidget):
 
     def set_view_orientation(self, orientation):
         """Set view orientation: 'default' or 'sewing_direction' (90° CW)."""
+        if self._template_image is not None and orientation != self._view_orientation:
+            H = self.pattern.CANVAS_HEIGHT
+            if orientation == "sewing_direction":
+                # default → sewing: 90° CW rotation of the template position/angle
+                self._tpl_cx, self._tpl_cy = H - self._tpl_cy, self._tpl_cx
+                self._tpl_angle += 90.0
+            else:
+                # sewing → default: 90° CCW rotation
+                self._tpl_cx, self._tpl_cy = self._tpl_cy, H - self._tpl_cx
+                self._tpl_angle -= 90.0
         self._view_orientation = orientation
         self._update_size()
         self.update()

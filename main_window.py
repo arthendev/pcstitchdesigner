@@ -763,12 +763,16 @@ class MainWindow(QMainWindow):
         dlg.exec_()
 
     def _on_orientation_default(self):
+        if self._canvas._template_resize_mode:
+            self._template_edit_cancel()
         self._view_orientation = "default"
         self._canvas.set_view_orientation("default")
         self._act_toggle_orientation.setChecked(False)
         self._fit_pattern()
 
     def _on_orientation_sewing(self):
+        if self._canvas._template_resize_mode:
+            self._template_edit_cancel()
         self._view_orientation = "sewing_direction"
         self._canvas.set_view_orientation("sewing_direction")
         self._act_toggle_orientation.setChecked(True)
