@@ -442,9 +442,11 @@ class MainWindow(QMainWindow):
 
         self._act_template_resize = QAction("&Resize/Rotate", self)
         self._act_template_resize.setCheckable(True)
+        self._act_template_resize.setEnabled(False)
         self._act_template_resize.triggered.connect(self._design_template_resize)
 
         self._act_template_delete = QAction("&Delete", self)
+        self._act_template_delete.setEnabled(False)
         self._act_template_delete.triggered.connect(self._design_template_delete)
 
         # Design – Template editing toolbar (OK / Cancel)
@@ -926,6 +928,11 @@ class MainWindow(QMainWindow):
         self._pattern.clear()
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._canvas.set_template_image(None)
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
+        self._update_template_action_state()
         self._canvas.update()
         self._on_pattern_changed()
         self._update_palette_bar()
@@ -1037,6 +1044,13 @@ class MainWindow(QMainWindow):
         self._update_palette_bar()
         if self._is_hoop_type():
             self._show_hoop_info()
+
+        # Clear any template image from a previous file
+        self._canvas.set_template_image(None)
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
+        self._update_template_action_state()
 
         # Switch to Pan tool after opening
         self._act_pan.setChecked(True)
@@ -1503,6 +1517,11 @@ class MainWindow(QMainWindow):
         self._canvas.pattern = new_pattern
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._canvas.set_template_image(None)
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
+        self._update_template_action_state()
 
         if new_pattern.stitch_type == "9mm":
             self._act_9mm.setChecked(True)
@@ -1799,6 +1818,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(pixmap)
+        self._update_template_action_state()
 
     def _design_template_resize(self, checked):
         if checked:
@@ -1812,6 +1832,12 @@ class MainWindow(QMainWindow):
         else:
             self._canvas.set_template_resize_mode(False)
             self._template_toolbar.setVisible(False)
+
+    def _update_template_action_state(self):
+        """Enable/disable template actions depending on whether an image is loaded."""
+        has_image = self._canvas._template_image is not None
+        self._act_template_resize.setEnabled(has_image)
+        self._act_template_delete.setEnabled(has_image)
 
     def _template_edit_ok(self):
         """Accept the current template shape and exit resize/rotate mode."""
@@ -1831,6 +1857,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(None)
+        self._update_template_action_state()
 
     # ── Help ──
 
