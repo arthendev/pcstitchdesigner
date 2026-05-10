@@ -807,7 +807,9 @@ class MainWindow(QMainWindow):
             # Revert to MAXI
             self._act_maxi.setChecked(True)
             return
+        old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "9mm"
+        self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
@@ -825,7 +827,9 @@ class MainWindow(QMainWindow):
             # Revert to 9mm
             self._act_9mm.setChecked(True)
             return
+        old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "MAXI"
+        self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()

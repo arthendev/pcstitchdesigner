@@ -154,6 +154,15 @@ class StitchCanvas(QWidget):
 
     _TPL_ROT_OFFSET = 20  # px from edge to rotation handle circle center
 
+    def adjust_template_for_height_change(self, old_height, new_height):
+        """Keep the template at the same position relative to the canvas bottom-left.
+
+        Only applies in default orientation, where _tpl_cy is measured from the top
+        and the bottom edge moves when CANVAS_HEIGHT changes.
+        """
+        if self._template_image is not None and self._view_orientation == "default":
+            self._tpl_cy += new_height - old_height
+
     def _tpl_center_screen(self):
         """Return template center (cx_px, cy_px) in screen pixels."""
         return (self.MARGIN + self._tpl_cx * self._scale,
