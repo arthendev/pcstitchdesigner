@@ -238,17 +238,17 @@ class MainWindow(QMainWindow):
         self._act_sel_move_backward.triggered.connect(self._edit_sel_move_backward)
 
         # Selection toolbar – icon-only actions (reuse the same handlers)
-        self._act_sel_tb_extend = QAction(
-            QIcon(os.path.join(_icons, "selection_plus.svg")),
-            "Increase selection by 1 stitch", self)
-        self._act_sel_tb_extend.setEnabled(False)
-        self._act_sel_tb_extend.triggered.connect(self._edit_sel_extend)
-
         self._act_sel_tb_reduce = QAction(
             QIcon(os.path.join(_icons, "selection_minus.svg")),
             "Reduce selection by 1 stitch", self)
         self._act_sel_tb_reduce.setEnabled(False)
         self._act_sel_tb_reduce.triggered.connect(self._edit_sel_reduce)
+
+        self._act_sel_tb_extend = QAction(
+            QIcon(os.path.join(_icons, "selection_plus.svg")),
+            "Increase selection by 1 stitch", self)
+        self._act_sel_tb_extend.setEnabled(False)
+        self._act_sel_tb_extend.triggered.connect(self._edit_sel_extend)
 
         self._act_sel_tb_move_backward = QAction(
             QIcon(os.path.join(_icons, "selection_left.svg")),
@@ -688,8 +688,8 @@ class MainWindow(QMainWindow):
         # Compact selection toolbar (shown only when SelectPointTool is active)
         self._selection_toolbar = QToolBar("Selection", self)
         self._selection_toolbar.setMovable(False)
-        self._selection_toolbar.addAction(self._act_sel_tb_extend)
         self._selection_toolbar.addAction(self._act_sel_tb_reduce)
+        self._selection_toolbar.addAction(self._act_sel_tb_extend)
         self._selection_toolbar.addAction(self._act_sel_tb_move_backward)
         self._selection_toolbar.addAction(self._act_sel_tb_move_forward)
         self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
@@ -951,7 +951,17 @@ class MainWindow(QMainWindow):
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
         cy_clamped = max(0, min(self._pattern.CANVAS_HEIGHT, cy))
-        self._coord_label.setText(f"x: {cx_clamped:.0f}  y: {cy_clamped:.0f}")
+        if self._act_std_stitch_align_grid.isChecked():
+            cx_rounded = round(cx_clamped)
+            cy_rounded = round(cy_clamped)
+            cx_mm = cx_rounded * self._pattern.STITCH_RES_MM
+            cy_mm = cy_rounded * self._pattern.STITCH_RES_MM
+            coord_str = f"x: {cx_rounded:.0f}  y: {cy_rounded:.0f}"
+        else:
+            cx_mm = cx_clamped * self._pattern.STITCH_RES_MM
+            cy_mm = cy_clamped * self._pattern.STITCH_RES_MM
+            coord_str = f"x: {cx_clamped:.2f}  y: {cy_clamped:.2f}"
+        self._coord_label.setText(f"{coord_str}  ({cx_mm:.2f} mm, {cy_mm:.2f} mm)")
 
     def _on_pattern_changed(self):
         stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
