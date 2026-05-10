@@ -235,6 +235,31 @@ class MainWindow(QMainWindow):
         self._act_sel_move_backward.setEnabled(False)
         self._act_sel_move_backward.triggered.connect(self._edit_sel_move_backward)
 
+        # Selection toolbar – icon-only actions (reuse the same handlers)
+        self._act_sel_tb_extend = QAction(
+            QIcon(os.path.join(_icons, "selection_plus.svg")),
+            "Increase selection by 1 stitch", self)
+        self._act_sel_tb_extend.setEnabled(False)
+        self._act_sel_tb_extend.triggered.connect(self._edit_sel_extend)
+
+        self._act_sel_tb_reduce = QAction(
+            QIcon(os.path.join(_icons, "selection_minus.svg")),
+            "Reduce selection by 1 stitch", self)
+        self._act_sel_tb_reduce.setEnabled(False)
+        self._act_sel_tb_reduce.triggered.connect(self._edit_sel_reduce)
+
+        self._act_sel_tb_move_backward = QAction(
+            QIcon(os.path.join(_icons, "selection_left.svg")),
+            "Move selection by 1 stitch towards beginning", self)
+        self._act_sel_tb_move_backward.setEnabled(False)
+        self._act_sel_tb_move_backward.triggered.connect(self._edit_sel_move_backward)
+
+        self._act_sel_tb_move_forward = QAction(
+            QIcon(os.path.join(_icons, "selection_right.svg")),
+            "Move selection by 1 stitch towards end", self)
+        self._act_sel_tb_move_forward.setEnabled(False)
+        self._act_sel_tb_move_forward.triggered.connect(self._edit_sel_move_forward)
+
         # Tools (checkable, exclusive)
 
         self._act_pan = QAction(QIcon(os.path.join(_icons, "pan.svg")),
@@ -642,27 +667,45 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self._template_toolbar)
         self._template_toolbar.setVisible(False)
 
+        # Compact selection toolbar (shown only when SelectPointTool is active)
+        self._selection_toolbar = QToolBar("Selection", self)
+        self._selection_toolbar.setMovable(False)
+        self._selection_toolbar.addAction(self._act_sel_tb_extend)
+        self._selection_toolbar.addAction(self._act_sel_tb_reduce)
+        self._selection_toolbar.addAction(self._act_sel_tb_move_backward)
+        self._selection_toolbar.addAction(self._act_sel_tb_move_forward)
+        self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
+        self._selection_toolbar.setVisible(False)
+
     # ── Tool selection ──
 
     def _on_tool_pan(self):
         self._canvas.set_tool(self._pan_tool)
         self._tool_label.setText("Tool: Pan")
+        self._selection_toolbar.setVisible(False)
 
     def _on_tool_select(self):
         self._canvas.set_tool(self._select_tool)
         self._tool_label.setText("Tool: Select Stitch Points")
+        self._selection_toolbar.setVisible(True)
+        self._selection_toolbar.setMaximumWidth(
+            self._selection_toolbar.sizeHint().width()
+        )
 
     def _on_tool_add(self):
         self._canvas.set_tool(self._add_tool)
         self._tool_label.setText("Tool: Add Stitch Point")
+        self._selection_toolbar.setVisible(False)
 
     def _on_tool_move(self):
         self._canvas.set_tool(self._move_tool)
         self._tool_label.setText("Tool: Move Stitch Point")
+        self._selection_toolbar.setVisible(False)
 
     def _on_tool_delete(self):
         self._canvas.set_tool(self._delete_tool)
         self._tool_label.setText("Tool: Delete Stitch Point")
+        self._selection_toolbar.setVisible(False)
 
     # ── Design selection ──
 
@@ -900,6 +943,11 @@ class MainWindow(QMainWindow):
         self._act_sel_reduce.setEnabled(has_multiple_selection)
         self._act_sel_move_backward.setEnabled(has_selection and start > 0)
         self._act_sel_move_forward.setEnabled(has_selection and end < n - 1)
+        # Mirror state to the toolbar actions
+        self._act_sel_tb_extend.setEnabled(has_selection and end < n - 1)
+        self._act_sel_tb_reduce.setEnabled(has_multiple_selection)
+        self._act_sel_tb_move_backward.setEnabled(has_selection and start > 0)
+        self._act_sel_tb_move_forward.setEnabled(has_selection and end < n - 1)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
