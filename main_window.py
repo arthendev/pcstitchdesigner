@@ -31,6 +31,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PC Stitch Designer")
+        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icons", "pc_stitch_designer.svg")))
         self.resize(1200, 700)
 
         # Load configuration
@@ -526,8 +527,11 @@ class MainWindow(QMainWindow):
         self._act_about = QAction("&About", self)
         self._act_about.triggered.connect(self._help_about)
 
-        self._act_get_releases = QAction("&Get new version", self)
+        self._act_get_releases = QAction("&Get New Version", self)
         self._act_get_releases.triggered.connect(self._help_get_releases)
+
+        self._act_online_docs = QAction("&Online Documentation", self)
+        self._act_online_docs.triggered.connect(self._help_online_docs)
 
         self._act_donate = QAction("&Donate!", self)
         self._act_donate.triggered.connect(self._help_donate)
@@ -622,7 +626,7 @@ class MainWindow(QMainWindow):
         auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
         design_menu.addSeparator()
 
-        template_menu = design_menu.addMenu("&Template image")
+        template_menu = design_menu.addMenu("&Template Image")
         template_menu.addAction(self._act_template_load)
         template_menu.addAction(self._act_template_resize)
         template_menu.addSeparator()
@@ -641,6 +645,7 @@ class MainWindow(QMainWindow):
 
         help_menu = mb.addMenu("&Help")
         help_menu.addAction(self._act_get_releases)
+        help_menu.addAction(self._act_online_docs)
         help_menu.addAction(self._act_donate)
         help_menu.addSeparator()
         help_menu.addAction(self._act_about)
@@ -2038,10 +2043,10 @@ class MainWindow(QMainWindow):
             "<p><b>New Releases:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
             "github.com/arthendev/pcstitchdesigner/releases</a></p>"
-            # "<p><b>Documentation:</b> "
-            # '<a href="https://github.com/arthendev/pcstitchdesigner/wiki">'
-            # "github.com/arthendev/pcstitchdesigner/wiki</a></p>"
-            "<p>© 2026 A. Frej (arthendev)</p>"
+            "<p><b>Documentation:</b> "
+            '<a href="https://github.com/arthendev/pcstitchdesigner/wiki">'
+            "github.com/arthendev/pcstitchdesigner/wiki</a></p>"
+            "<p>© 2026 A. Frej</p>"
         )
         label.setOpenExternalLinks(True)
         label.setTextFormat(Qt.RichText)
@@ -2053,6 +2058,12 @@ class MainWindow(QMainWindow):
         """Open GitHub releases page in default web browser."""
         QDesktopServices.openUrl(
             QUrl("https://github.com/arthendev/pcstitchdesigner/releases")
+        )
+
+    def _help_online_docs(self):
+        """Open GitHub wiki page in default web browser."""
+        QDesktopServices.openUrl(
+            QUrl("https://github.com/arthendev/pcstitchdesigner/wiki")
         )
 
     def _help_donate(self):
