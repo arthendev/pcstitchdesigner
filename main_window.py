@@ -437,7 +437,7 @@ class MainWindow(QMainWindow):
         self._act_template_load = QAction("Load &Image…", self)
         self._act_template_load.triggered.connect(self._design_template_load)
 
-        self._act_template_resize = QAction("&Resize", self)
+        self._act_template_resize = QAction("&Resize/Rotate", self)
         self._act_template_resize.setCheckable(True)
         self._act_template_resize.triggered.connect(self._design_template_resize)
 
@@ -561,10 +561,9 @@ class MainWindow(QMainWindow):
         auto_stitches_menu.addAction(self._act_convert_auto_stitches)
         auto_stitches_menu.addSeparator()
         auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
+        design_menu.addSeparator()
 
-        auto_stitches_menu.addSeparator()
-
-        template_menu = design_menu.addMenu("&Template")
+        template_menu = design_menu.addMenu("&Template image")
         template_menu.addAction(self._act_template_load)
         template_menu.addAction(self._act_template_resize)
         template_menu.addSeparator()

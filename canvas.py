@@ -1,6 +1,7 @@
 """Custom canvas widget for drawing stitch patterns."""
 
 import os
+import math
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
@@ -58,13 +59,16 @@ class StitchCanvas(QWidget):
         self.snap_normal_to_grid = True
         self._template_image = None  # QPixmap used as tracing underlay
         self._template_resize_mode = False
-        self._tpl_nx = 0.0   # (screen_left - MARGIN) / _scale  (zoom-invariant)
-        self._tpl_ny = 0.0   # (screen_top  - MARGIN) / _scale
-        self._tpl_nw = 0.0   # screen_width  / _scale
-        self._tpl_nh = 0.0   # screen_height / _scale
-        self._tpl_drag_handle = None      # active handle name or None
-        self._tpl_drag_start_screen = None  # (sx, sy) at drag start
-        self._tpl_drag_start_rect = None    # (nx, ny, nw, nh) at drag start
+        self._tpl_cx = 0.0   # center x, scale-normalized: (screen_x - MARGIN) / scale
+        self._tpl_cy = 0.0   # center y, scale-normalized
+        self._tpl_nw = 0.0   # width,  scale-normalized
+        self._tpl_nh = 0.0   # height, scale-normalized
+        self._tpl_angle = 0.0  # rotation in degrees (CW, Qt convention)
+        self._tpl_drag_handle = None
+        self._tpl_drag_start_screen = None   # (sx, sy) at drag start
+        self._tpl_drag_start_state = None    # (cx, cy, nw, nh, angle) at drag start
+        self._tpl_drag_anchor_screen = None  # (ax, ay) fixed anchor screen pixels for resize
+        self._tpl_drag_start_mouse_angle = None  # degrees, for rotation drag
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -92,57 +96,92 @@ class StitchCanvas(QWidget):
             img_w = pixmap.width()
             img_h = pixmap.height()
             fit_px = min(canvas_w_px / img_w, canvas_h_px / img_h)
-            self._tpl_nx = 0.0
-            self._tpl_ny = 0.0
-            self._tpl_nw = img_w * fit_px / self._scale
-            self._tpl_nh = img_h * fit_px / self._scale
+            nw = img_w * fit_px / self._scale
+            nh = img_h * fit_px / self._scale
+            self._tpl_cx = nw / 2.0
+            self._tpl_cy = nh / 2.0
+            self._tpl_nw = nw
+            self._tpl_nh = nh
+            self._tpl_angle = 0.0
         self.update()
 
     def set_template_resize_mode(self, active):
-        """Activate or deactivate the template resize/move overlay."""
+        """Activate or deactivate the template resize/move/rotate overlay."""
         self._template_resize_mode = active
         self._tpl_drag_handle = None
         self._tpl_drag_start_screen = None
-        self._tpl_drag_start_rect = None
+        self._tpl_drag_start_state = None
+        self._tpl_drag_anchor_screen = None
+        self._tpl_drag_start_mouse_angle = None
         if not active:
             self.setCursor(self._tool.cursor if self._tool else Qt.ArrowCursor)
         self.update()
 
-    def _tpl_screen_rect(self):
-        """Return (sx, sy, sw, sh) of the template in screen pixels."""
-        sx = int(self.MARGIN + self._tpl_nx * self._scale)
-        sy = int(self.MARGIN + self._tpl_ny * self._scale)
-        sw = max(1, int(self._tpl_nw * self._scale))
-        sh = max(1, int(self._tpl_nh * self._scale))
-        return sx, sy, sw, sh
+    # ── Template geometry helpers ──
 
-    def _tpl_handle_positions(self, sx, sy, sw, sh):
-        """Return dict of handle name → (hx, hy) in screen pixels."""
+    _TPL_ROT_OFFSET = 28  # px above top edge for the rotation handle circle
+
+    def _tpl_center_screen(self):
+        """Return template center (cx_px, cy_px) in screen pixels."""
+        return (self.MARGIN + self._tpl_cx * self._scale,
+                self.MARGIN + self._tpl_cy * self._scale)
+
+    def _tpl_screen_size(self):
+        """Return (sw, sh) of the template in screen pixels."""
+        return (max(1, int(self._tpl_nw * self._scale)),
+                max(1, int(self._tpl_nh * self._scale)))
+
+    def _tpl_local_handles(self, half_w, half_h):
+        """Handle positions in local frame (screen pixels, relative to center).
+
+        Args:
+            half_w, half_h: half the image size in screen pixels.
+        """
         return {
-            'TL': (sx,           sy),
-            'TC': (sx + sw / 2,  sy),
-            'TR': (sx + sw,      sy),
-            'ML': (sx,           sy + sh / 2),
-            'MR': (sx + sw,      sy + sh / 2),
-            'BL': (sx,           sy + sh),
-            'BC': (sx + sw / 2,  sy + sh),
-            'BR': (sx + sw,      sy + sh),
+            'TL':  (-half_w, -half_h),
+            'TC':  (    0.0, -half_h),
+            'TR':  (+half_w, -half_h),
+            'ML':  (-half_w,     0.0),
+            'MR':  (+half_w,     0.0),
+            'BL':  (-half_w, +half_h),
+            'BC':  (    0.0, +half_h),
+            'BR':  (+half_w, +half_h),
+            'ROT': (    0.0, -half_h - self._TPL_ROT_OFFSET),
         }
 
+    def _tpl_local_to_screen(self, lx, ly):
+        """Transform a local-frame point (px, relative to center) to screen coords."""
+        a = math.radians(self._tpl_angle)
+        cx, cy = self._tpl_center_screen()
+        return (cx + lx * math.cos(a) - ly * math.sin(a),
+                cy + lx * math.sin(a) + ly * math.cos(a))
+
+    def _tpl_screen_to_local(self, sx, sy):
+        """Un-rotate a screen point into local frame (px, relative to center)."""
+        a = math.radians(self._tpl_angle)
+        cx, cy = self._tpl_center_screen()
+        dx, dy = sx - cx, sy - cy
+        return (dx * math.cos(a) + dy * math.sin(a),
+                -dx * math.sin(a) + dy * math.cos(a))
+
     def _tpl_hit_handle(self, ex, ey):
-        """Return handle name if near a handle, 'MOVE' if inside rect, else None."""
+        """Return handle name, 'MOVE' if inside rect body, or None."""
         if not self._template_resize_mode or self._template_image is None:
             return None
-        sx, sy, sw, sh = self._tpl_screen_rect()
-        HIT = 6
-        for name, (hx, hy) in self._tpl_handle_positions(sx, sy, sw, sh).items():
-            if abs(ex - hx) <= HIT and abs(ey - hy) <= HIT:
+        sw, sh = self._tpl_screen_size()
+        half_w, half_h = sw / 2.0, sh / 2.0
+        lx, ly = self._tpl_screen_to_local(ex, ey)
+        HIT = 7
+        for name, (hlx, hly) in self._tpl_local_handles(half_w, half_h).items():
+            if abs(lx - hlx) <= HIT and abs(ly - hly) <= HIT:
                 return name
-        if sx <= ex <= sx + sw and sy <= ey <= sy + sh:
+        if -half_w <= lx <= half_w and -half_h <= ly <= half_h:
             return 'MOVE'
         return None
 
     def _tpl_cursor_for_handle(self, handle):
+        if handle == 'ROT':
+            return Qt.CrossCursor
         if handle in ('TL', 'BR'):
             return Qt.SizeFDiagCursor
         if handle in ('TR', 'BL'):
@@ -155,14 +194,45 @@ class StitchCanvas(QWidget):
             return Qt.SizeAllCursor
         return Qt.ArrowCursor
 
+    # Resize handle config:
+    #   (delta_w_sign, delta_h_sign, constrain_ratio, anchor_local_x_mul, anchor_local_y_mul)
+    # anchor_local_*_mul identifies the *opposite* corner/edge (stays fixed during drag).
+    # center_new = anchor_screen - R * (anchor_mul_x * new_nw_px/2, anchor_mul_y * new_nh_px/2)
+    _TPL_HANDLE_INFO = {
+        'TL': (-1, -1, True,  +1, +1),
+        'TC': ( 0, -1, False,  0, +1),
+        'TR': (+1, -1, True,  -1, +1),
+        'ML': (-1,  0, False, +1,  0),
+        'MR': (+1,  0, False, -1,  0),
+        'BL': (-1, +1, True,  +1, -1),
+        'BC': ( 0, +1, False,  0, -1),
+        'BR': (+1, +1, True,  -1, -1),
+    }
+
     def _tpl_mouse_press(self, event):
         handle = self._tpl_hit_handle(event.x(), event.y())
-        if handle:
-            self._tpl_drag_handle = handle
-            self._tpl_drag_start_screen = (event.x(), event.y())
-            self._tpl_drag_start_rect = (self._tpl_nx, self._tpl_ny,
-                                         self._tpl_nw, self._tpl_nh)
-            self.setCursor(self._tpl_cursor_for_handle(handle))
+        if not handle:
+            return
+        self._tpl_drag_handle = handle
+        self._tpl_drag_start_screen = (event.x(), event.y())
+        self._tpl_drag_start_state = (self._tpl_cx, self._tpl_cy,
+                                      self._tpl_nw, self._tpl_nh, self._tpl_angle)
+        if handle == 'ROT':
+            cx_px, cy_px = self._tpl_center_screen()
+            self._tpl_drag_start_mouse_angle = math.degrees(
+                math.atan2(event.y() - cy_px, event.x() - cx_px))
+            self._tpl_drag_anchor_screen = None
+        elif handle == 'MOVE':
+            self._tpl_drag_anchor_screen = None
+            self._tpl_drag_start_mouse_angle = None
+        else:
+            self._tpl_drag_start_mouse_angle = None
+            sw, sh = self._tpl_screen_size()
+            half_w, half_h = sw / 2.0, sh / 2.0
+            mx, my = self._TPL_HANDLE_INFO[handle][3], self._TPL_HANDLE_INFO[handle][4]
+            ax, ay = self._tpl_local_to_screen(mx * half_w, my * half_h)
+            self._tpl_drag_anchor_screen = (ax, ay)
+        self.setCursor(self._tpl_cursor_for_handle(handle))
 
     def _tpl_mouse_move(self, event):
         if self._tpl_drag_handle is None:
@@ -170,79 +240,69 @@ class StitchCanvas(QWidget):
             self.setCursor(self._tpl_cursor_for_handle(handle)
                            if handle else Qt.ArrowCursor)
             return
-        sx0, sy0 = self._tpl_drag_start_screen
-        dnx = (event.x() - sx0) / self._scale
-        dny = (event.y() - sy0) / self._scale
-        nx, ny, nw, nh = self._tpl_drag_start_rect
-        MIN = 1.0
-        ratio = nw / nh if nh != 0 else 1.0  # original aspect ratio
         h = self._tpl_drag_handle
-        if h == 'TL':
-            # Use the larger absolute delta to drive both dimensions proportionally
-            if abs(dnx) >= abs(dny) * ratio:
-                dx_c = min(dnx, nw - MIN)
-                dy_c = dx_c / ratio
+        cx0, cy0, nw0, nh0, a0 = self._tpl_drag_start_state
+
+        if h == 'ROT':
+            cx_px, cy_px = self._tpl_center_screen()
+            current_angle = math.degrees(
+                math.atan2(event.y() - cy_px, event.x() - cx_px))
+            self._tpl_angle = a0 + (current_angle - self._tpl_drag_start_mouse_angle)
+            self.update()
+            return
+
+        if h == 'MOVE':
+            sx0, sy0 = self._tpl_drag_start_screen
+            self._tpl_cx = cx0 + (event.x() - sx0) / self._scale
+            self._tpl_cy = cy0 + (event.y() - sy0) / self._scale
+            self.update()
+            return
+
+        # ── Resize ──
+        sx0, sy0 = self._tpl_drag_start_screen
+        a_rad = math.radians(a0)
+        ca, sa = math.cos(a_rad), math.sin(a_rad)
+        dx_s = event.x() - sx0
+        dy_s = event.y() - sy0
+        # Un-rotate screen drag delta into local frame, convert to normalized units
+        local_dx = (dx_s * ca + dy_s * sa) / self._scale
+        local_dy = (-dx_s * sa + dy_s * ca) / self._scale
+
+        dw_sign, dh_sign, constrain, mx, my = self._TPL_HANDLE_INFO[h]
+        MIN = 0.5
+        ratio = nw0 / nh0 if nh0 > 0 else 1.0
+        delta_nw = dw_sign * local_dx
+        delta_nh = dh_sign * local_dy
+
+        if constrain:
+            if abs(delta_nw) >= abs(delta_nh) * ratio:
+                new_nw = max(nw0 + delta_nw, MIN)
+                new_nh = new_nw / ratio
             else:
-                dy_c = min(dny, nh - MIN)
-                dx_c = dy_c * ratio
-            self._tpl_nx = nx + dx_c
-            self._tpl_ny = ny + dy_c
-            self._tpl_nw = max(nw - dx_c, MIN)
-            self._tpl_nh = max(nh - dy_c, MIN)
-        elif h == 'TC':
-            dy_c = min(dny, nh - MIN)
-            self._tpl_nx, self._tpl_nw = nx, nw
-            self._tpl_ny = ny + dy_c
-            self._tpl_nh = nh - dy_c
-        elif h == 'TR':
-            # Anchor: left & top edges fixed; width grows right, height shrinks from top
-            new_w = max(nw + dnx, MIN)
-            new_h = new_w / ratio
-            dy_c = nh - new_h
-            self._tpl_nx = nx
-            self._tpl_ny = ny + dy_c
-            self._tpl_nw = new_w
-            self._tpl_nh = max(new_h, MIN)
-        elif h == 'ML':
-            dx_c = min(dnx, nw - MIN)
-            self._tpl_nx = nx + dx_c
-            self._tpl_ny, self._tpl_nh = ny, nh
-            self._tpl_nw = nw - dx_c
-        elif h == 'MR':
-            self._tpl_nx, self._tpl_ny, self._tpl_nh = nx, ny, nh
-            self._tpl_nw = max(nw + dnx, MIN)
-        elif h == 'BL':
-            # Anchor: right & top edges fixed; height grows down, width shrinks from left
-            new_h = max(nh + dny, MIN)
-            new_w = new_h * ratio
-            dx_c = nw - new_w
-            self._tpl_nx = nx + dx_c
-            self._tpl_ny = ny
-            self._tpl_nw = max(new_w, MIN)
-            self._tpl_nh = new_h
-        elif h == 'BC':
-            self._tpl_nx, self._tpl_ny, self._tpl_nw = nx, ny, nw
-            self._tpl_nh = max(nh + dny, MIN)
-        elif h == 'BR':
-            # Anchor: left & top fixed; pick dominant delta
-            if abs(dnx) >= abs(dny) * ratio:
-                new_w = max(nw + dnx, MIN)
-                new_h = new_w / ratio
-            else:
-                new_h = max(nh + dny, MIN)
-                new_w = new_h * ratio
-            self._tpl_nx, self._tpl_ny = nx, ny
-            self._tpl_nw = new_w
-            self._tpl_nh = new_h
-        elif h == 'MOVE':
-            self._tpl_nx = nx + dnx
-            self._tpl_ny = ny + dny
+                new_nh = max(nh0 + delta_nh, MIN)
+                new_nw = new_nh * ratio
+        else:
+            new_nw = max(nw0 + delta_nw, MIN) if dw_sign != 0 else nw0
+            new_nh = max(nh0 + delta_nh, MIN) if dh_sign != 0 else nh0
+
+        self._tpl_nw = new_nw
+        self._tpl_nh = new_nh
+
+        # Recompute center so the anchor point stays fixed in screen space.
+        # center = anchor_screen - R * anchor_local_new
+        alx_px = mx * new_nw * self._scale / 2.0
+        aly_px = my * new_nh * self._scale / 2.0
+        ax, ay = self._tpl_drag_anchor_screen
+        self._tpl_cx = (ax - (alx_px * ca - aly_px * sa) - self.MARGIN) / self._scale
+        self._tpl_cy = (ay - (alx_px * sa + aly_px * ca) - self.MARGIN) / self._scale
         self.update()
 
     def _tpl_mouse_release(self, event):
         self._tpl_drag_handle = None
         self._tpl_drag_start_screen = None
-        self._tpl_drag_start_rect = None
+        self._tpl_drag_start_state = None
+        self._tpl_drag_anchor_screen = None
+        self._tpl_drag_start_mouse_angle = None
         handle = self._tpl_hit_handle(event.x(), event.y())
         self.setCursor(self._tpl_cursor_for_handle(handle)
                        if handle else Qt.ArrowCursor)
@@ -406,12 +466,16 @@ class StitchCanvas(QWidget):
 
         # Template underlay image (drawn before grid so it appears beneath everything)
         if self._template_image is not None and not self._template_image.isNull():
-            sx, sy, sw, sh = self._tpl_screen_rect()
-            target = QRect(sx, sy, sw, sh)
+            cx_px, cy_px = self._tpl_center_screen()
+            sw, sh = self._tpl_screen_size()
+            painter.save()
             painter.setRenderHint(QPainter.SmoothPixmapTransform)
+            painter.translate(cx_px, cy_px)
+            painter.rotate(self._tpl_angle)
             painter.setOpacity(0.5)
-            painter.drawPixmap(target, self._template_image)
+            painter.drawPixmap(QRect(-sw // 2, -sh // 2, sw, sh), self._template_image)
             painter.setOpacity(1.0)
+            painter.restore()
 
         # Grid lines (every integer unit)
         if self._show_grid:
@@ -606,19 +670,37 @@ class StitchCanvas(QWidget):
                         sx, sy = self.canvas_to_screen(x, y)
                         _draw_point(sx, sy, QColor(0, 80, 200), kind)
 
-        # Template resize frame and handles (drawn on top of stitches, below tool overlay)
+        # Template resize/rotate frame and handles
         if (self._template_resize_mode
                 and self._template_image is not None
                 and not self._template_image.isNull()):
-            sx, sy, sw, sh = self._tpl_screen_rect()
-            HANDLE = 8
+            cx_px, cy_px = self._tpl_center_screen()
+            sw, sh = self._tpl_screen_size()
+            half_w, half_h = sw / 2.0, sh / 2.0
+            HANDLE_SZ = 8
+            H2 = HANDLE_SZ // 2
+            ROT_R = 6
+            painter.save()
+            painter.translate(cx_px, cy_px)
+            painter.rotate(self._tpl_angle)
+            # Dashed orange frame
             painter.setPen(QPen(QColor(255, 140, 0), 1, Qt.DashLine))
             painter.setBrush(Qt.NoBrush)
-            painter.drawRect(sx, sy, sw, sh)
+            painter.drawRect(int(-half_w), int(-half_h), sw, sh)
+            # Resize handles (white squares at corners and edges)
             painter.setPen(QPen(QColor(200, 100, 0), 1))
             painter.setBrush(QBrush(QColor(255, 255, 255)))
-            for hx, hy in self._tpl_handle_positions(sx, sy, sw, sh).values():
-                painter.drawRect(int(hx) - HANDLE // 2, int(hy) - HANDLE // 2, HANDLE, HANDLE)
+            for name, (lx, ly) in self._tpl_local_handles(half_w, half_h).items():
+                if name == 'ROT':
+                    continue
+                painter.drawRect(int(lx) - H2, int(ly) - H2, HANDLE_SZ, HANDLE_SZ)
+            # Rotation handle: circle above TC connected by a stem
+            rot_ly = -half_h - self._TPL_ROT_OFFSET
+            painter.setPen(QPen(QColor(0, 160, 255), 1))
+            painter.drawLine(0, int(-half_h), 0, int(rot_ly) + ROT_R)
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(-ROT_R, int(rot_ly) - ROT_R, ROT_R * 2, ROT_R * 2)
+            painter.restore()
 
         # Tool overlay
         if self._tool:
