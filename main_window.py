@@ -260,6 +260,22 @@ class MainWindow(QMainWindow):
         self._act_sel_tb_move_forward.setEnabled(False)
         self._act_sel_tb_move_forward.triggered.connect(self._edit_sel_move_forward)
 
+        # Edit – Resize/Rotate selection
+        self._act_sel_xform = QAction("Resize/Rotate Selection…", self)
+        self._act_sel_xform.setEnabled(False)
+        self._act_sel_xform.triggered.connect(self._edit_sel_xform_activate)
+
+        # Sel-xform toolbar OK/Cancel actions (icon-only)
+        self._act_sel_xform_ok = QAction(
+            QIcon(os.path.join(_icons, "ok_green.svg")), "", self)
+        self._act_sel_xform_ok.setToolTip("Accept transform")
+        self._act_sel_xform_ok.triggered.connect(self._edit_sel_xform_ok)
+
+        self._act_sel_xform_cancel = QAction(
+            QIcon(os.path.join(_icons, "nok_red.svg")), "", self)
+        self._act_sel_xform_cancel.setToolTip("Cancel transform")
+        self._act_sel_xform_cancel.triggered.connect(self._edit_sel_xform_cancel)
+
         # Tools (checkable, exclusive)
 
         self._act_pan = QAction(QIcon(os.path.join(_icons, "pan.svg")),
@@ -557,6 +573,8 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_invert_selected)
         edit_menu.addAction(self._act_mirror_vertical)
         edit_menu.addAction(self._act_mirror_horizontal)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self._act_sel_xform)
 
         tools_menu = mb.addMenu("&Tools")
         tools_menu.addAction(self._act_pan)
@@ -677,14 +695,30 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
         self._selection_toolbar.setVisible(False)
 
+        # Compact sel-xform toolbar (shown while resize/rotate is active)
+        self._sel_xform_toolbar = QToolBar("Resize/Rotate", self)
+        self._sel_xform_toolbar.setMovable(False)
+        self._sel_xform_toolbar.addAction(self._act_sel_xform_ok)
+        self._sel_xform_toolbar.addAction(self._act_sel_xform_cancel)
+        self.addToolBar(Qt.TopToolBarArea, self._sel_xform_toolbar)
+        self._sel_xform_toolbar.setVisible(False)
+
     # ── Tool selection ──
 
+    def _cancel_sel_xform_if_active(self):
+        """If a selection resize/rotate is in progress, cancel it silently."""
+        if self._canvas._sel_xform_active:
+            self._canvas.exit_sel_xform_mode()
+            self._sel_xform_toolbar.setVisible(False)
+
     def _on_tool_pan(self):
+        self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._pan_tool)
         self._tool_label.setText("Tool: Pan")
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_select(self):
+        self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_tool)
         self._tool_label.setText("Tool: Select Stitch Points")
         self._selection_toolbar.setVisible(True)
@@ -693,16 +727,19 @@ class MainWindow(QMainWindow):
         )
 
     def _on_tool_add(self):
+        self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._add_tool)
         self._tool_label.setText("Tool: Add Stitch Point")
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_move(self):
+        self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._move_tool)
         self._tool_label.setText("Tool: Move Stitch Point")
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_delete(self):
+        self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._delete_tool)
         self._tool_label.setText("Tool: Delete Stitch Point")
         self._selection_toolbar.setVisible(False)
@@ -948,6 +985,10 @@ class MainWindow(QMainWindow):
         self._act_sel_tb_reduce.setEnabled(has_multiple_selection)
         self._act_sel_tb_move_backward.setEnabled(has_selection and start > 0)
         self._act_sel_tb_move_forward.setEnabled(has_selection and end < n - 1)
+        # Resize/Rotate enabled when 2+ coord points selected and not hoop
+        can_xform = (has_multiple_selection and not hoop
+                     and not self._canvas._sel_xform_active)
+        self._act_sel_xform.setEnabled(can_xform)
 
     def _update_title(self):
         name = os.path.basename(self._file_path) if self._file_path else "Untitled"
@@ -981,6 +1022,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._update_template_action_state()
+        self._cancel_sel_xform_if_active()
         self._canvas.update()
         self._on_pattern_changed()
         self._update_palette_bar()
@@ -1099,6 +1141,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._update_template_action_state()
+        self._cancel_sel_xform_if_active()
 
         # Switch to Pan tool after opening
         self._act_pan.setChecked(True)
@@ -1318,6 +1361,60 @@ class MainWindow(QMainWindow):
         self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
+    def _edit_mirror_horizontal(self):
+        """Mirror selected points horizontally around the center of selection."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None:
+            return  # No selection
+        
+        self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
+        self._canvas.update()
+        self._on_pattern_changed()
+
+    # ── Resize/Rotate selection ──
+
+    def _edit_sel_xform_activate(self):
+        """Enter resize/rotate mode for the current selection."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None or end - start < 1:
+            return
+        self._canvas.enter_sel_xform_mode()
+        self._selection_toolbar.setVisible(False)
+        self._sel_xform_toolbar.setVisible(True)
+        self._sel_xform_toolbar.setMaximumWidth(
+            self._sel_xform_toolbar.sizeHint().width())
+        self._update_selection_action_state()
+
+    def _edit_sel_xform_ok(self):
+        """Commit the transform (with optional snap) and push to undo stack."""
+        if not self._canvas._sel_xform_active:
+            return
+        snap = self._canvas.snap_normal_to_grid
+        results = self._canvas.get_sel_xform_result(snap=snap)
+        self._canvas.exit_sel_xform_mode()
+        self._sel_xform_toolbar.setVisible(False)
+        if self._canvas._tool is self._select_tool:
+            self._selection_toolbar.setVisible(True)
+            self._selection_toolbar.setMaximumWidth(
+                self._selection_toolbar.sizeHint().width())
+        if results:
+            indices = [idx for idx, nx, ny in results]
+            new_positions = [(nx, ny) for idx, nx, ny in results]
+            self._pattern.move_points(indices, new_positions, snap=False)
+            self._canvas.update()
+            self._on_pattern_changed()
+        self._update_selection_action_state()
+
+    def _edit_sel_xform_cancel(self):
+        """Exit resize/rotate mode, reverting any changes."""
+        self._canvas.exit_sel_xform_mode()
+        self._sel_xform_toolbar.setVisible(False)
+        if self._canvas._tool is self._select_tool:
+            self._selection_toolbar.setVisible(True)
+            self._selection_toolbar.setMaximumWidth(
+                self._selection_toolbar.sizeHint().width())
+        self._update_selection_action_state()
+
     # ── Zoom actions ──
 
     def _zoom_at_cursor(self, factor):

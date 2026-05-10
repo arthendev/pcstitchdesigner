@@ -69,6 +69,27 @@ class StitchCanvas(QWidget):
         self._tpl_drag_start_state = None    # (cx, cy, nw, nh, angle) at drag start
         self._tpl_drag_anchor_screen = None  # (ax, ay) fixed anchor screen pixels for resize
         self._tpl_drag_start_mouse_angle = None  # degrees, for rotation drag
+        # Selection resize/rotate transform state
+        self._sel_xform_active = False
+        self._sel_xform_start = None       # base element index range start
+        self._sel_xform_end = None         # base element index range end
+        # Normalized screen coords = (screen_px - MARGIN) / scale, survives zoom
+        self._sel_xform_cx_n = 0.0         # current center x (normalized)
+        self._sel_xform_cy_n = 0.0         # current center y (normalized)
+        self._sel_xform_nhw = 0.0          # current half-width (normalized)
+        self._sel_xform_nhh = 0.0          # current half-height (normalized)
+        self._sel_xform_angle = 0.0        # rotation degrees (CW, Qt convention)
+        self._sel_xform_orig_ncx = 0.0     # original center x
+        self._sel_xform_orig_ncy = 0.0     # original center y
+        self._sel_xform_orig_nhw = 0.0     # original half-width
+        self._sel_xform_orig_nhh = 0.0     # original half-height
+        self._sel_xform_orig_n = []        # [(idx, nx, ny), ...] original normalized positions
+        self._sel_xform_drag_handle = None
+        self._sel_xform_drag_start_screen = None
+        self._sel_xform_drag_start_state = None
+        self._sel_xform_drag_anchor_screen = None
+        self._sel_xform_drag_start_mouse_angle = None
+
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)  # Enable keyboard focus
         self._update_size()
@@ -321,6 +342,269 @@ class StitchCanvas(QWidget):
         self._tpl_drag_start_mouse_angle = None
         handle = self._tpl_hit_handle(event.x(), event.y())
         self.setCursor(self._tpl_cursor_for_handle(handle)
+                       if handle else Qt.ArrowCursor)
+
+    # ── Selection resize/rotate transform ──
+
+    _SEL_ROT_OFFSET = 16   # px from edge to rotation handle circle center
+
+    def enter_sel_xform_mode(self):
+        """Enter resize/rotate mode for the current selection."""
+        start, end = self._selection_start, self._selection_end
+        if start is None or end is None or end - start < 1:
+            return
+        # Collect all coord elements in range, in normalized screen coords
+        orig_n = []
+        for i in range(start, end + 1):
+            if i >= len(self.pattern.elements):
+                continue
+            e = self.pattern.elements[i]
+            if elem_has_coords(e):
+                sx, sy = self.canvas_to_screen(e[1], e[2])
+                orig_n.append((i,
+                               (sx - self.MARGIN) / self._scale,
+                               (sy - self.MARGIN) / self._scale))
+        if len(orig_n) < 2:
+            return
+        nxs = [p[1] for p in orig_n]
+        nys = [p[2] for p in orig_n]
+        ncx = (min(nxs) + max(nxs)) / 2.0
+        ncy = (min(nys) + max(nys)) / 2.0
+        nhw = max((max(nxs) - min(nxs)) / 2.0, 0.5)
+        nhh = max((max(nys) - min(nys)) / 2.0, 0.5)
+
+        self._sel_xform_active = True
+        self._sel_xform_start = start
+        self._sel_xform_end = end
+        self._sel_xform_orig_n = orig_n
+        self._sel_xform_orig_ncx = ncx
+        self._sel_xform_orig_ncy = ncy
+        self._sel_xform_orig_nhw = nhw
+        self._sel_xform_orig_nhh = nhh
+        self._sel_xform_cx_n = ncx
+        self._sel_xform_cy_n = ncy
+        self._sel_xform_nhw = nhw
+        self._sel_xform_nhh = nhh
+        self._sel_xform_angle = 0.0
+        self._sel_xform_drag_handle = None
+        self._sel_xform_drag_start_screen = None
+        self._sel_xform_drag_start_state = None
+        self._sel_xform_drag_anchor_screen = None
+        self._sel_xform_drag_start_mouse_angle = None
+        self.update()
+
+    def exit_sel_xform_mode(self):
+        """Exit resize/rotate mode without committing changes."""
+        self._sel_xform_active = False
+        self._sel_xform_drag_handle = None
+        self.setCursor(self._tool.cursor if self._tool else Qt.ArrowCursor)
+        self.update()
+
+    def get_sel_xform_result(self, snap=False):
+        """Return transformed canvas coords: list of (idx, new_x, new_y)."""
+        result = []
+        orig_cx_px = self.MARGIN + self._sel_xform_orig_ncx * self._scale
+        orig_cy_px = self.MARGIN + self._sel_xform_orig_ncy * self._scale
+        orig_hw_px = self._sel_xform_orig_nhw * self._scale
+        orig_hh_px = self._sel_xform_orig_nhh * self._scale
+        cx_px = self.MARGIN + self._sel_xform_cx_n * self._scale
+        cy_px = self.MARGIN + self._sel_xform_cy_n * self._scale
+        hw_px = self._sel_xform_nhw * self._scale
+        hh_px = self._sel_xform_nhh * self._scale
+        a = math.radians(self._sel_xform_angle)
+        ca, sa = math.cos(a), math.sin(a)
+        for idx, onx, ony in self._sel_xform_orig_n:
+            osx = self.MARGIN + onx * self._scale
+            osy = self.MARGIN + ony * self._scale
+            dlx = osx - orig_cx_px
+            dly = osy - orig_cy_px
+            slx = dlx * hw_px / orig_hw_px if orig_hw_px > 0 else dlx
+            sly = dly * hh_px / orig_hh_px if orig_hh_px > 0 else dly
+            rlx = slx * ca - sly * sa
+            rly = slx * sa + sly * ca
+            nsx = cx_px + rlx
+            nsy = cy_px + rly
+            nx, ny = self.screen_to_canvas(nsx, nsy)
+            if snap:
+                nx = float(max(0, min(self.pattern.CANVAS_WIDTH, int(round(nx)))))
+                ny = float(max(0, min(self.pattern.CANVAS_HEIGHT, int(round(ny)))))
+            else:
+                nx = max(0.0, min(float(self.pattern.CANVAS_WIDTH), nx))
+                ny = max(0.0, min(float(self.pattern.CANVAS_HEIGHT), ny))
+            result.append((idx, nx, ny))
+        return result
+
+    # ── Sel-xform geometry helpers ──
+
+    def _sel_xform_center_screen(self):
+        return (self.MARGIN + self._sel_xform_cx_n * self._scale,
+                self.MARGIN + self._sel_xform_cy_n * self._scale)
+
+    def _sel_xform_screen_half_size(self):
+        return (self._sel_xform_nhw * self._scale,
+                self._sel_xform_nhh * self._scale)
+
+    def _sel_xform_local_to_screen(self, lx, ly):
+        cx_px, cy_px = self._sel_xform_center_screen()
+        a = math.radians(self._sel_xform_angle)
+        ca, sa = math.cos(a), math.sin(a)
+        return (cx_px + lx * ca - ly * sa, cy_px + lx * sa + ly * ca)
+
+    def _sel_xform_screen_to_local(self, sx, sy):
+        cx_px, cy_px = self._sel_xform_center_screen()
+        dx, dy = sx - cx_px, sy - cy_px
+        a = math.radians(self._sel_xform_angle)
+        ca, sa = math.cos(a), math.sin(a)
+        return (dx * ca + dy * sa, -dx * sa + dy * ca)
+
+    def _sel_xform_local_handles(self, hw_px, hh_px):
+        off = self._SEL_ROT_OFFSET
+        return {
+            'TL':    (-hw_px,       -hh_px),
+            'TC':    (    0.0,      -hh_px),
+            'TR':    (+hw_px,       -hh_px),
+            'ML':    (-hw_px,           0.0),
+            'MR':    (+hw_px,           0.0),
+            'BL':    (-hw_px,       +hh_px),
+            'BC':    (    0.0,      +hh_px),
+            'BR':    (+hw_px,       +hh_px),
+            'ROT':   (    0.0, -hh_px - off),
+        }
+
+    def _sel_xform_hit_handle(self, ex, ey):
+        if not self._sel_xform_active:
+            return None
+        hw_px, hh_px = self._sel_xform_screen_half_size()
+        lx, ly = self._sel_xform_screen_to_local(ex, ey)
+        HIT = 7
+        for name, (hlx, hly) in self._sel_xform_local_handles(hw_px, hh_px).items():
+            if abs(lx - hlx) <= HIT and abs(ly - hly) <= HIT:
+                return name
+        if -hw_px <= lx <= hw_px and -hh_px <= ly <= hh_px:
+            return 'MOVE'
+        return None
+
+    def _sel_xform_cursor_for_handle(self, handle):
+        if handle == 'ROT':
+            return Qt.CrossCursor
+        if handle in ('TL', 'BR'):
+            return Qt.SizeFDiagCursor
+        if handle in ('TR', 'BL'):
+            return Qt.SizeBDiagCursor
+        if handle in ('TC', 'BC'):
+            return Qt.SizeVerCursor
+        if handle in ('ML', 'MR'):
+            return Qt.SizeHorCursor
+        if handle == 'MOVE':
+            return Qt.SizeAllCursor
+        return Qt.ArrowCursor
+
+    _SEL_HANDLE_INFO = {
+        'TL': (-1, -1, True,  +1, +1),
+        'TC': ( 0, -1, False,  0, +1),
+        'TR': (+1, -1, True,  -1, +1),
+        'ML': (-1,  0, False, +1,  0),
+        'MR': (+1,  0, False, -1,  0),
+        'BL': (-1, +1, True,  +1, -1),
+        'BC': ( 0, +1, False,  0, -1),
+        'BR': (+1, +1, True,  -1, -1),
+    }
+
+    def _sel_xform_mouse_press(self, event):
+        handle = self._sel_xform_hit_handle(event.x(), event.y())
+        if not handle:
+            return
+        self._sel_xform_drag_handle = handle
+        self._sel_xform_drag_start_screen = (event.x(), event.y())
+        self._sel_xform_drag_start_state = (
+            self._sel_xform_cx_n, self._sel_xform_cy_n,
+            self._sel_xform_nhw, self._sel_xform_nhh,
+            self._sel_xform_angle)
+        if handle == 'ROT':
+            cx_px, cy_px = self._sel_xform_center_screen()
+            self._sel_xform_drag_start_mouse_angle = math.degrees(
+                math.atan2(event.y() - cy_px, event.x() - cx_px))
+            self._sel_xform_drag_anchor_screen = None
+        elif handle == 'MOVE':
+            self._sel_xform_drag_anchor_screen = None
+            self._sel_xform_drag_start_mouse_angle = None
+        else:
+            self._sel_xform_drag_start_mouse_angle = None
+            hw_px, hh_px = self._sel_xform_screen_half_size()
+            mx, my = self._SEL_HANDLE_INFO[handle][3], self._SEL_HANDLE_INFO[handle][4]
+            ax, ay = self._sel_xform_local_to_screen(mx * hw_px, my * hh_px)
+            self._sel_xform_drag_anchor_screen = (ax, ay)
+        self.setCursor(self._sel_xform_cursor_for_handle(handle))
+
+    def _sel_xform_mouse_move(self, event):
+        if self._sel_xform_drag_handle is None:
+            handle = self._sel_xform_hit_handle(event.x(), event.y())
+            self.setCursor(self._sel_xform_cursor_for_handle(handle)
+                           if handle else Qt.ArrowCursor)
+            return
+        h = self._sel_xform_drag_handle
+        cx0_n, cy0_n, nhw0, nhh0, a0 = self._sel_xform_drag_start_state
+
+        if h == 'ROT':
+            cx_px, cy_px = self._sel_xform_center_screen()
+            cur_angle = math.degrees(
+                math.atan2(event.y() - cy_px, event.x() - cx_px))
+            self._sel_xform_angle = a0 + (cur_angle - self._sel_xform_drag_start_mouse_angle)
+            self.update()
+            return
+
+        if h == 'MOVE':
+            sx0, sy0 = self._sel_xform_drag_start_screen
+            self._sel_xform_cx_n = cx0_n + (event.x() - sx0) / self._scale
+            self._sel_xform_cy_n = cy0_n + (event.y() - sy0) / self._scale
+            self.update()
+            return
+
+        # Resize
+        sx0, sy0 = self._sel_xform_drag_start_screen
+        a_rad = math.radians(a0)
+        ca, sa = math.cos(a_rad), math.sin(a_rad)
+        dx_s = event.x() - sx0
+        dy_s = event.y() - sy0
+        local_dx = (dx_s * ca + dy_s * sa) / self._scale
+        local_dy = (-dx_s * sa + dy_s * ca) / self._scale
+
+        dw_sign, dh_sign, constrain, mx, my = self._SEL_HANDLE_INFO[h]
+        MIN = 0.5
+        ratio = nhw0 / nhh0 if nhh0 > 0 else 1.0
+        delta_nhw = dw_sign * local_dx
+        delta_nhh = dh_sign * local_dy
+
+        if constrain:
+            if abs(delta_nhw) >= abs(delta_nhh) * ratio:
+                new_nhw = max(nhw0 + delta_nhw, MIN)
+                new_nhh = new_nhw / ratio
+            else:
+                new_nhh = max(nhh0 + delta_nhh, MIN)
+                new_nhw = new_nhh * ratio
+        else:
+            new_nhw = max(nhw0 + delta_nhw, MIN) if dw_sign != 0 else nhw0
+            new_nhh = max(nhh0 + delta_nhh, MIN) if dh_sign != 0 else nhh0
+
+        self._sel_xform_nhw = new_nhw
+        self._sel_xform_nhh = new_nhh
+
+        # Recompute center so anchor stays fixed in screen space
+        alx_px = mx * new_nhw * self._scale
+        aly_px = my * new_nhh * self._scale
+        ax, ay = self._sel_xform_drag_anchor_screen
+        self._sel_xform_cx_n = (ax - (alx_px * ca - aly_px * sa) - self.MARGIN) / self._scale
+        self._sel_xform_cy_n = (ay - (alx_px * sa + aly_px * ca) - self.MARGIN) / self._scale
+        self.update()
+
+    def _sel_xform_mouse_release(self, event):
+        self._sel_xform_drag_handle = None
+        self._sel_xform_drag_start_screen = None
+        self._sel_xform_drag_start_state = None
+        self._sel_xform_drag_anchor_screen = None
+        self._sel_xform_drag_start_mouse_angle = None
+        handle = self._sel_xform_hit_handle(event.x(), event.y())
+        self.setCursor(self._sel_xform_cursor_for_handle(handle)
                        if handle else Qt.ArrowCursor)
 
     def set_tool(self, tool):
@@ -730,6 +1014,39 @@ class StitchCanvas(QWidget):
                 painter.drawEllipse(cx2 - ROT_R, cy2 - ROT_R, ROT_R * 2, ROT_R * 2)
             painter.restore()
 
+        # Selection resize/rotate overlay
+        if self._sel_xform_active:
+            cx_px, cy_px = self._sel_xform_center_screen()
+            hw_px, hh_px = self._sel_xform_screen_half_size()
+            HANDLE_SZ = 8
+            H2 = HANDLE_SZ // 2
+            ROT_R = 4
+            off = self._SEL_ROT_OFFSET
+            painter.save()
+            painter.translate(cx_px, cy_px)
+            painter.rotate(self._sel_xform_angle)
+            # Dashed green frame
+            painter.setPen(QPen(QColor(0, 160, 60), 1, Qt.DashLine))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(int(-hw_px), int(-hh_px), int(hw_px * 2), int(hh_px * 2))
+            # Resize handles (white squares)
+            painter.setPen(QPen(QColor(0, 120, 40), 1))
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            for name, (lx, ly) in self._sel_xform_local_handles(hw_px, hh_px).items():
+                if name == 'ROT':
+                    continue
+                painter.drawRect(int(lx) - H2, int(ly) - H2, HANDLE_SZ, HANDLE_SZ)
+            # Rotation handle (blue circle with stem, at top)
+            hpy = int(-hh_px)
+            rot_tip_y = int(-hh_px - off)
+            length = abs(rot_tip_y - hpy)
+            if length > 0:
+                painter.setPen(QPen(QColor(0, 160, 255), 1))
+                painter.setBrush(QBrush(QColor(255, 255, 255)))
+                painter.drawLine(0, hpy, 0, rot_tip_y + ROT_R)
+                painter.drawEllipse(-ROT_R, rot_tip_y - ROT_R, ROT_R * 2, ROT_R * 2)
+            painter.restore()
+
         # Tool overlay
         if self._tool:
             self._tool.paint_overlay(self, painter)
@@ -755,6 +1072,9 @@ class StitchCanvas(QWidget):
             self.setCursor(self._pan_cursor)
             event.accept()
             return
+        if self._sel_xform_active and event.button() == Qt.LeftButton:
+            self._sel_xform_mouse_press(event)
+            return
         if (self._template_resize_mode and self._template_image is not None
                 and event.button() == Qt.LeftButton):
             self._tpl_mouse_press(event)
@@ -776,6 +1096,9 @@ class StitchCanvas(QWidget):
                     scroll_area.verticalScrollBar().value() + delta.y())
             self._pan_last_global_pos = current_pos
             return
+        if self._sel_xform_active:
+            self._sel_xform_mouse_move(event)
+            return
         if self._template_resize_mode and self._template_image is not None:
             self._tpl_mouse_move(event)
             return
@@ -796,6 +1119,9 @@ class StitchCanvas(QWidget):
         if (self._template_resize_mode and self._template_image is not None
                 and event.button() == Qt.LeftButton):
             self._tpl_mouse_release(event)
+            return
+        if self._sel_xform_active and event.button() == Qt.LeftButton:
+            self._sel_xform_mouse_release(event)
             return
         if self._tool:
             self._tool.mouse_release(self, event)
