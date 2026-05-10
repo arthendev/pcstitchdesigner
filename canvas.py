@@ -23,7 +23,7 @@ class StitchCanvas(QWidget):
     selection_changed = pyqtSignal()  # emitted when selection changes
     drag_finished = pyqtSignal()  # emitted after a stitch drag is committed
 
-    MARGIN = 20  # pixel margin around the drawing area
+    MARGIN = 25  # pixel margin around the drawing area
 
     # Line width mapping
     LINE_WIDTHS = {"fine": 1, "medium": 2, "thick": 3, 'very thick': 4}
@@ -119,7 +119,7 @@ class StitchCanvas(QWidget):
 
     # ── Template geometry helpers ──
 
-    _TPL_ROT_OFFSET = 28  # px above top edge for the rotation handle circle
+    _TPL_ROT_OFFSET = 20  # px from edge to rotation handle circle center
 
     def _tpl_center_screen(self):
         """Return template center (cx_px, cy_px) in screen pixels."""
@@ -683,7 +683,7 @@ class StitchCanvas(QWidget):
             half_w, half_h = sw / 2.0, sh / 2.0
             HANDLE_SZ = 8
             H2 = HANDLE_SZ // 2
-            ROT_R = 6
+            ROT_R = 5
             painter.save()
             painter.translate(cx_px, cy_px)
             painter.rotate(self._tpl_angle)
