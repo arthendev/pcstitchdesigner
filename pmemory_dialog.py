@@ -4,10 +4,101 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QHeaderView,
     QAbstractItemView, QPushButton, QLabel, QMessageBox,
-    QProgressBar, QApplication,
+    QProgressBar, QApplication, QWidget, QSizePolicy,
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
 from machine_comm import MachineComm, MachineCommError
+
+
+class _PatternPreviewWidget(QWidget):
+    """Simple widget that renders a list of (x, y) stitch points."""
+
+    _MARGIN = 16
+
+    def __init__(self, points, stitch_type, parent=None):
+        super().__init__(parent)
+        self._points = points
+        self._stitch_type = stitch_type
+        self.setMinimumSize(400, 200)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), Qt.white)
+
+        if not self._points:
+            painter.drawText(self.rect(), Qt.AlignCenter, "No points to display.")
+            return
+
+        xs = [p[0] for p in self._points]
+        ys = [p[1] for p in self._points]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+
+        draw_w = self.width() - 2 * self._MARGIN
+        draw_h = self.height() - 2 * self._MARGIN
+
+        span_x = max_x - min_x or 1
+        span_y = max_y - min_y or 1
+
+        scale = min(draw_w / span_x, draw_h / span_y)
+
+        # Centre the pattern within the available drawing area
+        offset_x = self._MARGIN + (draw_w - span_x * scale) / 2
+        offset_y = self._MARGIN + (draw_h - span_y * scale) / 2
+
+        def to_screen(x, y):
+            # Machine y=0 is bottom; screen y=0 is top — invert y.
+            return (
+                int(offset_x + (x - min_x) * scale),
+                int(offset_y + (max_y - y) * scale),
+            )
+
+        # Connecting lines
+        painter.setPen(QPen(QColor(0, 0, 0), 1))
+        for i in range(1, len(self._points)):
+            x1, y1 = to_screen(*self._points[i - 1])
+            x2, y2 = to_screen(*self._points[i])
+            painter.drawLine(x1, y1, x2, y2)
+
+        # Stitch points
+        # r = 3
+        # painter.setPen(Qt.NoPen)
+        # for i, pt in enumerate(self._points):
+        #     sx, sy = to_screen(*pt)
+        #     if i == 0:
+        #         painter.setBrush(QBrush(QColor(0, 180, 0)))
+        #     elif i == len(self._points) - 1:
+        #         painter.setBrush(QBrush(QColor(200, 0, 0)))
+        #     else:
+        #         painter.setBrush(QBrush(QColor(0, 0, 0)))
+        #     painter.drawEllipse(sx - r, sy - r, 2 * r, 2 * r)
+
+
+class _PatternPreviewDialog(QDialog):
+    """Simple read-only preview of a loaded P-Memory slot."""
+
+    def __init__(self, points, stitch_type, slot_index, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Preview \u2014 Slot {slot_index} ({stitch_type})")
+        self.resize(640, 360)
+
+        layout = QVBoxLayout(self)
+        self._preview = _PatternPreviewWidget(points, stitch_type, self)
+        layout.addWidget(self._preview, 1)
+
+        info = QLabel(f"{len(points)} stitch points")
+        info.setAlignment(Qt.AlignCenter)
+        layout.addWidget(info)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
 
 
 class PMemoryDialog(QDialog):
@@ -151,6 +242,12 @@ class PMemoryDialog(QDialog):
             self._action_btn.clicked.connect(self._on_load)
 
         right.addWidget(self._action_btn)
+
+        self._preview_btn = QPushButton("Preview")
+        self._preview_btn.setEnabled(False)
+        self._preview_btn.clicked.connect(self._on_preview)
+        right.addWidget(self._preview_btn)
+
         top.addLayout(right)
 
         outer.addLayout(top)
@@ -194,11 +291,13 @@ class PMemoryDialog(QDialog):
             self._action_btn.click()
 
     def _update_action_btn_state(self):
-        """Enable the action button based on the current selection."""
+        """Enable the action button and Preview button based on the current selection."""
+        has_non_empty_slot = self._selected_slot_size() > 0
         if self._action == self.ACTION_SEND:
             self._action_btn.setEnabled(self._selected_slot_index() is not None)
         elif self._action in (self.ACTION_DELETE, self.ACTION_LOAD, self.ACTION_INSERT):
-            self._action_btn.setEnabled(self._selected_slot_size() > 0)
+            self._action_btn.setEnabled(has_non_empty_slot)
+        self._preview_btn.setEnabled(has_non_empty_slot)
 
     def _populate_table(self, pmem_info):
         """Fill the table with slot data from pmem_info and update the free-memory label."""
@@ -216,6 +315,51 @@ class PMemoryDialog(QDialog):
             self._table.setItem(row, 2, size_item)
         self._free_label.setText(f"Free memory: {pmem_info.get('free_memory', 0)} bytes")
     # ── Actions ──────────────────────────────────────────────────────────────
+
+    def _on_preview(self):
+        """Load the selected slot and display it in a temporary preview window."""
+        slot_index = self._selected_slot_index()
+        if slot_index is None:
+            return
+
+        slot_info = self._pmem_info['slots'][slot_index]
+        slot_type = slot_info.get('type')
+        if not slot_type:
+            return
+        slot_size = slot_info.get('size', 0)
+
+        self._preview_btn.setEnabled(False)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet("")
+
+        def _load_progress(done, total):
+            if total > 0:
+                self._progress_bar.setValue(done * 100 // total)
+            QApplication.processEvents()
+
+        try:
+            raw_data = self._comm.load_pmemory_slot(
+                slot_index, slot_type,
+                total_size=slot_size, progress_callback=_load_progress,
+            )
+        except Exception as exc:
+            self._progress_bar.setValue(0)
+            self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._preview_btn.setEnabled(True)
+            QMessageBox.critical(self, "Machine Error", str(exc))
+            return
+
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+        self._preview_btn.setEnabled(True)
+
+        try:
+            points = MachineComm.decode_machine_pattern(raw_data, slot_type)
+        except Exception as exc:
+            QMessageBox.critical(self, "Machine Error", f"Failed to decode pattern: {exc}")
+            return
+
+        _PatternPreviewDialog(points, slot_type, slot_index, parent=self).exec_()
 
     def _on_write(self):
         """Send the pattern to the machine (command → header → stitch data)."""
