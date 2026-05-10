@@ -137,16 +137,20 @@ class StitchCanvas(QWidget):
         Args:
             half_w, half_h: half the image size in screen pixels.
         """
+        off = self._TPL_ROT_OFFSET
         return {
-            'TL':  (-half_w, -half_h),
-            'TC':  (    0.0, -half_h),
-            'TR':  (+half_w, -half_h),
-            'ML':  (-half_w,     0.0),
-            'MR':  (+half_w,     0.0),
-            'BL':  (-half_w, +half_h),
-            'BC':  (    0.0, +half_h),
-            'BR':  (+half_w, +half_h),
-            'ROT': (    0.0, -half_h - self._TPL_ROT_OFFSET),
+            'TL':    (-half_w,       -half_h),
+            'TC':    (    0.0,       -half_h),
+            'TR':    (+half_w,       -half_h),
+            'ML':    (-half_w,           0.0),
+            'MR':    (+half_w,           0.0),
+            'BL':    (-half_w,       +half_h),
+            'BC':    (    0.0,       +half_h),
+            'BR':    (+half_w,       +half_h),
+            'ROT_T': (    0.0, -half_h - off),
+            'ROT_B': (    0.0, +half_h + off),
+            'ROT_L': (-half_w - off,     0.0),
+            'ROT_R': (+half_w + off,     0.0),
         }
 
     def _tpl_local_to_screen(self, lx, ly):
@@ -180,7 +184,7 @@ class StitchCanvas(QWidget):
         return None
 
     def _tpl_cursor_for_handle(self, handle):
-        if handle == 'ROT':
+        if handle is not None and handle.startswith('ROT'):
             return Qt.CrossCursor
         if handle in ('TL', 'BR'):
             return Qt.SizeFDiagCursor
@@ -217,7 +221,7 @@ class StitchCanvas(QWidget):
         self._tpl_drag_start_screen = (event.x(), event.y())
         self._tpl_drag_start_state = (self._tpl_cx, self._tpl_cy,
                                       self._tpl_nw, self._tpl_nh, self._tpl_angle)
-        if handle == 'ROT':
+        if handle.startswith('ROT'):
             cx_px, cy_px = self._tpl_center_screen()
             self._tpl_drag_start_mouse_angle = math.degrees(
                 math.atan2(event.y() - cy_px, event.x() - cx_px))
@@ -243,7 +247,7 @@ class StitchCanvas(QWidget):
         h = self._tpl_drag_handle
         cx0, cy0, nw0, nh0, a0 = self._tpl_drag_start_state
 
-        if h == 'ROT':
+        if h.startswith('ROT'):
             cx_px, cy_px = self._tpl_center_screen()
             current_angle = math.degrees(
                 math.atan2(event.y() - cy_px, event.x() - cx_px))
@@ -691,15 +695,27 @@ class StitchCanvas(QWidget):
             painter.setPen(QPen(QColor(200, 100, 0), 1))
             painter.setBrush(QBrush(QColor(255, 255, 255)))
             for name, (lx, ly) in self._tpl_local_handles(half_w, half_h).items():
-                if name == 'ROT':
+                if name.startswith('ROT'):
                     continue
                 painter.drawRect(int(lx) - H2, int(ly) - H2, HANDLE_SZ, HANDLE_SZ)
-            # Rotation handle: circle above TC connected by a stem
-            rot_ly = -half_h - self._TPL_ROT_OFFSET
+            # Rotation handles: circles on all 4 sides with short stems
+            off = self._TPL_ROT_OFFSET
+            rot_defs = [
+                (0, int(-half_h),      0, int(-half_h - off)),   # top
+                (0, int(+half_h),      0, int(+half_h + off)),   # bottom
+                (int(-half_w), 0, int(-half_w - off), 0),        # left
+                (int(+half_w), 0, int(+half_w + off), 0),        # right
+            ]
             painter.setPen(QPen(QColor(0, 160, 255), 1))
-            painter.drawLine(0, int(-half_h), 0, int(rot_ly) + ROT_R)
             painter.setBrush(QBrush(QColor(255, 255, 255)))
-            painter.drawEllipse(-ROT_R, int(rot_ly) - ROT_R, ROT_R * 2, ROT_R * 2)
+            for x1, y1, cx2, cy2 in rot_defs:
+                dx, dy = cx2 - x1, cy2 - y1
+                length = math.sqrt(dx * dx + dy * dy)
+                if length > 0:
+                    ux, uy = dx / length, dy / length
+                    painter.drawLine(x1, y1,
+                                     int(cx2 - ux * ROT_R), int(cy2 - uy * ROT_R))
+                painter.drawEllipse(cx2 - ROT_R, cy2 - ROT_R, ROT_R * 2, ROT_R * 2)
             painter.restore()
 
         # Tool overlay
