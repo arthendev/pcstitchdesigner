@@ -117,6 +117,18 @@ class StitchCanvas(QWidget):
             self.setCursor(self._tool.cursor if self._tool else Qt.ArrowCursor)
         self.update()
 
+    def get_template_state(self):
+        """Return current template transform as (cx, cy, nw, nh, angle), or None if no image."""
+        if self._template_image is None:
+            return None
+        return (self._tpl_cx, self._tpl_cy, self._tpl_nw, self._tpl_nh, self._tpl_angle)
+
+    def restore_template_state(self, state):
+        """Restore a saved template transform state (cx, cy, nw, nh, angle)."""
+        if state is not None:
+            self._tpl_cx, self._tpl_cy, self._tpl_nw, self._tpl_nh, self._tpl_angle = state
+        self.update()
+
     # ── Template geometry helpers ──
 
     _TPL_ROT_OFFSET = 20  # px from edge to rotation handle circle center

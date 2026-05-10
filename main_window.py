@@ -52,6 +52,9 @@ class MainWindow(QMainWindow):
         # View orientation state
         self._view_orientation = "default"  # "default" or "sewing_direction"
 
+        # Template editing state
+        self._tpl_saved_state = None  # saved before entering resize/rotate mode
+
         # Tools
         self._pan_tool = PanTool()
         self._select_tool = SelectPointTool()
@@ -444,6 +447,17 @@ class MainWindow(QMainWindow):
         self._act_template_delete = QAction("&Delete", self)
         self._act_template_delete.triggered.connect(self._design_template_delete)
 
+        # Design – Template editing toolbar (OK / Cancel)
+        self._act_template_edit_ok = QAction(
+            QIcon(os.path.join(_icons, "ok_green.svg")), "", self)
+        self._act_template_edit_ok.setToolTip("Accept changes")
+        self._act_template_edit_ok.triggered.connect(self._template_edit_ok)
+
+        self._act_template_edit_cancel = QAction(
+            QIcon(os.path.join(_icons, "nok_red.svg")), "", self)
+        self._act_template_edit_cancel.setToolTip("Cancel changes")
+        self._act_template_edit_cancel.triggered.connect(self._template_edit_cancel)
+
         # Machine
         self._act_machine_load_pmem = QAction("Load P-Memory", self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
@@ -616,6 +630,15 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_animate)
         tb.addSeparator()
         tb.addAction(self._act_preferences)
+
+        # Compact template-editing toolbar (shown only in resize/rotate mode)
+        self.addToolBarBreak(Qt.TopToolBarArea)
+        self._template_toolbar = QToolBar("Template Edit", self)
+        self._template_toolbar.setMovable(False)
+        self._template_toolbar.addAction(self._act_template_edit_ok)
+        self._template_toolbar.addAction(self._act_template_edit_cancel)
+        self.addToolBar(Qt.TopToolBarArea, self._template_toolbar)
+        self._template_toolbar.setVisible(False)
 
     # ── Tool selection ──
 
@@ -1774,14 +1797,39 @@ class MainWindow(QMainWindow):
         # Deactivate resize mode before loading a new image
         self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(pixmap)
 
     def _design_template_resize(self, checked):
-        self._canvas.set_template_resize_mode(checked)
+        if checked:
+            self._tpl_saved_state = self._canvas.get_template_state()
+            self._canvas.set_template_resize_mode(True)
+            self._template_toolbar.setVisible(True)
+            # Clamp width so the toolbar only fits its two buttons
+            self._template_toolbar.setMaximumWidth(
+                self._template_toolbar.sizeHint().width()
+            )
+        else:
+            self._canvas.set_template_resize_mode(False)
+            self._template_toolbar.setVisible(False)
+
+    def _template_edit_ok(self):
+        """Accept the current template shape and exit resize/rotate mode."""
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
+
+    def _template_edit_cancel(self):
+        """Revert template to state before editing and exit resize/rotate mode."""
+        self._canvas.restore_template_state(self._tpl_saved_state)
+        self._act_template_resize.setChecked(False)
+        self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
 
     def _design_template_delete(self):
         self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
+        self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(None)
 
     # ── Help ──
