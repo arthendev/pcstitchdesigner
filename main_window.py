@@ -482,7 +482,6 @@ class MainWindow(QMainWindow):
         self._act_template_load.triggered.connect(self._design_template_load)
 
         self._act_template_resize = QAction("&Resize/Rotate", self)
-        self._act_template_resize.setCheckable(True)
         self._act_template_resize.setEnabled(False)
         self._act_template_resize.triggered.connect(self._design_template_resize)
 
@@ -1017,7 +1016,6 @@ class MainWindow(QMainWindow):
         self._canvas.set_selected_point(None)
         self._file_path = None
         self._canvas.set_template_image(None)
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._update_template_action_state()
@@ -1136,7 +1134,6 @@ class MainWindow(QMainWindow):
 
         # Clear any template image from a previous file
         self._canvas.set_template_image(None)
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._update_template_action_state()
@@ -1662,7 +1659,6 @@ class MainWindow(QMainWindow):
         self._canvas.set_selected_point(None)
         self._file_path = None
         self._canvas.set_template_image(None)
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._update_template_action_state()
@@ -1958,24 +1954,20 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Load Template Image", "Could not load the selected image.")
             return
         # Deactivate resize mode before loading a new image
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(pixmap)
         self._update_template_action_state()
 
-    def _design_template_resize(self, checked):
-        if checked:
-            self._tpl_saved_state = self._canvas.get_template_state()
-            self._canvas.set_template_resize_mode(True)
-            self._template_toolbar.setVisible(True)
-            # Clamp width so the toolbar only fits its two buttons
-            self._template_toolbar.setMaximumWidth(
-                self._template_toolbar.sizeHint().width()
-            )
-        else:
-            self._canvas.set_template_resize_mode(False)
-            self._template_toolbar.setVisible(False)
+    def _design_template_resize(self):
+        self._tpl_saved_state = self._canvas.get_template_state()
+        self._act_template_resize.setEnabled(False)
+        self._canvas.set_template_resize_mode(True)
+        self._template_toolbar.setVisible(True)
+        # Clamp width so the toolbar only fits its two buttons
+        self._template_toolbar.setMaximumWidth(
+            self._template_toolbar.sizeHint().width()
+        )
 
     def _update_template_action_state(self):
         """Enable/disable template actions depending on whether an image is loaded."""
@@ -1985,19 +1977,18 @@ class MainWindow(QMainWindow):
 
     def _template_edit_ok(self):
         """Accept the current template shape and exit resize/rotate mode."""
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
+        self._act_template_resize.setEnabled(True)
 
     def _template_edit_cancel(self):
         """Revert template to state before editing and exit resize/rotate mode."""
         self._canvas.restore_template_state(self._tpl_saved_state)
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
+        self._act_template_resize.setEnabled(True)
 
     def _design_template_delete(self):
-        self._act_template_resize.setChecked(False)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(None)
