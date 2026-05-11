@@ -6,8 +6,10 @@ from PyQt5.QtWidgets import (
     QDialog, QDialogButtonBox, QTabWidget, QWidget,
     QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QLabel, QComboBox, QPushButton, QCheckBox, QColorDialog,
-    QSizePolicy,
+    QMessageBox, QSizePolicy,
 )
+
+from machine_comm import MachineComm, MachineCommError
 from PyQt5.QtGui import QColor, QPixmap, QIcon
 from PyQt5.QtCore import Qt
 
@@ -151,6 +153,14 @@ class GeneralTab(QWidget):
         self._high_speed_cb.setChecked(bool(prefs.get("high_speed", False)))
         layout.addRow("", self._high_speed_cb)
 
+        # Test Connection button
+        self._test_conn_btn = QPushButton("Test Connection")
+        self._test_conn_btn.clicked.connect(self._test_connection)
+        test_row = QHBoxLayout()
+        test_row.addWidget(self._test_conn_btn)
+        test_row.addStretch()
+        layout.addRow("", test_row)
+
         self._model_combo.currentIndexChanged.connect(self._on_model_changed)
         self._on_model_changed()
 
@@ -162,6 +172,55 @@ class GeneralTab(QWidget):
         if is_1475:
             self._high_speed_cb.setChecked(False)
         self._high_speed_cb.setEnabled(not is_1475)
+
+    def _test_connection(self):
+        port = self._port_combo.currentData() or ""
+        if not port:
+            QMessageBox.warning(
+                self, "Test Connection",
+                "No COM port selected. Please choose a port first.",
+            )
+            return
+
+        configured_model = self._model_combo.currentText()
+        high_speed = self._high_speed_cb.isChecked()
+        baudrate = MachineComm.FAST_BAUDRATE if high_speed else MachineComm.DEFAULT_BAUDRATE
+
+        comm = MachineComm()
+        try:
+            comm.open(port, baudrate=baudrate)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Test Connection",
+                f"Could not open port {port!r}:\n{exc}",
+            )
+            return
+
+        try:
+            info = comm.query_machine(timeout=2.0)
+        except (MachineCommError, Exception) as exc:
+            comm.close()
+            QMessageBox.critical(
+                self, "Test Connection",
+                f"No response from machine on {port}:\n{exc}",
+            )
+            return
+
+        comm.close()
+
+        detected = info.get("model", "")
+        if detected and detected != configured_model:
+            QMessageBox.warning(
+                self, "Test Connection",
+                f"Connection succeeded, but the detected machine model ({detected}) "
+                f"does not match the configured model ({configured_model}).",
+            )
+        else:
+            detail = f" (detected: {detected}" + ")" if detected else ""
+            QMessageBox.information(
+                self, "Test Connection",
+                f"Connection successful!{detail}\nMachine is responding correctly.",
+            )
 
     def _refresh_ports(self):
         """Reload available serial ports into the combo box."""
