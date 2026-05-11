@@ -24,6 +24,7 @@ from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
 
 from auto_stitch_dialog import AutoStitchLengthDialog
+from check_updates_dialog import run_check_for_updates
 
 
 class MainWindow(QMainWindow):
@@ -527,8 +528,8 @@ class MainWindow(QMainWindow):
         self._act_about = QAction("&About", self)
         self._act_about.triggered.connect(self._help_about)
 
-        self._act_get_releases = QAction("&Get New Version", self)
-        self._act_get_releases.triggered.connect(self._help_get_releases)
+        self._act_check_updates = QAction("Check for &Updates...", self)
+        self._act_check_updates.triggered.connect(self._help_check_for_updates)
 
         self._act_online_docs = QAction("&Online Documentation", self)
         self._act_online_docs.triggered.connect(self._help_online_docs)
@@ -644,7 +645,7 @@ class MainWindow(QMainWindow):
         settings_menu.addAction(self._act_preferences)
 
         help_menu = mb.addMenu("&Help")
-        help_menu.addAction(self._act_get_releases)
+        help_menu.addAction(self._act_check_updates)
         help_menu.addAction(self._act_online_docs)
         help_menu.addAction(self._act_donate)
         help_menu.addSeparator()
@@ -2053,6 +2054,10 @@ class MainWindow(QMainWindow):
         
         msg_box.layout().addWidget(label, 0, 0)
         msg_box.exec_()
+
+    def _help_check_for_updates(self):
+        """Check GitHub releases API and show update status."""
+        run_check_for_updates(self, APP_VERSION)
 
     def _help_get_releases(self):
         """Open GitHub releases page in default web browser."""
