@@ -85,15 +85,44 @@ class ColorButton(QPushButton):
             self.set_color(chosen.name())
 
 
-# ── Machine tab ──────────────────────────────────────────────────────────────
+# ── General tab ──────────────────────────────────────────────────────────────
 
-class MachineTab(QWidget):
-    def __init__(self, prefs: dict, parent=None):
+class GeneralTab(QWidget):
+    def __init__(self, prefs: dict, general_prefs: dict = None, parent=None):
         super().__init__(parent)
-        layout = QFormLayout(self)
+        if general_prefs is None:
+            general_prefs = {}
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(10)
+
+        # ── General Settings GroupBox ─────────────────────────────────────────
+        general_group = QGroupBox("General Settings")
+        general_layout = QFormLayout(general_group)
+        general_layout.setVerticalSpacing(10)
+
+        self._update_freq_combo = QComboBox()
+        for label, data in (
+            ("Weekly (Default)", "weekly"),
+            ("Monthly", "monthly"),
+            ("Never", "never"),
+        ):
+            self._update_freq_combo.addItem(label, data)
+        freq = general_prefs.get("update_check_frequency", "weekly")
+        for i in range(self._update_freq_combo.count()):
+            if self._update_freq_combo.itemData(i) == freq:
+                self._update_freq_combo.setCurrentIndex(i)
+                break
+        general_layout.addRow("Check for Updates:", self._update_freq_combo)
+
+        outer.addWidget(general_group)
+
+        # ── Machine GroupBox ──────────────────────────────────────────────────
+        machine_group = QGroupBox("Machine")
+        layout = QFormLayout(machine_group)
         layout.setRowWrapPolicy(QFormLayout.WrapLongRows)
         layout.setVerticalSpacing(10)
-        layout.setContentsMargins(12, 12, 12, 12)
 
         # Machine model
         self._model_combo = QComboBox()
@@ -125,6 +154,9 @@ class MachineTab(QWidget):
         self._model_combo.currentIndexChanged.connect(self._on_model_changed)
         self._on_model_changed()
 
+        outer.addWidget(machine_group)
+        outer.addStretch()
+
     def _on_model_changed(self):
         is_1475 = self._model_combo.currentText() == "PFAFF Creative 1475 CD"
         if is_1475:
@@ -154,6 +186,11 @@ class MachineTab(QWidget):
             "model": self._model_combo.currentText(),
             "port": self._port_combo.currentData() or "",
             "high_speed": self._high_speed_cb.isChecked(),
+        }
+
+    def general_values(self) -> dict:
+        return {
+            "update_check_frequency": self._update_freq_combo.currentData(),
         }
 
 
@@ -324,7 +361,7 @@ class DisplayTab(QWidget):
 # ── Preferences dialog ────────────────────────────────────────────────────────
 
 class PreferencesDialog(QDialog):
-    """Preferences dialog with Machine and Display tabs."""
+    """Preferences dialog with General and Display tabs."""
 
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -337,9 +374,12 @@ class PreferencesDialog(QDialog):
 
         # Tab widget
         self._tabs = QTabWidget()
-        self._machine_tab = MachineTab(config.get_machine_preferences())
+        self._general_tab = GeneralTab(
+            config.get_machine_preferences(),
+            config.get_general_preferences(),
+        )
         self._display_tab = DisplayTab(config.get_display_preferences())
-        self._tabs.addTab(self._machine_tab, "Machine")
+        self._tabs.addTab(self._general_tab, "General")
         self._tabs.addTab(self._display_tab, "Display")
         layout.addWidget(self._tabs)
 
@@ -350,11 +390,15 @@ class PreferencesDialog(QDialog):
         layout.addWidget(buttons)
 
     def _accept(self):
-        m = self._machine_tab.values()
+        m = self._general_tab.values()
         self._config.set_machine_preferences(
             model=m["model"],
             port=m["port"],
             high_speed=m["high_speed"],
+        )
+        g = self._general_tab.general_values()
+        self._config.set_general_preferences(
+            update_check_frequency=g["update_check_frequency"],
         )
         d = self._display_tab.values()
         self._config.set_display_preferences(

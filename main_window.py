@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
 )
-from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent
+from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent, QTimer
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
 from PyQt5.QtGui import QDesktopServices
 
@@ -24,7 +24,7 @@ from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
 
 from auto_stitch_dialog import AutoStitchLengthDialog
-from check_updates_dialog import run_check_for_updates
+from check_updates_dialog import run_check_for_updates, run_silent_check_for_updates
 
 
 class MainWindow(QMainWindow):
@@ -109,6 +109,9 @@ class MainWindow(QMainWindow):
         self._apply_display_settings()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
+
+        # Schedule silent update check after the window is shown
+        QTimer.singleShot(1500, self._auto_check_for_updates)
 
     # ── Ctrl temporary tool switch ──
 
@@ -2058,6 +2061,35 @@ class MainWindow(QMainWindow):
     def _help_check_for_updates(self):
         """Check GitHub releases API and show update status."""
         run_check_for_updates(self, APP_VERSION)
+
+    def _auto_check_for_updates(self):
+        """Silently check for updates at startup based on the configured frequency."""
+        import datetime
+        freq = self._config.get_general_preferences().get("update_check_frequency", "weekly")
+        if freq == "never":
+            return
+
+        last_check_str = self._config.get_last_update_check()
+        now = datetime.datetime.utcnow()
+
+        if last_check_str:
+            try:
+                last_check = datetime.datetime.fromisoformat(last_check_str)
+            except ValueError:
+                last_check = None
+        else:
+            last_check = None
+
+        if last_check is not None:
+            elapsed_days = (now - last_check).days
+            if freq == "weekly" and elapsed_days < 7:
+                return
+            if freq == "monthly" and elapsed_days < 30:
+                return
+
+        self._config.set_last_update_check(now.isoformat())
+        self._config.save()
+        run_silent_check_for_updates(self, APP_VERSION)
 
     def _help_get_releases(self):
         """Open GitHub releases page in default web browser."""

@@ -48,6 +48,9 @@ class Config:
             "embroidery_grid_color": "#dcdcdc",
             "embroidery_show_stitch_points": False,
             "embroidery_show_grid": False,
+            # General preferences
+            "auto_update_check": "weekly",
+            "last_update_check": "",
         }
 
         # Try to load existing config
@@ -190,3 +193,21 @@ class Config:
         self._data["embroidery_grid_color"] = embroidery_grid_color
         self._data["embroidery_show_stitch_points"] = bool(embroidery_show_stitch_points)
         self._data["embroidery_show_grid"] = bool(embroidery_show_grid)
+
+    def get_general_preferences(self):
+        """Return general preference values as a dict."""
+        return {
+            "update_check_frequency": self._data.get("auto_update_check", "weekly"),
+        }
+
+    def set_general_preferences(self, update_check_frequency):
+        """Persist general preferences."""
+        self._data["auto_update_check"] = update_check_frequency
+
+    def get_last_update_check(self):
+        """Return ISO-format timestamp string of the last update check, or empty string."""
+        return self._data.get("last_update_check", "")
+
+    def set_last_update_check(self, timestamp_str):
+        """Store the ISO-format timestamp of the last update check."""
+        self._data["last_update_check"] = timestamp_str
