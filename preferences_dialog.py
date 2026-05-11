@@ -206,7 +206,7 @@ class GeneralTab(QWidget):
             )
             return
 
-        comm.close()
+        comm.end_transmission()
 
         detected = info.get("model", "")
         if detected and detected != configured_model:
