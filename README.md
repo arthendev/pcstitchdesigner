@@ -6,6 +6,9 @@ This application is designed to enable users to create, edit, and transfer custo
 
 It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with modern 64-bit Windows systems. This project aims to restore its functionality in a contemporary environment. 
 
+## Main window of the application
+
+<img width="900" alt="main_window" src="https://github.com/user-attachments/assets/6dd2b807-3b4b-4e6d-aebb-307527acb5ba" />
 
 ## Available Features
 
