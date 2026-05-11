@@ -5,6 +5,7 @@ import os
 from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
+    QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
 )
 from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent, QTimer
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
@@ -641,8 +642,8 @@ class MainWindow(QMainWindow):
         machine_menu.addAction(self._act_machine_send_pmem)
         machine_menu.addAction(self._act_machine_insert_pmem)
         machine_menu.addAction(self._act_machine_delete_pmem)
-        machine_menu.addSeparator()
-        machine_menu.addAction(self._act_machine_config)
+        # machine_menu.addSeparator()
+        # machine_menu.addAction(self._act_machine_config)
 
         settings_menu = mb.addMenu("&Settings")
         settings_menu.addAction(self._act_preferences)
@@ -1572,6 +1573,68 @@ class MainWindow(QMainWindow):
 
     # ── Machine ──
 
+    def _machine_error(self, message: str):
+        """Show a machine communication error with Open Settings / Close buttons."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Communication Error")
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        dlg.setSizeGripEnabled(False)
+
+        # Outer layout — same margins Qt uses internally for QMessageBox
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(20, 20, 20, 16)
+        layout.setSpacing(0)
+
+        # Icon + text row
+        msg_row = QHBoxLayout()
+        msg_row.setSpacing(16)
+        msg_row.setContentsMargins(0, 0, 0, 16)
+
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(
+            dlg.style().standardIcon(dlg.style().SP_MessageBoxCritical)
+            .pixmap(32, 32)
+        )
+        icon_lbl.setFixedSize(32, 32)
+        icon_lbl.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        msg_row.addWidget(icon_lbl, 0, Qt.AlignTop)
+
+        lbl = QLabel(message)
+        lbl.setWordWrap(True)
+        lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        lbl.setMinimumWidth(280)
+        lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        msg_row.addWidget(lbl, 1, Qt.AlignVCenter)
+
+        layout.addLayout(msg_row)
+
+        # Horizontal separator, same as QMessageBox
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(line)
+
+        # Button row
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 12, 0, 0)
+        btn_row.setSpacing(8)
+        btn_row.addStretch()
+        open_settings_btn = QPushButton("Open Settings")
+        close_btn = QPushButton("Close")
+        close_btn.setDefault(True)
+        close_btn.setMinimumWidth(80)
+        open_settings_btn.setMinimumWidth(80)
+        btn_row.addWidget(open_settings_btn)
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+
+        open_settings_btn.clicked.connect(dlg.accept)
+        close_btn.clicked.connect(dlg.reject)
+        dlg.adjustSize()
+        result = dlg.exec_()
+        if result == QDialog.Accepted:
+            self._settings_preferences()
+
     def _open_machine_connection(self):
         """Open the serial port and perform the initial query_machine handshake.
 
@@ -1581,8 +1644,7 @@ class MainWindow(QMainWindow):
         prefs = self._config.get_machine_preferences()
         port = prefs.get("port", "")
         if not port:
-            QMessageBox.warning(
-                self, "Communication Error",
+            self._machine_error(
                 "No serial port configured.\n"
                 "Please set the port in Settings → Preferences → Machine."
             )
@@ -1597,28 +1659,21 @@ class MainWindow(QMainWindow):
         try:
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
-            QMessageBox.critical(
-                self, "Communication Error",
-                f"Could not open port {port!r}:\n{exc}"
-            )
+            self._machine_error(f"Could not open port {port!r}:\n{exc}")
             return None
 
         try:
             info = self._machine_comm.query_machine()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.close()
-            QMessageBox.critical(
-                self, "Communication Error",
-                f"No communication with the machine:\n{exc}"
-            )
+            self._machine_error(f"No communication with the machine:\n{exc}")
             return None
 
         detected = info.get('model', '')
         configured = prefs.get('model', '')
         if detected and configured and detected != configured:
             self._machine_comm.close()
-            QMessageBox.critical(
-                self, "Communication Error",
+            self._machine_error(
                 f"Connected machine ({detected}) does not match "
                 f"the configured model ({configured}).\n"
                 f"Please check Settings → Preferences → Machine."
@@ -1647,10 +1702,7 @@ class MainWindow(QMainWindow):
             raw = self._machine_comm.query_pmemory()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.end_transmission()
-            QMessageBox.critical(
-                self, "Communication Error",
-                f"Failed to read P-Memory:\n{exc}"
-            )
+            self._machine_error(f"Failed to read P-Memory:\n{exc}")
             return
 
         # Decode the raw response
@@ -1659,10 +1711,7 @@ class MainWindow(QMainWindow):
             pmem_info = MachineComm.decode_pmemory(raw, machine_model)
         except Exception as exc:
             self._machine_comm.end_transmission()
-            QMessageBox.critical(
-                self, "Communication Error",
-                f"Failed to decode P-Memory data:\n{exc}"
-            )
+            self._machine_error(f"Failed to decode P-Memory data:\n{exc}")
             return
 
         dlg = PMemoryDialog(
