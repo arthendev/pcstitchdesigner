@@ -2,7 +2,7 @@
 
 ## Application Overview
 
-This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines.
+This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (PFAFF Creative 7570, 7550, 1475 CD).
 
 It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
 
@@ -49,10 +49,14 @@ The following features are planned for future releases:
 
 ## Donations
 
-This project was created entirely in my free time. It started when I was looking for a high-quality sewing machine and, by chance, came across a PFAFF Creative series from 1990s. Being immediately impressed by the craftsmanship and engineering of this classic machine, it was sad to see the original software tools are outdated and not usable on recent computers anymore. I decided to build a modern, user-friendly alternative, that allows owners of these remarkable machines to continue using them with with their own stitch designs.
+This project was created entirely in my free time. It started when I was looking for a high-quality sewing machine and, by chance, came across a PFAFF Creative series from 1990s. Being immediately impressed by the craftsmanship and engineering of this classic machine, it was sad to see the original software tools are outdated and not usable on recent computers anymore. I decided to build a modern, user-friendly alternative, that allows owners of these remarkable machines to continue using them with their own stitch designs.
 
 If you find this project useful and would like to say "thank you" for the work already done, you are very welcome to make a small donation.
 
 [![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=ALB975LFDA7AE)
+
+## Disclaimer
+
+This software is a hobby project, not related to any manufacturer of consumer or industrial sewing equipment. It comes without any warranties. Always backup your important data!
 
 Thank you!
