@@ -155,7 +155,7 @@ class PatternBrowserDialog(QFileDialog):
         super().__init__(parent, "Open Stitch Pattern")
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
-        self.setNameFilter("All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;Embroidery Files (*.pcs);;All Files (*)")
+        self.setNameFilter("All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;9mm Stitch Files (*.pcd);;MAXI Stitch Files (*.pcq);;Embroidery Files (*.pcs);;All Files (*)")
         self.selectNameFilter("All Supported Files (*.pcd *.pcq *.pcs)")
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
