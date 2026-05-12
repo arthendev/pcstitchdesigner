@@ -2,7 +2,7 @@
 
 ## Application Overview
 
-This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines of the PFAFF Creative series.
+This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines.
 
 It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with modern 64-bit Windows systems. This project aims to restore its functionality in a contemporary environment. 
 
@@ -13,7 +13,7 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 ## Available Features
 
 - Creating custom stitch patterns ("P-Designs", both 9mm and MAXI-stiches)
-- Import and export of proprietary stitch file formats:
+- Import and export from/to stitch file formats:
   - *.PCD (9 mm stitches)
   - *.PCQ (MAXI stitches)
 - Transfer stitch patterns to and from supported sewing machines
@@ -27,8 +27,12 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 - Compatible sewing machine
   - PFAFF Creative 7570, 7550 or 1475 CD
 - Interface cable
-  - aftermarket USB-PFAFF cable
+  - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
+
+## User Manual
+
+[Online Documentation](https://github.com/arthendev/pcstitchdesigner/wiki) is available
 
 ## Planned Features
 
