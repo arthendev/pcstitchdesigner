@@ -27,8 +27,12 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 - Compatible sewing machine
   - PFAFF Creative 7570, 7550 or 1475 CD
 - Interface cable
-  - aftermarket USB-PFAFF cable
+  - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
+
+## User Manual
+
+[Online Documentation](https://github.com/arthendev/pcstitchdesigner/wiki) is available
 
 ## Planned Features
 
