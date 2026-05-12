@@ -8,7 +8,7 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 
 ## Main window of the application
 
-<img width="900" alt="main_window" src="https://github.com/user-attachments/assets/6dd2b807-3b4b-4e6d-aebb-307527acb5ba" />
+<img width="900" alt="main_window" src="https://github.com/user-attachments/assets/7da7d1e2-0498-4ed1-9e99-2b469eed21a3" />
 
 ## Available Features
 
