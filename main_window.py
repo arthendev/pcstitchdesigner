@@ -863,7 +863,9 @@ class MainWindow(QMainWindow):
             self._act_large_hoop.setChecked(True)
             return
         was_hoop = self._is_hoop_type()
+        old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "small hoop"
+        self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         if self._pattern.has_auto_stitches:
             self._pattern.clear_auto_stitches()
         self._last_auto_stitch_length_mm = None
@@ -889,7 +891,9 @@ class MainWindow(QMainWindow):
             self._act_small_hoop.setChecked(True)
             return
         was_hoop = self._is_hoop_type()
+        old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "large hoop"
+        self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         if self._pattern.has_auto_stitches:
             self._pattern.clear_auto_stitches()
         self._last_auto_stitch_length_mm = None
