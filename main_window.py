@@ -2088,7 +2088,7 @@ class MainWindow(QMainWindow):
         # Create a label with clickable links
         label = QLabel(
             f"<h3>PC Stitch Designer v{APP_VERSION}</h3>"
-            "<p>A stitch pattern editor for PFAFF machines.</p>"
+            "<p>A stitch pattern editor for  9 mm and MAXI stitches.</p>"
             "<p>Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.</p>"
             "<p><b>Project:</b> "
             '<a href="https://github.com/arthendev/pcstitchdesigner">'
