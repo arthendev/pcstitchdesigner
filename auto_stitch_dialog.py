@@ -11,7 +11,7 @@ class AutoStitchLengthDialog(QDialog):
 
     def __init__(self, current_value=5.0, max_dx_active=True, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Set Maximum Stitch Length")
+        self.setWindowTitle(self.tr("Set Maximum Stitch Length"))
         self.setFixedSize(300, 100)
 
         self._spinbox = QDoubleSpinBox()
@@ -20,20 +20,24 @@ class AutoStitchLengthDialog(QDialog):
         self._spinbox.setSingleStep(0.1)
         self._spinbox.setValue(current_value)
         self._spinbox.setToolTip(
-            "Limit the maximum distance between consecutive stitches.\n"
-            "Auto-stitches are inserted in between when this is exceeded."
+            self.tr(
+                "Limit the maximum distance between consecutive stitches.\n"
+                "Auto-stitches are inserted in between when this is exceeded."
+            )
         )
 
         input_row = QHBoxLayout()
-        input_row.addWidget(QLabel("Max. Stitch Length"))
+        input_row.addWidget(QLabel(self.tr("Max. Stitch Length")))
         input_row.addWidget(self._spinbox)
-        input_row.addWidget(QLabel("mm"))
+        input_row.addWidget(QLabel(self.tr("mm")))
 
-        self._max_dx_checkbox = QCheckBox("Max. dx: 6 mm")
+        self._max_dx_checkbox = QCheckBox(self.tr("Max. dx: 6 mm"))
         self._max_dx_checkbox.setChecked(max_dx_active)
         self._max_dx_checkbox.setToolTip(
-            "Limit the longitudinal distance (fabric transport) between consecutive stitches to 6 mm.\n"
-            "Auto-stitches are inserted in between when this is exceeded."
+            self.tr(
+                "Limit the longitudinal distance (fabric transport) between consecutive stitches to 6 mm.\n"
+                "Auto-stitches are inserted in between when this is exceeded."
+            )
         )
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)

@@ -82,20 +82,20 @@ class _PatternPreviewDialog(QDialog):
 
     def __init__(self, points, stitch_type, slot_index, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Preview \u2014 Slot {slot_index} ({stitch_type})")
+        self.setWindowTitle(f"Preview - Slot {slot_index} ({stitch_type})")
         self.resize(640, 360)
 
         layout = QVBoxLayout(self)
         self._preview = _PatternPreviewWidget(points, stitch_type, self)
         layout.addWidget(self._preview, 1)
 
-        info = QLabel(f"{len(points)} stitch points")
+        info = QLabel(self.tr("{0} stitch points").format(len(points)))
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         layout.addLayout(btn_row)
@@ -175,7 +175,7 @@ class PMemoryDialog(QDialog):
     # ── UI construction ──────────────────────────────────────────────────────
 
     def _setup_ui(self):
-        self.setWindowTitle("P-Memory")
+        self.setWindowTitle(self.tr("P-Memory"))
         self.setFixedWidth(320)
         self.setMinimumHeight(340)
         # Open with height of 500px
@@ -192,7 +192,7 @@ class PMemoryDialog(QDialog):
         left.setSpacing(4)
 
         self._table = QTableWidget(0, 3)
-        self._table.setHorizontalHeaderLabels(["Slot", "Type", "Size"])
+        self._table.setHorizontalHeaderLabels([self.tr("Slot"), self.tr("Type"), self.tr("Size")])
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -221,29 +221,29 @@ class PMemoryDialog(QDialog):
         right.setAlignment(Qt.AlignTop)
 
         if self._action == self.ACTION_SEND:
-            self._action_btn = QPushButton("Write")
+            self._action_btn = QPushButton(self.tr("Write"))
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_write)
-            mem_label = QLabel(f"Needed memory:\n{self._needed_bytes} bytes")
+            mem_label = QLabel(self.tr("Needed memory:\n{0} bytes").format(self._needed_bytes))
             mem_label.setAlignment(Qt.AlignCenter)
             right.addWidget(mem_label)
         elif self._action == self.ACTION_DELETE:
-            self._action_btn = QPushButton("Delete")
+            self._action_btn = QPushButton(self.tr("Delete"))
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_delete)
         elif self._action == self.ACTION_LOAD:
-            self._action_btn = QPushButton("Load")
+            self._action_btn = QPushButton(self.tr("Load"))
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_load)
         else:
             # Insert – reuses the same machine-read logic as Load
-            self._action_btn = QPushButton("Insert")
+            self._action_btn = QPushButton(self.tr("Insert"))
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_load)
 
         right.addWidget(self._action_btn)
 
-        self._preview_btn = QPushButton("Preview")
+        self._preview_btn = QPushButton(self.tr("Preview"))
         self._preview_btn.setEnabled(False)
         self._preview_btn.clicked.connect(self._on_preview)
         right.addWidget(self._preview_btn)
@@ -263,7 +263,7 @@ class PMemoryDialog(QDialog):
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         btn_row.addWidget(self._progress_bar, 1)
 
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.clicked.connect(self._on_close)
         btn_row.addWidget(close_btn)
         outer.addLayout(btn_row)
@@ -313,7 +313,7 @@ class PMemoryDialog(QDialog):
             self._table.setItem(row, 0, QTableWidgetItem("P" + str(row)))
             self._table.setItem(row, 1, type_item)
             self._table.setItem(row, 2, size_item)
-        self._free_label.setText(f"Free memory: {pmem_info.get('free_memory', 0)} bytes")
+        self._free_label.setText(self.tr("Free memory: {0} bytes").format(pmem_info.get('free_memory', 0)))
     # ── Actions ──────────────────────────────────────────────────────────────
 
     def _on_preview(self):
@@ -346,7 +346,7 @@ class PMemoryDialog(QDialog):
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._preview_btn.setEnabled(True)
-            QMessageBox.critical(self, "Machine Error", str(exc))
+            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
             return
 
         self._progress_bar.setValue(0)
@@ -356,7 +356,7 @@ class PMemoryDialog(QDialog):
         try:
             points = MachineComm.decode_machine_pattern(raw_data, slot_type)
         except Exception as exc:
-            QMessageBox.critical(self, "Machine Error", f"Failed to decode pattern: {exc}")
+            QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Failed to decode pattern: {0}").format(exc))
             return
 
         _PatternPreviewDialog(points, slot_type, slot_index, parent=self).exec_()
@@ -364,7 +364,7 @@ class PMemoryDialog(QDialog):
     def _on_write(self):
         """Send the pattern to the machine (command → header → stitch data)."""
         if self._pattern is None:
-            QMessageBox.warning(self, "P-Memory", "No pattern data to send.")
+            QMessageBox.warning(self, self.tr("P-Memory"), self.tr("No pattern data to send."))
             return
         slot_index = self._selected_slot_index()
         if slot_index is None:
@@ -373,8 +373,8 @@ class PMemoryDialog(QDialog):
         # MAXI stitches are not yet supported for PFAFF Creative 1475 CD.
         if "1475" in self._machine_model and self._pattern.stitch_type == "MAXI":
             QMessageBox.critical(
-                self, "Not Supported",
-                "Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD"
+                self, self.tr("Not Supported"),
+                self.tr("Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD")
             )
             return
 
@@ -382,9 +382,8 @@ class PMemoryDialog(QDialog):
         if self._selected_slot_size() > 0:
             answer = QMessageBox.question(
                 self,
-                "Slot Not Empty",
-                f"Slot {slot_index} already contains data.\n"
-                "Delete it before writing?",
+                self.tr("Slot Not Empty"),
+                self.tr("Slot {0} already contains data.\nDelete it before writing?").format(slot_index),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -395,7 +394,7 @@ class PMemoryDialog(QDialog):
             try:
                 self._comm.delete_pmemory_slot(slot_index)
             except Exception as exc:
-                QMessageBox.critical(self, "Machine Error", str(exc))
+                QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
                 return
 
             # Refresh the table so the slot shows as empty.
@@ -404,8 +403,8 @@ class PMemoryDialog(QDialog):
                 pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
             except Exception as exc:
                 QMessageBox.critical(
-                    self, "Machine Error",
-                    f"Failed to refresh P-Memory after delete:\n{exc}"
+                    self, self.tr("Machine Error"),
+                    self.tr("Failed to refresh P-Memory after delete:\n{0}").format(exc)
                 )
                 self._end_transmission()
                 self.reject()
@@ -417,10 +416,8 @@ class PMemoryDialog(QDialog):
         free = self._pmem_info.get('free_memory', 0)
         if self._needed_bytes > free:
             QMessageBox.warning(
-                self, "Insufficient Memory",
-                f"The pattern requires {self._needed_bytes} bytes but only "
-                f"{free} bytes are free in P-Memory.\n\n"
-                "Please delete one or more slots to free up space."
+                self, self.tr("Insufficient Memory"),
+                self.tr("The pattern requires {0} bytes but only {1} bytes are free in P-Memory.\n\nPlease delete one or more slots to free up space.").format(self._needed_bytes, free)
             )
             return
 
@@ -460,8 +457,8 @@ class PMemoryDialog(QDialog):
 
         answer = QMessageBox.question(
             self,
-            "Confirm Delete",
-            f"Delete slot {slot_index} from P-Memory?",
+            self.tr("Confirm Delete"),
+            self.tr("Delete pattern {0} from P-Memory?").format(slot_index),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -473,7 +470,7 @@ class PMemoryDialog(QDialog):
             self._comm.delete_pmemory_slot(slot_index)
         except Exception as exc:
             self._action_btn.setEnabled(True)
-            QMessageBox.critical(self, "Machine Error", str(exc))
+            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
             return
 
         # Refresh P-Memory info from the machine
@@ -481,7 +478,7 @@ class PMemoryDialog(QDialog):
             raw = self._comm.query_pmemory()
             pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
         except Exception as exc:
-            QMessageBox.critical(self, "Machine Error", f"Error during communication")
+            QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Error during communication"))
             self._end_transmission()
             self.reject()
             return
@@ -520,7 +517,7 @@ class PMemoryDialog(QDialog):
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._action_btn.setEnabled(True)
-            QMessageBox.critical(self, "Machine Error", str(exc))
+            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
             return
 
         try:
@@ -531,8 +528,8 @@ class PMemoryDialog(QDialog):
             self._end_transmission()
             self.reject()
             QMessageBox.critical(
-                self.parent(), "Machine Error",
-                f"Failed to decode pattern: {exc}"
+                self.parent(), self.tr("Machine Error"),
+                self.tr("Failed to decode pattern: {0}").format(exc)
             )
             return
 

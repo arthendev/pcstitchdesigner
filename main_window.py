@@ -30,14 +30,14 @@ from check_updates_dialog import run_check_for_updates, run_silent_check_for_upd
 
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, config=None):
         super().__init__()
         self.setWindowTitle("PC Stitch Designer")
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icons", "pc_stitch_designer.svg")))
         self.resize(1200, 700)
 
-        # Load configuration
-        self._config = Config()
+        # Use provided config or create a new one
+        self._config = config if config is not None else Config()
         self._recent_files = self._config.get_recent_files()
 
         # Machine communication
@@ -73,10 +73,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._scroll)
 
         # Status bar labels
-        self._tool_label = QLabel("Tool: —")
-        self._coord_label = QLabel("x: — y: —")
-        self._count_label = QLabel("Points: 0")
-        self._size_label = QLabel("W: — mm  H: — mm")
+        self._tool_label = QLabel(self.tr("Tool: -"))
+        self._coord_label = QLabel("x: - y: -")
+        self._count_label = QLabel(self.tr("Points: 0"))
+        self._size_label = QLabel("W: - mm  H: - mm")
         self.statusBar().addWidget(self._tool_label)
         self.statusBar().addPermanentWidget(self._coord_label)
         self.statusBar().addPermanentWidget(self._size_label)
@@ -148,29 +148,29 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self):
         # File
-        self._act_new = QAction("&New", self)
+        self._act_new = QAction(self.tr("&New"), self)
         self._act_new.setShortcut("Ctrl+N")
         self._act_new.triggered.connect(self._file_new)
 
-        self._act_open = QAction("&Open…", self)
+        self._act_open = QAction(self.tr("&Open…"), self)
         self._act_open.setShortcut("Ctrl+O")
         self._act_open.triggered.connect(self._file_open)
 
-        self._act_browser = QAction("&Browser…", self)
+        self._act_browser = QAction(self.tr("&Browser…"), self)
         self._act_browser.triggered.connect(self._file_browser)
 
-        self._act_save = QAction("&Save", self)
+        self._act_save = QAction(self.tr("&Save"), self)
         self._act_save.setShortcut("Ctrl+S")
         self._act_save.triggered.connect(self._file_save)
 
-        self._act_save_as = QAction("Save &As…", self)
+        self._act_save_as = QAction(self.tr("Save &As…"), self)
         self._act_save_as.setShortcut("Ctrl+Shift+S")
         self._act_save_as.triggered.connect(self._file_save_as)
 
-        self._act_clear_recent = QAction("Clear List", self)
+        self._act_clear_recent = QAction(self.tr("Clear List"), self)
         self._act_clear_recent.triggered.connect(self._clear_recent_files)
 
-        self._act_exit = QAction("E&xit", self)
+        self._act_exit = QAction(self.tr("E&xit"), self)
         self._act_exit.setShortcut("Alt+F4")
         self._act_exit.triggered.connect(self.close)
 
@@ -178,136 +178,136 @@ class MainWindow(QMainWindow):
         _icons = os.path.join(os.path.dirname(__file__), "icons")
 
         # Edit
-        self._act_undo = QAction(QIcon(os.path.join(_icons, "undo.svg")), "&Undo", self)
+        self._act_undo = QAction(QIcon(os.path.join(_icons, "undo.svg")), self.tr("&Undo"), self)
         self._act_undo.setShortcut("Ctrl+Z")
         self._act_undo.triggered.connect(self._edit_undo)
 
-        self._act_redo = QAction(QIcon(os.path.join(_icons, "redo.svg")), "&Redo", self)
+        self._act_redo = QAction(QIcon(os.path.join(_icons, "redo.svg")), self.tr("&Redo"), self)
         self._act_redo.setShortcut("Ctrl+Y")
         self._act_redo.triggered.connect(self._edit_redo)
 
-        self._act_copy = QAction("&Copy", self)
+        self._act_copy = QAction(self.tr("&Copy"), self)
         self._act_copy.setShortcut("Ctrl+C")
         self._act_copy.setEnabled(False)
         self._act_copy.triggered.connect(self._edit_copy)
 
-        self._act_cut = QAction("Cu&t", self)
+        self._act_cut = QAction(self.tr("Cu&t"), self)
         self._act_cut.setShortcut("Ctrl+X")
         self._act_cut.setEnabled(False)
         self._act_cut.triggered.connect(self._edit_cut)
 
-        self._act_paste = QAction("&Paste", self)
+        self._act_paste = QAction(self.tr("&Paste"), self)
         self._act_paste.setShortcut("Ctrl+V")
         self._act_paste.setEnabled(False)
         self._act_paste.triggered.connect(self._edit_paste)
 
-        self._act_select_all = QAction("Select &All", self)
+        self._act_select_all = QAction(self.tr("Select &All"), self)
         self._act_select_all.setShortcut("Ctrl+A")
         self._act_select_all.triggered.connect(self._edit_select_all)
 
-        self._act_clear_selection = QAction("Clear Selection", self)
+        self._act_clear_selection = QAction(self.tr("Clear Selection"), self)
         self._act_clear_selection.setShortcut("Ctrl+D")
         self._act_clear_selection.setEnabled(False)
         self._act_clear_selection.triggered.connect(self._edit_clear_selection)
 
-        self._act_delete_selected = QAction("&Delete", self)
+        self._act_delete_selected = QAction(self.tr("&Delete"), self)
         self._act_delete_selected.setShortcut("Delete")
         self._act_delete_selected.setEnabled(False)
         self._act_delete_selected.triggered.connect(self._edit_delete_selected)
 
-        self._act_invert_selected = QAction("&Invert Selected", self)
+        self._act_invert_selected = QAction(self.tr("&Invert Selected"), self)
         self._act_invert_selected.setEnabled(False)
         self._act_invert_selected.triggered.connect(self._edit_invert_selected)
 
-        self._act_mirror_vertical = QAction("Mirror &Vertically", self)
+        self._act_mirror_vertical = QAction(self.tr("Mirror &Vertically"), self)
         self._act_mirror_vertical.setEnabled(False)
         self._act_mirror_vertical.triggered.connect(self._edit_mirror_vertical)
 
-        self._act_mirror_horizontal = QAction("Mirror &Horizontally", self)
+        self._act_mirror_horizontal = QAction(self.tr("Mirror &Horizontally"), self)
         self._act_mirror_horizontal.setEnabled(False)
         self._act_mirror_horizontal.triggered.connect(self._edit_mirror_horizontal)
 
-        self._act_sel_extend = QAction("Extend by 1 stitch", self)
+        self._act_sel_extend = QAction(self.tr("Extend by 1 stitch"), self)
         self._act_sel_extend.setEnabled(False)
         self._act_sel_extend.triggered.connect(self._edit_sel_extend)
 
-        self._act_sel_reduce = QAction("Reduce by 1 stitch", self)
+        self._act_sel_reduce = QAction(self.tr("Reduce by 1 stitch"), self)
         self._act_sel_reduce.setEnabled(False)
         self._act_sel_reduce.triggered.connect(self._edit_sel_reduce)
 
-        self._act_sel_move_forward = QAction("Move forwards", self)
+        self._act_sel_move_forward = QAction(self.tr("Move forwards"), self)
         self._act_sel_move_forward.setEnabled(False)
         self._act_sel_move_forward.triggered.connect(self._edit_sel_move_forward)
 
-        self._act_sel_move_backward = QAction("Move backwards", self)
+        self._act_sel_move_backward = QAction(self.tr("Move backwards"), self)
         self._act_sel_move_backward.setEnabled(False)
         self._act_sel_move_backward.triggered.connect(self._edit_sel_move_backward)
 
         # Selection toolbar – icon-only actions (reuse the same handlers)
         self._act_sel_tb_reduce = QAction(
             QIcon(os.path.join(_icons, "selection_minus.svg")),
-            "Reduce selection by 1 stitch", self)
+            self.tr("Reduce selection by 1 stitch"), self)
         self._act_sel_tb_reduce.setEnabled(False)
         self._act_sel_tb_reduce.triggered.connect(self._edit_sel_reduce)
 
         self._act_sel_tb_extend = QAction(
             QIcon(os.path.join(_icons, "selection_plus.svg")),
-            "Increase selection by 1 stitch", self)
+            self.tr("Increase selection by 1 stitch"), self)
         self._act_sel_tb_extend.setEnabled(False)
         self._act_sel_tb_extend.triggered.connect(self._edit_sel_extend)
 
         self._act_sel_tb_move_backward = QAction(
             QIcon(os.path.join(_icons, "selection_left.svg")),
-            "Move selection by 1 stitch towards beginning", self)
+            self.tr("Move selection by 1 stitch towards beginning"), self)
         self._act_sel_tb_move_backward.setEnabled(False)
         self._act_sel_tb_move_backward.triggered.connect(self._edit_sel_move_backward)
 
         self._act_sel_tb_move_forward = QAction(
             QIcon(os.path.join(_icons, "selection_right.svg")),
-            "Move selection by 1 stitch towards end", self)
+            self.tr("Move selection by 1 stitch towards end"), self)
         self._act_sel_tb_move_forward.setEnabled(False)
         self._act_sel_tb_move_forward.triggered.connect(self._edit_sel_move_forward)
 
         # Edit – Resize/Rotate selection
-        self._act_sel_xform = QAction("Resize/Rotate", self)
+        self._act_sel_xform = QAction(self.tr("Resize/Rotate"), self)
         self._act_sel_xform.setEnabled(False)
         self._act_sel_xform.triggered.connect(self._edit_sel_xform_activate)
 
         # Sel-xform toolbar OK/Cancel actions (icon-only)
         self._act_sel_xform_ok = QAction(
             QIcon(os.path.join(_icons, "ok_green.svg")), "", self)
-        self._act_sel_xform_ok.setToolTip("Accept transform")
+        self._act_sel_xform_ok.setToolTip(self.tr("Accept transform"))
         self._act_sel_xform_ok.triggered.connect(self._edit_sel_xform_ok)
 
         self._act_sel_xform_cancel = QAction(
             QIcon(os.path.join(_icons, "nok_red.svg")), "", self)
-        self._act_sel_xform_cancel.setToolTip("Cancel transform")
+        self._act_sel_xform_cancel.setToolTip(self.tr("Cancel transform"))
         self._act_sel_xform_cancel.triggered.connect(self._edit_sel_xform_cancel)
 
         # Tools (checkable, exclusive)
 
         self._act_pan = QAction(QIcon(os.path.join(_icons, "pan.svg")),
-                                 "Pan", self)
+                                 self.tr("Pan"), self)
         self._act_pan.setCheckable(True)
         self._act_pan.triggered.connect(self._on_tool_pan)
 
         self._act_select = QAction(QIcon(os.path.join(_icons, "select_point.svg")),
-                                   "Select Stitch Points", self)
+                                   self.tr("Select Stitch Points"), self)
         self._act_select.setCheckable(True)
         self._act_select.triggered.connect(self._on_tool_select)
 
         self._act_add = QAction(QIcon(os.path.join(_icons, "add_point.svg")),
-                                "Add Stitch Point", self)
+                                self.tr("Add Stitch Points"), self)
         self._act_add.setCheckable(True)
         self._act_add.triggered.connect(self._on_tool_add)
 
         self._act_move = QAction(QIcon(os.path.join(_icons, "move_point.svg")),
-                                "Move Stitch Point", self)
+                                self.tr("Move Stitch Points"), self)
         self._act_move.setCheckable(True)
         self._act_move.triggered.connect(self._on_tool_move)
 
         self._act_delete = QAction(QIcon(os.path.join(_icons, "delete_point.svg")),
-                                   "Delete Stitch Point", self)
+                                   self.tr("Delete Stitch Points"), self)
         self._act_delete.setCheckable(True)
         self._act_delete.triggered.connect(self._on_tool_delete)
 
@@ -320,35 +320,35 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_delete)
 
         self._act_zoom_in = QAction(QIcon(os.path.join(_icons, "zoom_in.svg")),
-                                    "Zoom In", self)
+                                    self.tr("Zoom In"), self)
         self._act_zoom_in.setShortcut("Ctrl++")
         self._act_zoom_in.triggered.connect(self._zoom_in)
 
         self._act_zoom_out = QAction(QIcon(os.path.join(_icons, "zoom_out.svg")),
-                                     "Zoom Out", self)
+                                     self.tr("Zoom Out"), self)
         self._act_zoom_out.setShortcut("Ctrl+-")
         self._act_zoom_out.triggered.connect(self._zoom_out)
 
         self._act_fit_height = QAction(QIcon(os.path.join(_icons, "fit_height.svg")),
-                                       "Fit Height", self)
+                                       self.tr("Fit Height"), self)
         self._act_fit_height.setShortcut("Ctrl+0")
         self._act_fit_height.triggered.connect(self._zoom_fit_height)
 
         self._act_fit_screen = QAction(QIcon(os.path.join(_icons, "fit_screen.svg")),
-                                       "Fit Screen", self)
+                                       self.tr("Fit Screen"), self)
         self._act_fit_screen.triggered.connect(self._zoom_fit_screen)
 
         self._act_fit_pattern = QAction(QIcon(os.path.join(_icons, "fit_pattern.svg")),
-                                        "Fit Pattern", self)
+                                        self.tr("Fit Pattern"), self)
         self._act_fit_pattern.triggered.connect(self._fit_pattern)
 
-        self._act_show_grid = QAction(QIcon(os.path.join(_icons, "grid.svg")), "Show &Grid", self)
+        self._act_show_grid = QAction(QIcon(os.path.join(_icons, "grid.svg")), self.tr("Show &Grid"), self)
         self._act_show_grid.setCheckable(True)
         self._act_show_grid.setChecked(True)
         self._act_show_grid.triggered.connect(self._toggle_show_grid)
 
         # Menu-only version: checkbox, no icon
-        self._act_show_grid_menu = QAction("Show &Grid", self)
+        self._act_show_grid_menu = QAction(self.tr("Show &Grid"), self)
         self._act_show_grid_menu.setCheckable(True)
         self._act_show_grid_menu.setChecked(True)
         self._act_show_grid_menu.triggered.connect(self._toggle_show_grid)
@@ -356,13 +356,13 @@ class MainWindow(QMainWindow):
         self._act_show_grid.triggered.connect(self._act_show_grid_menu.setChecked)
 
         self._act_show_stitch_points = QAction(
-            QIcon(os.path.join(_icons, "stitch_point.svg")), "Show &Stitch Points", self)
+            QIcon(os.path.join(_icons, "stitch_point.svg")), self.tr("Show &Stitch Points"), self)
         self._act_show_stitch_points.setCheckable(True)
         self._act_show_stitch_points.setChecked(True)
         self._act_show_stitch_points.triggered.connect(self._toggle_show_stitch_points)
 
         # Menu-only version: checkbox, no icon
-        self._act_show_stitch_points_menu = QAction("Show &Stitch Points", self)
+        self._act_show_stitch_points_menu = QAction(self.tr("Show &Stitch Points"), self)
         self._act_show_stitch_points_menu.setCheckable(True)
         self._act_show_stitch_points_menu.setChecked(True)
         self._act_show_stitch_points_menu.triggered.connect(self._toggle_show_stitch_points)
@@ -371,14 +371,14 @@ class MainWindow(QMainWindow):
 
         self._act_show_auto_stitch_points = QAction(
             QIcon(os.path.join(_icons, "stitch_cross.svg")),
-            "Show Automatic Stitch Points",
+            self.tr("Show Automatic Stitch Points"),
             self,
         )
         self._act_show_auto_stitch_points.setCheckable(True)
         self._act_show_auto_stitch_points.setChecked(True)
         self._act_show_auto_stitch_points.triggered.connect(self._toggle_show_auto_stitch_points)
 
-        self._act_show_auto_stitch_points_menu = QAction("Show Automatic Stitch Points", self)
+        self._act_show_auto_stitch_points_menu = QAction(self.tr("Show Automatic Stitch Points"), self)
         self._act_show_auto_stitch_points_menu.setCheckable(True)
         self._act_show_auto_stitch_points_menu.setChecked(True)
         self._act_show_auto_stitch_points_menu.triggered.connect(self._toggle_show_auto_stitch_points)
@@ -391,28 +391,28 @@ class MainWindow(QMainWindow):
 
         self._act_animate = QAction(
             QIcon(os.path.join(_icons, "player.svg")),
-            "&Animate Stitching", self
+            self.tr("&Animate Stitching"), self
         )
         self._act_animate.triggered.connect(self._view_animate_stitching)
 
         # View orientation toggle (toolbar button)
         self._act_toggle_orientation = QAction(
             QIcon(os.path.join(_icons, "rotate_view.svg")),
-            "Toggle Orientation", self
+            self.tr("Toggle Orientation"), self
         )
         self._act_toggle_orientation.setCheckable(True)
         self._act_toggle_orientation.setToolTip(
-            "Toggle view orientation: Default / Sewing Direction"
+            self.tr("Toggle view orientation: Default / Sewing Direction")
         )
         self._act_toggle_orientation.triggered.connect(self._on_toggle_orientation)
 
         # View orientation
-        self._act_orientation_default = QAction("Default", self)
+        self._act_orientation_default = QAction(self.tr("Default"), self)
         self._act_orientation_default.setCheckable(True)
         self._act_orientation_default.setChecked(True)
         self._act_orientation_default.triggered.connect(self._on_orientation_default)
 
-        self._act_orientation_sewing = QAction("Sewing Direction", self)
+        self._act_orientation_sewing = QAction(self.tr("Sewing Direction"), self)
         self._act_orientation_sewing.setCheckable(True)
         self._act_orientation_sewing.triggered.connect(self._on_orientation_sewing)
 
@@ -453,11 +453,11 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_maxi)
 
         # Hoop type (Small / Large) - visible when P-Design is selected
-        self._act_small_hoop = QAction("Small Hoop", self)
+        self._act_small_hoop = QAction(self.tr("Small Hoop"), self)
         self._act_small_hoop.setCheckable(True)
         self._act_small_hoop.triggered.connect(self._on_stitch_small_hoop)
 
-        self._act_large_hoop = QAction("Large Hoop", self)
+        self._act_large_hoop = QAction(self.tr("Large Hoop"), self)
         self._act_large_hoop.setCheckable(True)
         self._act_large_hoop.triggered.connect(self._on_stitch_large_hoop)
 
@@ -465,80 +465,80 @@ class MainWindow(QMainWindow):
         self._stitch_group.addAction(self._act_large_hoop)
 
         # Design – Normal Stitches
-        self._act_std_stitch_align_grid = QAction("&Align to Grid", self)
+        self._act_std_stitch_align_grid = QAction(self.tr("&Align to Grid"), self)
         self._act_std_stitch_align_grid.setCheckable(True)
         self._act_std_stitch_align_grid.setChecked(True)
         self._act_std_stitch_align_grid.triggered.connect(self._design_std_stitch_align_grid_toggled)
 
         # Design – Automatic Stitches
-        self._act_set_auto_stitch_length = QAction("Set Maximum &Length…", self)
+        self._act_set_auto_stitch_length = QAction(self.tr("Set Maximum &Length…"), self)
         self._act_set_auto_stitch_length.triggered.connect(self._design_set_auto_stitch_length)
 
-        self._act_remove_auto_stitches = QAction("Remove &All", self)
+        self._act_remove_auto_stitches = QAction(self.tr("Remove &All"), self)
         self._act_remove_auto_stitches.triggered.connect(self._design_remove_auto_stitches)
 
-        self._act_convert_auto_stitches = QAction("&Convert to Normal Stitches", self)
+        self._act_convert_auto_stitches = QAction(self.tr("&Convert to Normal Stitches"), self)
         self._act_convert_auto_stitches.triggered.connect(self._design_convert_auto_stitches)
 
-        self._act_auto_stitch_align_grid = QAction("&Align to Grid", self)
+        self._act_auto_stitch_align_grid = QAction(self.tr("&Align to Grid"), self)
         self._act_auto_stitch_align_grid.setCheckable(True)
         self._act_auto_stitch_align_grid.setChecked(False)
         self._act_auto_stitch_align_grid.triggered.connect(self._design_auto_stitch_align_grid_toggled)
 
         # Design – Template
-        self._act_template_load = QAction("Load &Image…", self)
+        self._act_template_load = QAction(self.tr("Load &Image…"), self)
         self._act_template_load.triggered.connect(self._design_template_load)
 
-        self._act_template_resize = QAction("&Resize/Rotate", self)
+        self._act_template_resize = QAction(self.tr("&Resize/Rotate"), self)
         self._act_template_resize.setEnabled(False)
         self._act_template_resize.triggered.connect(self._design_template_resize)
 
-        self._act_template_delete = QAction("&Delete", self)
+        self._act_template_delete = QAction(self.tr("&Delete"), self)
         self._act_template_delete.setEnabled(False)
         self._act_template_delete.triggered.connect(self._design_template_delete)
 
         # Design – Template editing toolbar (OK / Cancel)
         self._act_template_edit_ok = QAction(
             QIcon(os.path.join(_icons, "ok_green.svg")), "", self)
-        self._act_template_edit_ok.setToolTip("Accept changes")
+        self._act_template_edit_ok.setToolTip(self.tr("Accept changes"))
         self._act_template_edit_ok.triggered.connect(self._template_edit_ok)
 
         self._act_template_edit_cancel = QAction(
             QIcon(os.path.join(_icons, "nok_red.svg")), "", self)
-        self._act_template_edit_cancel.setToolTip("Cancel changes")
+        self._act_template_edit_cancel.setToolTip(self.tr("Cancel changes"))
         self._act_template_edit_cancel.triggered.connect(self._template_edit_cancel)
 
         # Machine
-        self._act_machine_load_pmem = QAction("Load P-Memory", self)
+        self._act_machine_load_pmem = QAction(self.tr("Load P-Memory"), self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
 
-        self._act_machine_send_pmem = QAction("Send P-Memory", self)
+        self._act_machine_send_pmem = QAction(self.tr("Send P-Memory"), self)
         self._act_machine_send_pmem.triggered.connect(self._machine_send_pmemory)
 
-        self._act_machine_insert_pmem = QAction("Insert P-Memory", self)
+        self._act_machine_insert_pmem = QAction(self.tr("Insert P-Memory"), self)
         self._act_machine_insert_pmem.triggered.connect(self._machine_insert_pmemory)
 
-        self._act_machine_delete_pmem = QAction("Delete P-Memory", self)
+        self._act_machine_delete_pmem = QAction(self.tr("Delete P-Memory"), self)
         self._act_machine_delete_pmem.triggered.connect(self._machine_delete_pmemory)
 
-        self._act_machine_config = QAction("Configuration…", self)
+        self._act_machine_config = QAction(self.tr("Configuration…"), self)
         self._act_machine_config.triggered.connect(self._machine_configuration)
 
         # Settings
-        self._act_preferences = QAction(QIcon(os.path.join(_icons, "settings.svg")), "Preferences…", self)
+        self._act_preferences = QAction(QIcon(os.path.join(_icons, "settings.svg")), self.tr("Preferences…"), self)
         self._act_preferences.triggered.connect(self._settings_preferences)
 
         # Help
-        self._act_about = QAction("&About", self)
+        self._act_about = QAction(self.tr("&About"), self)
         self._act_about.triggered.connect(self._help_about)
 
-        self._act_check_updates = QAction("Check for &Updates...", self)
+        self._act_check_updates = QAction(self.tr("Check for &Updates..."), self)
         self._act_check_updates.triggered.connect(self._help_check_for_updates)
 
-        self._act_online_docs = QAction("&Online Documentation", self)
+        self._act_online_docs = QAction(self.tr("&Online Documentation"), self)
         self._act_online_docs.triggered.connect(self._help_online_docs)
 
-        self._act_donate = QAction("&Donate!", self)
+        self._act_donate = QAction(self.tr("&Donate!"), self)
         self._act_donate.triggered.connect(self._help_donate)
 
     # ── Menus ──
@@ -546,13 +546,13 @@ class MainWindow(QMainWindow):
     def _build_menus(self):
         mb = self.menuBar()
 
-        file_menu = mb.addMenu("&File")
+        file_menu = mb.addMenu(self.tr("&File"))
         file_menu.addAction(self._act_new)
         file_menu.addAction(self._act_open)
         file_menu.addAction(self._act_browser)
         
         # Open Recent submenu
-        self._recent_menu = QMenu("Open &Recent", self)
+        self._recent_menu = QMenu(self.tr("Open &Recent"), self)
         file_menu.addMenu(self._recent_menu)
         self._update_recent_files_menu()
         
@@ -562,7 +562,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(self._act_exit)
 
-        edit_menu = mb.addMenu("&Edit")
+        edit_menu = mb.addMenu(self.tr("&Edit"))
         edit_menu.addAction(self._act_undo)
         edit_menu.addAction(self._act_redo)
         edit_menu.addSeparator()
@@ -572,7 +572,7 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_delete_selected)
         edit_menu.addSeparator()
         edit_menu.addAction(self._act_select_all)
-        sel_submenu = edit_menu.addMenu("&Selection")
+        sel_submenu = edit_menu.addMenu(self.tr("&Selection"))
         sel_submenu.addAction(self._act_sel_extend)
         sel_submenu.addAction(self._act_sel_reduce)
         sel_submenu.addSeparator()
@@ -585,15 +585,15 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_mirror_horizontal)
         edit_menu.addAction(self._act_sel_xform)
 
-        tools_menu = mb.addMenu("&Tools")
+        tools_menu = mb.addMenu(self.tr("&Tools"))
         tools_menu.addAction(self._act_pan)
         tools_menu.addAction(self._act_select)
         tools_menu.addAction(self._act_add)
         tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
 
-        view_menu = mb.addMenu("&View")
-        orientation_menu = view_menu.addMenu("View &Orientation")
+        view_menu = mb.addMenu(self.tr("&View"))
+        orientation_menu = view_menu.addMenu(self.tr("View &Orientation"))
         orientation_menu.addAction(self._act_orientation_default)
         orientation_menu.addAction(self._act_orientation_sewing)
         view_menu.addSeparator()
@@ -610,7 +610,7 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
         view_menu.addAction(self._act_animate)
 
-        design_menu = mb.addMenu("&Design")
+        design_menu = mb.addMenu(self.tr("&Design"))
         design_menu.addAction(self._act_pdesign)
         design_menu.addAction(self._act_mdesign)
         design_menu.addSeparator()
@@ -620,10 +620,10 @@ class MainWindow(QMainWindow):
         design_menu.addAction(self._act_large_hoop)
         design_menu.addSeparator()
 
-        std_stitches_menu = design_menu.addMenu("&Normal Stitches")
+        std_stitches_menu = design_menu.addMenu(self.tr("&Normal Stitches"))
         std_stitches_menu.addAction(self._act_std_stitch_align_grid)
 
-        auto_stitches_menu = design_menu.addMenu("&Automatic Stitches")
+        auto_stitches_menu = design_menu.addMenu(self.tr("&Automatic Stitches"))
         auto_stitches_menu.addAction(self._act_set_auto_stitch_length)
         auto_stitches_menu.addAction(self._act_remove_auto_stitches)
         auto_stitches_menu.addAction(self._act_convert_auto_stitches)
@@ -631,13 +631,13 @@ class MainWindow(QMainWindow):
         auto_stitches_menu.addAction(self._act_auto_stitch_align_grid)
         design_menu.addSeparator()
 
-        template_menu = design_menu.addMenu("&Template Image")
+        template_menu = design_menu.addMenu(self.tr("&Template Image"))
         template_menu.addAction(self._act_template_load)
         template_menu.addAction(self._act_template_resize)
         template_menu.addSeparator()
         template_menu.addAction(self._act_template_delete)
 
-        machine_menu = mb.addMenu("&Machine")
+        machine_menu = mb.addMenu(self.tr("&Machine"))
         machine_menu.addAction(self._act_machine_load_pmem)
         machine_menu.addAction(self._act_machine_send_pmem)
         machine_menu.addAction(self._act_machine_insert_pmem)
@@ -645,10 +645,10 @@ class MainWindow(QMainWindow):
         # machine_menu.addSeparator()
         # machine_menu.addAction(self._act_machine_config)
 
-        settings_menu = mb.addMenu("&Settings")
+        settings_menu = mb.addMenu(self.tr("&Settings"))
         settings_menu.addAction(self._act_preferences)
 
-        help_menu = mb.addMenu("&Help")
+        help_menu = mb.addMenu(self.tr("&Help"))
         help_menu.addAction(self._act_check_updates)
         help_menu.addAction(self._act_online_docs)
         help_menu.addAction(self._act_donate)
@@ -658,7 +658,7 @@ class MainWindow(QMainWindow):
     # ── Toolbar ──
 
     def _build_toolbar(self):
-        tb = QToolBar("Main Toolbar")
+        tb = QToolBar(self.tr("Main Toolbar"))
         tb.setMovable(False)
         self.addToolBar(Qt.TopToolBarArea, tb)
 
@@ -688,7 +688,7 @@ class MainWindow(QMainWindow):
 
         # Compact template-editing toolbar (shown only in resize/rotate mode)
         self.addToolBarBreak(Qt.TopToolBarArea)
-        self._template_toolbar = QToolBar("Template Edit", self)
+        self._template_toolbar = QToolBar(self.tr("Template Edit"), self)
         self._template_toolbar.setMovable(False)
         self._template_toolbar.addAction(self._act_template_edit_ok)
         self._template_toolbar.addAction(self._act_template_edit_cancel)
@@ -696,7 +696,7 @@ class MainWindow(QMainWindow):
         self._template_toolbar.setVisible(False)
 
         # Compact selection toolbar (shown only when SelectPointTool is active)
-        self._selection_toolbar = QToolBar("Selection", self)
+        self._selection_toolbar = QToolBar(self.tr("Selection"), self)
         self._selection_toolbar.setMovable(False)
         self._selection_toolbar.addAction(self._act_sel_tb_reduce)
         self._selection_toolbar.addAction(self._act_sel_tb_extend)
@@ -706,7 +706,7 @@ class MainWindow(QMainWindow):
         self._selection_toolbar.setVisible(False)
 
         # Compact sel-xform toolbar (shown while resize/rotate is active)
-        self._sel_xform_toolbar = QToolBar("Resize/Rotate", self)
+        self._sel_xform_toolbar = QToolBar(self.tr("Resize/Rotate"), self)
         self._sel_xform_toolbar.setMovable(False)
         self._sel_xform_toolbar.addAction(self._act_sel_xform_ok)
         self._sel_xform_toolbar.addAction(self._act_sel_xform_cancel)
@@ -724,13 +724,13 @@ class MainWindow(QMainWindow):
     def _on_tool_pan(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._pan_tool)
-        self._tool_label.setText("Tool: Pan")
+        self._tool_label.setText(self.tr("Tool: Pan"))
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_select(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_tool)
-        self._tool_label.setText("Tool: Select Stitch Points")
+        self._tool_label.setText(self.tr("Tool: Select Stitch Points"))
         self._selection_toolbar.setVisible(True)
         self._selection_toolbar.setMaximumWidth(
             self._selection_toolbar.sizeHint().width()
@@ -739,19 +739,19 @@ class MainWindow(QMainWindow):
     def _on_tool_add(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._add_tool)
-        self._tool_label.setText("Tool: Add Stitch Point")
+        self._tool_label.setText(self.tr("Tool: Add Stitch Points"))
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_move(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._move_tool)
-        self._tool_label.setText("Tool: Move Stitch Point")
+        self._tool_label.setText(self.tr("Tool: Move Stitch Points"))
         self._selection_toolbar.setVisible(False)
 
     def _on_tool_delete(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._delete_tool)
-        self._tool_label.setText("Tool: Delete Stitch Point")
+        self._tool_label.setText(self.tr("Tool: Delete Stitch Points"))
         self._selection_toolbar.setVisible(False)
 
     # ── Design selection ──
@@ -813,8 +813,8 @@ class MainWindow(QMainWindow):
     def _on_stitch_9mm(self):
         if not self._pattern_fits_in_canvas("9mm"):
             QMessageBox.warning(
-                self, "Canvas Size Change",
-                "Current pattern will be too large for the working area."
+                self, self.tr("Canvas Size Change"),
+                self.tr("Current pattern will be too large for the working area.")
             )
             # Revert to MAXI
             self._act_maxi.setChecked(True)
@@ -833,8 +833,8 @@ class MainWindow(QMainWindow):
     def _on_stitch_maxi(self):
         if not self._pattern_fits_in_canvas("MAXI"):
             QMessageBox.warning(
-                self, "Canvas Size Change",
-                "Current pattern will be too large for the working area."
+                self, self.tr("Canvas Size Change"),
+                self.tr("Current pattern will be too large for the working area.")
             )
             # Revert to 9mm
             self._act_9mm.setChecked(True)
@@ -885,8 +885,8 @@ class MainWindow(QMainWindow):
     def _on_stitch_large_hoop(self):
         if not self._pattern_fits_in_canvas("large hoop"):
             QMessageBox.warning(
-                self, "Canvas Size Change",
-                "Current pattern will be too large for the working area."
+                self, self.tr("Canvas Size Change"),
+                self.tr("Current pattern will be too large for the working area.")
             )
             self._act_small_hoop.setChecked(True)
             return
@@ -914,9 +914,11 @@ class MainWindow(QMainWindow):
 
     def _show_hoop_info(self):
         QMessageBox.information(
-            self, "Embroidery Design",
-            "Embroidery designs can be loaded and viewed, "
-            "but editing and transfer to the sewing machine are not yet supported."
+            self, self.tr("Embroidery Design"),
+            self.tr(
+                "Embroidery designs can be loaded and viewed, "
+                "but editing and transfer to the sewing machine are not yet supported."
+            )
         )
 
     def _is_hoop_type(self):
@@ -981,13 +983,15 @@ class MainWindow(QMainWindow):
         stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
         auto_count = sum(1 for e in self._pattern.display_elements if e[0] == ELEM_AUTO)
         total = stitch_count + auto_count
-        label = f"Stitches: {total}" + (f" ({auto_count} auto)" if auto_count else "")
+        label = self.tr("Stitches: {0}").format(total) + (
+            self.tr(" ({0} auto)").format(auto_count) if auto_count else ""
+        )
         self._count_label.setText(label)
         w_mm, h_mm = self._pattern.get_stitch_size_mm()
         if w_mm or h_mm:
             self._size_label.setText(f"W: {w_mm:.1f} mm  H: {h_mm:.1f} mm")
         else:
-            self._size_label.setText("W: — mm  H: — mm")
+            self._size_label.setText("W: - mm  H: - mm")
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
@@ -1028,7 +1032,7 @@ class MainWindow(QMainWindow):
         self._act_sel_xform.setEnabled(can_xform)
 
     def _update_title(self):
-        name = os.path.basename(self._file_path) if self._file_path else "Untitled"
+        name = os.path.basename(self._file_path) if self._file_path else self.tr("Untitled")
         mod = " *" if self._pattern.modified else ""
         self.setWindowTitle(f"{name}{mod} - PC Stitch Designer")
 
@@ -1039,8 +1043,8 @@ class MainWindow(QMainWindow):
         if not self._pattern.modified:
             return True
         ret = QMessageBox.question(
-            self, "Unsaved Changes",
-            "The pattern has been modified.\nDo you want to save before continuing?",
+            self, self.tr("Unsaved Changes"),
+            self.tr("The pattern has been modified.\nDo you want to save before continuing?"),
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
             QMessageBox.Save,
         )
@@ -1081,7 +1085,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard():
             return
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Stitch Pattern", "",
+            self, self.tr("Open Stitch Pattern"), "",
             "All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;9mm Stitch Files (*.pcd);;MAXI Stitch Files (*.pcq);;Embroidery Files (*.pcs);;All Files (*)",
         )
         if not path:
@@ -1103,7 +1107,7 @@ class MainWindow(QMainWindow):
         try:
             pattern = file_io.load_pattern(path)
         except Exception as e:
-            QMessageBox.critical(self, "Error opening file", str(e))
+            QMessageBox.critical(self, self.tr("Error opening file"), str(e))
             return
         self._pattern = pattern
         self._canvas.pattern = pattern
@@ -1190,7 +1194,7 @@ class MainWindow(QMainWindow):
             try:
                 file_io.save_pattern(self._file_path, self._pattern)
             except Exception as e:
-                QMessageBox.critical(self, "Error saving file", str(e))
+                QMessageBox.critical(self, self.tr("Error saving file"), str(e))
                 return False
             self._update_title()
             return True
@@ -1209,7 +1213,7 @@ class MainWindow(QMainWindow):
             default_ext = ""
         
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Stitch Pattern", "",
+            self, self.tr("Save Stitch Pattern"), "",
             file_filter,
         )
         if not path:
@@ -1580,7 +1584,7 @@ class MainWindow(QMainWindow):
     def _machine_error(self, message: str):
         """Show a machine communication error with Open Settings / Close buttons."""
         dlg = QDialog(self)
-        dlg.setWindowTitle("Communication Error")
+        dlg.setWindowTitle(self.tr("Communication Error"))
         dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         dlg.setSizeGripEnabled(False)
 
@@ -1623,8 +1627,8 @@ class MainWindow(QMainWindow):
         btn_row.setContentsMargins(0, 12, 0, 0)
         btn_row.setSpacing(8)
         btn_row.addStretch()
-        open_settings_btn = QPushButton("Open Settings")
-        close_btn = QPushButton("Close")
+        open_settings_btn = QPushButton(self.tr("Open Settings"))
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.setDefault(True)
         close_btn.setMinimumWidth(80)
         open_settings_btn.setMinimumWidth(80)
@@ -1649,8 +1653,10 @@ class MainWindow(QMainWindow):
         port = prefs.get("port", "")
         if not port:
             self._machine_error(
-                "No serial port configured.\n"
-                "Please set the port in Settings → Preferences → Machine."
+                self.tr(
+                    "No serial port configured.\n"
+                    "Please set the port in Settings - Preferences - Machine."
+                )
             )
             return None
 
@@ -1663,14 +1669,14 @@ class MainWindow(QMainWindow):
         try:
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
-            self._machine_error(f"Could not open port {port!r}:\n{exc}")
+            self._machine_error(self.tr("Could not open port \"{0}\":\n{1}").format(port, exc))
             return None
 
         try:
             info = self._machine_comm.query_machine()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.close()
-            self._machine_error(f"No communication with the machine:\n{exc}")
+            self._machine_error(self.tr("No communication with the machine:\n{0}").format(exc))
             return None
 
         detected = info.get('model', '')
@@ -1678,9 +1684,11 @@ class MainWindow(QMainWindow):
         if detected and configured and detected != configured:
             self._machine_comm.close()
             self._machine_error(
-                f"Connected machine ({detected}) does not match "
-                f"the configured model ({configured}).\n"
-                f"Please check Settings → Preferences → Machine."
+                self.tr(
+                    "Connected machine ({0}) does not match "
+                    "the configured model ({1}).\n"
+                    "Please check Settings - Preferences - Machine."
+                ).format(detected, configured)
             )
             return None
 
@@ -1706,7 +1714,7 @@ class MainWindow(QMainWindow):
             raw = self._machine_comm.query_pmemory()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(f"Failed to read P-Memory:\n{exc}")
+            self._machine_error(self.tr("Failed to read P-Memory:\n{0}").format(exc))
             return
 
         # Decode the raw response
@@ -1715,7 +1723,7 @@ class MainWindow(QMainWindow):
             pmem_info = MachineComm.decode_pmemory(raw, machine_model)
         except Exception as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(f"Failed to decode P-Memory data:\n{exc}")
+            self._machine_error(self.tr("Failed to decode P-Memory data:\n{0}").format(exc))
             return
 
         dlg = PMemoryDialog(
@@ -1800,11 +1808,13 @@ class MainWindow(QMainWindow):
         if (slot_type and slot_type != self._pattern.stitch_type
                 and not (slot_type == "9mm" and self._pattern.stitch_type == "MAXI")):
             ret = QMessageBox.warning(
-                self, "Insert P-Memory",
-                f"The loaded slot type ({slot_type}) differs from the current "
-                f"pattern type ({self._pattern.stitch_type}).\n\n"
-                "Point coordinates will be clamped to fit the current canvas.\n"
-                "Continue?",
+                self, self.tr("Insert P-Memory"),
+                self.tr(
+                    "The loaded slot type ({0}) differs from the current "
+                    "pattern type ({1}).\n\n"
+                    "Point coordinates will be clamped to fit the current canvas.\n"
+                    "Continue?"
+                ).format(slot_type, self._pattern.stitch_type),
                 QMessageBox.Ok | QMessageBox.Cancel,
                 QMessageBox.Cancel,
             )
@@ -1891,8 +1901,8 @@ class MainWindow(QMainWindow):
     def _machine_send_pmemory(self):
         if not any(elem_has_coords(e) for e in self._pattern.elements):
             QMessageBox.warning(
-                self, "Send P-Memory",
-                "The stitch pattern is empty. Add stitch points before sending to the machine."
+                self, self.tr("Send P-Memory"),
+                self.tr("The stitch pattern is empty. Add stitch points before sending to the machine.")
             )
             return
         self._query_and_show_pmemory(PMemoryDialog.ACTION_SEND)
@@ -2029,7 +2039,7 @@ class MainWindow(QMainWindow):
     def _design_template_load(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Load Template Image",
+            self.tr("Load Template Image"),
             "",
             "Images (*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif)",
         )
@@ -2038,7 +2048,7 @@ class MainWindow(QMainWindow):
         from PyQt5.QtGui import QPixmap
         pixmap = QPixmap(path)
         if pixmap.isNull():
-            QMessageBox.warning(self, "Load Template Image", "Could not load the selected image.")
+            QMessageBox.warning(self, self.tr("Load Template Image"), self.tr("Could not load the selected image."))
             return
         # Deactivate resize mode before loading a new image
         self._canvas.set_template_resize_mode(False)
@@ -2085,7 +2095,7 @@ class MainWindow(QMainWindow):
 
     def _help_about(self):
         msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("About PC Stitch Designer")
+        msg_box.setWindowTitle(self.tr("About PC Stitch Designer"))
         # msg_box.setIcon(QMessageBox.Information)
         msg_box.setTextFormat(Qt.RichText)
         

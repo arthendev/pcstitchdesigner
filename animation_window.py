@@ -340,7 +340,7 @@ class AnimationWindow(QDialog):
 
     def __init__(self, pattern, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Animate Stitching")
+        self.setWindowTitle(self.tr("Animate Stitching"))
         self.resize(860, 580)
         self.setWindowFlags(
             self.windowFlags()
@@ -372,7 +372,7 @@ class AnimationWindow(QDialog):
         self._progress.setCursor(Qt.PointingHandCursor)
         self._progress.step_requested.connect(self._on_progress_seek)
 
-        self._speed_label = QLabel(f"Speed: {self._speed} st/s")
+        self._speed_label = QLabel(self.tr("Speed: {0} st/s").format(self._speed))
         self._speed_slider = QSlider(Qt.Horizontal)
         self._speed_slider.setMinimum(5)
         self._speed_slider.setMaximum(50)
@@ -383,15 +383,15 @@ class AnimationWindow(QDialog):
         self._speed_slider.valueChanged.connect(self._on_speed_changed)
 
         self._btn_to_start = QPushButton(QIcon(os.path.join(_ICONS, "player_tostart.svg")), "")
-        self._btn_to_start.setToolTip("To Start")
+        self._btn_to_start.setToolTip(self.tr("To Start"))
         self._btn_to_start.clicked.connect(self._go_to_start)
 
         self._btn_play = QPushButton(QIcon(os.path.join(_ICONS, "player_play.svg")), "")
-        self._btn_play.setToolTip("Play")
+        self._btn_play.setToolTip(self.tr("Play"))
         self._btn_play.clicked.connect(self._toggle_play)
 
         self._btn_to_end = QPushButton(QIcon(os.path.join(_ICONS, "player_toend.svg")), "")
-        self._btn_to_end.setToolTip("To End")
+        self._btn_to_end.setToolTip(self.tr("To End"))
         self._btn_to_end.clicked.connect(self._go_to_end)
 
         for btn in (self._btn_to_start, self._btn_play, self._btn_to_end):
@@ -434,7 +434,7 @@ class AnimationWindow(QDialog):
         self._playing = playing
         if playing:
             icon_name = "player_pause.svg"
-            tip = "Pause"
+            tip = self.tr("Pause")
             if debug:
                 self._play_start_time = time.monotonic()
                 self._play_start_step = self._current_step
@@ -442,7 +442,7 @@ class AnimationWindow(QDialog):
             self._timer.start(max(1, 1000 // self._speed))
         else:
             icon_name = "player_play.svg"
-            tip = "Play"
+            tip = self.tr("Play")
             self._timer.stop()
         self._btn_play.setIcon(QIcon(os.path.join(_ICONS, icon_name)))
         self._btn_play.setToolTip(tip)
@@ -451,7 +451,7 @@ class AnimationWindow(QDialog):
 
     def _on_speed_changed(self, value):
         self._speed = value
-        self._speed_label.setText(f"Speed: {value} st/s")
+        self._speed_label.setText(self.tr("Speed: {0} st/s").format(value))
         if self._playing:
             self._timer.setInterval(max(1, 1000 // self._speed))
 

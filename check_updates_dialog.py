@@ -4,7 +4,7 @@ import json
 import urllib.request
 import urllib.error
 
-from PyQt5.QtCore import Qt, QThread, QUrl, QEventLoop, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, QUrl, QEventLoop, pyqtSignal, QCoreApplication
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton,
@@ -97,7 +97,7 @@ class _CheckingDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Check for Updates")
+        self.setWindowTitle(self.tr("Check for Updates"))
         self.setModal(True)
         self.setFixedSize(380, 100)
         # Remove close/help buttons so user cannot dismiss it manually.
@@ -107,7 +107,7 @@ class _CheckingDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        self._label = QLabel("Checking for new version...")
+        self._label = QLabel(self.tr("Checking for new version..."))
         layout.addWidget(self._label)
 
         progress = QProgressBar()
@@ -148,11 +148,11 @@ class _ResultDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        open_btn = QPushButton("Open Download Site")
+        open_btn = QPushButton(self.tr("Open Download Site"))
         open_btn.clicked.connect(self._open_download)
         btn_row.addWidget(open_btn)
 
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.setDefault(True)
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
@@ -164,6 +164,10 @@ class _ResultDialog(QDialog):
 
 
 # ── Public entry point ───────────────────────────────────────────────────────
+
+def _tr(text):
+    return QCoreApplication.translate("check_updates_dialog", text)
+
 
 def run_check_for_updates(parent, current_version: str):
     """Run the full update-check workflow (blocking call from UI thread)."""
@@ -191,8 +195,8 @@ def run_check_for_updates(parent, current_version: str):
 
     if result["error"] is not None:
         _ResultDialog(
-            "Check for Updates",
-            "Checking for new version failed.",
+            _tr("Check for Updates"),
+            _tr("Checking for new version failed."),
             parent=parent,
         ).exec_()
         return
@@ -210,16 +214,16 @@ def run_check_for_updates(parent, current_version: str):
 
     if newest_ver is None or newest_ver <= current_ver:
         _ResultDialog(
-            "Check for Updates",
-            "You have the most recent version.",
+            _tr("Check for Updates"),
+            _tr("You have the most recent version."),
             parent=parent,
         ).exec_()
     else:
         newest_str = ".".join(str(n) for n in newest_ver)
         changelog_html = _build_changelog_html(releases, current_ver)
         _ResultDialog(
-            "New Version Available",
-            f"A new version is available! (latest: {newest_str})",
+            _tr("New Version Available"),
+            _tr("A new version is available! (latest: {0})").format(newest_str),
             changelog_html=changelog_html,
             parent=parent,
         ).exec_()
@@ -267,8 +271,8 @@ def run_silent_check_for_updates(parent, current_version: str):
         newest_str = ".".join(str(n) for n in newest_ver)
         changelog_html = _build_changelog_html(releases, current_ver)
         _ResultDialog(
-            "New Version Available",
-            f"A new version is available! (latest: {newest_str})",
+            _tr("New Version Available"),
+            _tr("A new version is available! (latest: {0})").format(newest_str),
             changelog_html=changelog_html,
             parent=parent,
         ).exec_()

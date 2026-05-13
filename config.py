@@ -51,6 +51,8 @@ class Config:
             # General preferences
             "auto_update_check": "weekly",
             "last_update_check": "",
+            # Language preference
+            "language": "system",
         }
 
         # Try to load existing config
@@ -198,11 +200,13 @@ class Config:
         """Return general preference values as a dict."""
         return {
             "update_check_frequency": self._data.get("auto_update_check", "weekly"),
+            "language": self._data.get("language", "system"),
         }
 
-    def set_general_preferences(self, update_check_frequency):
+    def set_general_preferences(self, update_check_frequency, language="system"):
         """Persist general preferences."""
         self._data["auto_update_check"] = update_check_frequency
+        self._data["language"] = language
 
     def get_last_update_check(self):
         """Return ISO-format timestamp string of the last update check, or empty string."""

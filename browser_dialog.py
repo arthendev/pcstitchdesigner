@@ -45,20 +45,20 @@ class PatternPreviewWidget(QWidget):
 
         if self._pattern is None:
             painter.setPen(QColor(120, 120, 120))
-            painter.drawText(draw_rect, Qt.AlignCenter, "Select a .pcd or .pcq file")
+            painter.drawText(draw_rect, Qt.AlignCenter, self.tr("Select a .pcd or .pcq file"))
             return
 
         elements = self._pattern.elements
         coord_elems = [(e[1], e[2]) for e in elements if elem_has_coords(e)]
         if not coord_elems:
             painter.setPen(QColor(120, 120, 120))
-            painter.drawText(draw_rect, Qt.AlignCenter, "No stitch points")
+            painter.drawText(draw_rect, Qt.AlignCenter, self.tr("No stitch points"))
             return
 
         bounds = self._pattern.get_stitch_bounds()
         if bounds is None:
             painter.setPen(QColor(120, 120, 120))
-            painter.drawText(draw_rect, Qt.AlignCenter, "No stitch points")
+            painter.drawText(draw_rect, Qt.AlignCenter, self.tr("No stitch points"))
             return
 
         min_x, min_y, max_x, max_y = bounds
@@ -152,7 +152,8 @@ class PatternBrowserDialog(QFileDialog):
     """Open-file dialog extended with a live stitch pattern preview panel."""
 
     def __init__(self, parent=None):
-        super().__init__(parent, "Open Stitch Pattern")
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Open Stitch Pattern"))
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
         self.setNameFilter("All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;9mm Stitch Files (*.pcd);;MAXI Stitch Files (*.pcq);;Embroidery Files (*.pcs);;All Files (*)")
@@ -160,16 +161,16 @@ class PatternBrowserDialog(QFileDialog):
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
-        self._size_label = QLabel("Size: -", self)
+        self._size_label = QLabel(self.tr("Size: -"), self)
         self._size_label.setWordWrap(True)
-        self._info_label = QLabel("Select a .pcd, .pcq, or .pcs file", self)
+        self._info_label = QLabel(self.tr("Select a .pcd, .pcq, or .pcs file"), self)
         self._info_label.setWordWrap(True)
 
         preview_panel = QWidget(self)
         preview_layout = QVBoxLayout(preview_panel)
         preview_layout.setContentsMargins(6, 6, 6, 6)
         preview_layout.setSpacing(8)
-        preview_layout.addWidget(QLabel("Preview", self))
+        preview_layout.addWidget(QLabel(self.tr("Preview"), self))
         preview_layout.addWidget(self._preview_widget, 1)
         preview_layout.addWidget(self._size_label)
         preview_layout.addWidget(self._info_label)
@@ -183,34 +184,34 @@ class PatternBrowserDialog(QFileDialog):
     def _on_current_changed(self, path):
         if not path or not os.path.isfile(path):
             self._preview_widget.clear()
-            self._size_label.setText("Size: -")
-            self._info_label.setText("Select a .pcd, .pcq, or .pcs file")
+            self._size_label.setText(self.tr("Size: -"))
+            self._info_label.setText(self.tr("Select a .pcd, .pcq, or .pcs file"))
             return
 
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".pcd", ".pcq", ".pcs"):
             self._preview_widget.clear()
-            self._size_label.setText("Size: -")
-            self._info_label.setText("Unsupported file type")
+            self._size_label.setText(self.tr("Size: -"))
+            self._info_label.setText(self.tr("Unsupported file type"))
             return
 
         try:
             pattern = file_io.load_pattern(path)
         except Exception as exc:
             self._preview_widget.clear()
-            self._size_label.setText("Size: -")
-            self._info_label.setText(f"Preview unavailable: {exc}")
+            self._size_label.setText(self.tr("Size: -"))
+            self._info_label.setText(self.tr("Preview unavailable: {0}").format(exc))
             return
 
         self._preview_widget.set_pattern(pattern)
         width_mm, height_mm = pattern.get_stitch_size_mm()
-        self._size_label.setText(f"Size: {width_mm:.2f} x {height_mm:.2f} mm")
+        self._size_label.setText(self.tr("Size: {0:.2f} x {1:.2f} mm").format(width_mm, height_mm))
         info_text = (
-            f"Type: {pattern.stitch_type}"
-            f", Elements: {len(pattern.elements)}"
+            self.tr("Type: {0}").format(pattern.stitch_type)
+            + self.tr(", Elements: {0}").format(len(pattern.elements))
         )
         if pattern.has_palette:
-            info_text += f", Colors: {len(pattern.colors)}"
+            info_text += self.tr(", Colors: {0}").format(len(pattern.colors))
         self._info_label.setText(info_text)
 
     @staticmethod

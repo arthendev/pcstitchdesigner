@@ -33,5 +33,5 @@ class ColorPaletteBar(QToolBar):
             px = QPixmap(_SWATCH_SIZE, _SWATCH_SIZE)
             px.fill(QColor(r, g, b))
             lbl.setPixmap(px)
-            lbl.setToolTip(f"Color {idx + 1}: RGB({r}, {g}, {b})")
+            lbl.setToolTip(self.tr("Color {0}: RGB({1}, {2}, {3})").format(idx + 1, r, g, b))
             self.addWidget(lbl)
