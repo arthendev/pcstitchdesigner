@@ -1086,7 +1086,14 @@ class MainWindow(QMainWindow):
             return
         path, _ = QFileDialog.getOpenFileName(
             self, self.tr("Open Stitch Pattern"), "",
-            "All Supported Files (*.pcd *.pcq *.pcs);;Stitch Files (*.pcd *.pcq);;9mm Stitch Files (*.pcd);;MAXI Stitch Files (*.pcq);;Embroidery Files (*.pcs);;All Files (*)",
+            ";;".join([
+                self.tr("All Supported Files (*.pcd *.pcq *.pcs)"),
+                self.tr("Stitch Files (*.pcd *.pcq)"),
+                self.tr("9mm Stitch Files (*.pcd)"),
+                self.tr("MAXI Stitch Files (*.pcq)"),
+                self.tr("Embroidery Files (*.pcs)"),
+                self.tr("All Files (*)"),
+            ]),
         )
         if not path:
             return
@@ -2102,18 +2109,18 @@ class MainWindow(QMainWindow):
         # Create a label with clickable links
         label = QLabel(
             f"<h3>PC Stitch Designer v{APP_VERSION}</h3>"
-            "<p>A stitch pattern editor for  9 mm and MAXI stitches.</p>"
-            "<p>Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.</p>"
-            "<p><b>Project:</b> "
-            '<a href="https://github.com/arthendev/pcstitchdesigner">'
-            "github.com/arthendev/pcstitchdesigner</a></p>"
-            "<p><b>New Releases:</b> "
-            '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
-            "github.com/arthendev/pcstitchdesigner/releases</a></p>"
-            "<p><b>Documentation:</b> "
-            '<a href="https://github.com/arthendev/pcstitchdesigner/wiki">'
-            "github.com/arthendev/pcstitchdesigner/wiki</a></p>"
-            "<p>© 2026 A. Frej</p>"
+            + f"<p>{self.tr('A stitch pattern editor for 9 mm and MAXI stitches.')}</p>"
+            + f"<p>{self.tr('Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.')}</p>"
+            + (f"<p><b>{self.tr('Project:')}</b> "
+               '<a href="https://github.com/arthendev/pcstitchdesigner">'
+               "github.com/arthendev/pcstitchdesigner</a></p>")
+            + (f"<p><b>{self.tr('New Releases:')}</b> "
+               '<a href="https://github.com/arthendev/pcstitchdesigner/releases">'
+               "github.com/arthendev/pcstitchdesigner/releases</a></p>")
+            + (f"<p><b>{self.tr('Documentation:')}</b> "
+               '<a href="https://github.com/arthendev/pcstitchdesigner/wiki">'
+               "github.com/arthendev/pcstitchdesigner/wiki</a></p>")
+            + "<p>\u00a9 2026 A. Frej</p>"
         )
         label.setOpenExternalLinks(True)
         label.setTextFormat(Qt.RichText)

@@ -774,6 +774,36 @@ Möchten Sie vor dem Fortfahren speichern?</translation>
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
+        <location filename="../main_window.py" line="1089"/>
+        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs)</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1090"/>
+        <source>Stitch Files (*.pcd *.pcq)</source>
+        <translation>Stichmuster (*.pcd *.pcq)</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1091"/>
+        <source>9mm Stitch Files (*.pcd)</source>
+        <translation>9mm-Muster (*.pcd)</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1092"/>
+        <source>MAXI Stitch Files (*.pcq)</source>
+        <translation>MAXI-Muster (*.pcq)</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1093"/>
+        <source>Embroidery Files (*.pcs)</source>
+        <translation>Stickdateiformate (*.pcs)</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1094"/>
+        <source>All Files (*)</source>
+        <translation>Alle Dateien (*)</translation>
+    </message>
+    <message>
         <location filename="../main_window.py" line="1110"/>
         <source>Error opening file</source>
         <translation>Fehler beim Öffnen der Datei</translation>
@@ -875,6 +905,31 @@ Fortfahren?</translation>
         <location filename="../main_window.py" line="2098"/>
         <source>About PC Stitch Designer</source>
         <translation>Über PC Stitch Designer</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2111"/>
+        <source>A stitch pattern editor for 9 mm and MAXI stitches.</source>
+        <translation>Ein Stichmuster-Editor für 9-mm- und MAXI-Stiche.</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2112"/>
+        <source>Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.</source>
+        <translation>Ermöglicht die Musterübertragung auf PFAFF Creative 7570, 7550 und 1475 CD.</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2113"/>
+        <source>Project:</source>
+        <translation>Projektseite:</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2116"/>
+        <source>New Releases:</source>
+        <translation>Neue Versionen:</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2119"/>
+        <source>Documentation:</source>
+        <translation>Dokumentation:</translation>
     </message>
 </context>
 <context>
@@ -1021,6 +1076,36 @@ Bitte einen oder mehrere Speicher löschen, um Speicherplatz freizugeben.</trans
         <location filename="../browser_dialog.py" line="156"/>
         <source>Open Stitch Pattern</source>
         <translation>Stichmuster öffnen</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="159"/>
+        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs)</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="160"/>
+        <source>Stitch Files (*.pcd *.pcq)</source>
+        <translation>Stichmuster (*.pcd *.pcq)</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="161"/>
+        <source>9mm Stitch Files (*.pcd)</source>
+        <translation>9mm-Muster (*.pcd)</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="162"/>
+        <source>MAXI Stitch Files (*.pcq)</source>
+        <translation>MAXI-Muster (*.pcq)</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="163"/>
+        <source>Embroidery Files (*.pcs)</source>
+        <translation>Stickdateiformate (*.pcs)</translation>
+    </message>
+    <message>
+        <location filename="../browser_dialog.py" line="164"/>
+        <source>All Files (*)</source>
+        <translation>Alle Dateien (*)</translation>
     </message>
     <message>
         <location filename="../browser_dialog.py" line="202"/>
