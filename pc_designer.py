@@ -3,7 +3,7 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTranslator, QLocale
+from PyQt5.QtCore import QTranslator, QLocale, QLibraryInfo
 from config import Config
 from main_window import MainWindow
 
@@ -29,10 +29,10 @@ def _load_translation(app, language_pref):
 
     ``language_pref`` is one of ``"system"``, ``"en"``, or an ISO 639-1
     language code such as ``"de"``.  English requires no translation file.
-    Returns the installed QTranslator (keeping it alive), or None.
+    Returns a list of installed QTranslators (keeping them alive), or [].
     """
     if language_pref == "en":
-        return None  # English is the base language; no .qm file needed
+        return []  # English is the base language; no .qm file needed
 
     if language_pref == "system":
         ui_langs = QLocale.system().uiLanguages()
@@ -41,14 +41,28 @@ def _load_translation(app, language_pref):
         lang_code = language_pref
 
     if lang_code == "en":
-        return None
+        return []
 
+    translators = []
+
+    # 1. Qt base translations (buttons, file dialog labels, etc.)
+    qt_translator = QTranslator()
+    qt_translations_path = QLibraryInfo.location(QLibraryInfo.TranslationsPath)
+    # When frozen, Qt translations are bundled next to the app translations
+    if getattr(sys, "frozen", False):
+        qt_translations_path = os.path.join(_base_path(), "translations")
+    if qt_translator.load(f"qtbase_{lang_code}", qt_translations_path):
+        app.installTranslator(qt_translator)
+        translators.append(qt_translator)
+
+    # 2. App translations
     qm_path = os.path.join(_base_path(), "translations", f"pcstitchdesigner_{lang_code}.qm")
-    translator = QTranslator()
-    if translator.load(qm_path):
-        app.installTranslator(translator)
-        return translator  # caller must keep a reference to prevent GC
-    return None
+    app_translator = QTranslator()
+    if app_translator.load(qm_path):
+        app.installTranslator(app_translator)
+        translators.append(app_translator)
+
+    return translators  # caller must keep references to prevent GC
 
 
 def main():
