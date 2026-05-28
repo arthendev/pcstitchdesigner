@@ -20,6 +20,7 @@ from version import APP_VERSION
 from preferences_dialog import PreferencesDialog
 from machine_comm import MachineComm, MachineCommError
 from pmemory_dialog import PMemoryDialog
+from cardmemory_dialog import CardMemoryDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
@@ -524,6 +525,19 @@ class MainWindow(QMainWindow):
         self._act_machine_config = QAction(self.tr("Configuration…"), self)
         self._act_machine_config.triggered.connect(self._machine_configuration)
 
+        # Machine – Card Memory
+        self._act_machine_load_card = QAction(self.tr("Load Card Stitch"), self)
+        self._act_machine_load_card.triggered.connect(self._machine_load_card)
+
+        self._act_machine_send_card = QAction(self.tr("Send Card Stitch"), self)
+        self._act_machine_send_card.triggered.connect(self._machine_send_card)
+
+        self._act_machine_insert_card = QAction(self.tr("Insert Card Stitch"), self)
+        self._act_machine_insert_card.triggered.connect(self._machine_insert_card)
+
+        self._act_machine_delete_card = QAction(self.tr("Delete Card Stitch"), self)
+        self._act_machine_delete_card.triggered.connect(self._machine_delete_card)
+
         # Settings
         self._act_preferences = QAction(QIcon(os.path.join(_icons, "settings.svg")), self.tr("Preferences…"), self)
         self._act_preferences.triggered.connect(self._settings_preferences)
@@ -642,6 +656,11 @@ class MainWindow(QMainWindow):
         machine_menu.addAction(self._act_machine_send_pmem)
         machine_menu.addAction(self._act_machine_insert_pmem)
         machine_menu.addAction(self._act_machine_delete_pmem)
+        machine_menu.addSeparator()
+        machine_menu.addAction(self._act_machine_load_card)
+        machine_menu.addAction(self._act_machine_send_card)
+        machine_menu.addAction(self._act_machine_insert_card)
+        machine_menu.addAction(self._act_machine_delete_card)
         # machine_menu.addSeparator()
         # machine_menu.addAction(self._act_machine_config)
 
@@ -1922,6 +1941,103 @@ class MainWindow(QMainWindow):
 
     def _machine_configuration(self):
         self._settings_preferences()
+
+    # ── Card Memory handlers ──
+
+    def _query_and_show_card_memory(self, action):
+        """Open connection, query card memory index and previews, then show dialog.
+
+        Args:
+            action (str): One of CardMemoryDialog.ACTION_* constants.
+        """
+        if action == CardMemoryDialog.ACTION_LOAD:
+            if not self._confirm_discard():
+                return
+
+        if not self._open_machine_connection():
+            return
+
+        # Query card index
+        try:
+            card_info = self._machine_comm.query_card()
+        except MachineCommError as exc:
+            # query_card sends CTRL_EOT itself for "no card" / checksum errors;
+            # end_transmission here closes the port (idempotent extra EOT is harmless).
+            self._machine_comm.end_transmission()
+            self._machine_error(str(exc))
+            return
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(
+                self.tr("Failed to query card memory:\n{0}").format(exc)
+            )
+            return
+
+        n_total = (card_info['n_9mm'] + card_info['n_maxi'] + card_info['n_embr'])
+        if n_total == 0:
+            self._machine_comm.end_transmission()
+            QMessageBox.information(
+                self,
+                self.tr("Card Memory"),
+                self.tr("No patterns found on the memory card."),
+            )
+            return
+
+        # Fetch preview images for every pattern on the card
+        patterns = []
+        for ptype, count_key in (
+            ('9mm',         'n_9mm'),
+            ('MAXI',        'n_maxi'),
+            ('Embroidery',  'n_embr'),
+        ):
+            for slot in range(card_info[count_key]):
+                try:
+                    preview = self._machine_comm.query_card_preview(
+                        card_info['card_no_bytes'], slot, ptype
+                    )
+                    patterns.append(preview)
+                except (MachineCommError, Exception) as exc:
+                    self._machine_comm.end_transmission()
+                    self._machine_error(
+                        self.tr(
+                            "Failed to load card preview for {0} slot {1}:\n{2}"
+                        ).format(ptype, slot, exc)
+                    )
+                    return
+
+        dlg = CardMemoryDialog(
+            card_info, patterns, action, self._machine_comm, parent=self
+        )
+        result = dlg.exec_()
+
+        if action == CardMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+
+        if action == CardMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+
+    def _machine_load_card(self):
+        self._query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
+
+    def _machine_send_card(self):
+        if not any(elem_has_coords(e) for e in self._pattern.elements):
+            QMessageBox.warning(
+                self, self.tr("Send Card Stitch"),
+                self.tr(
+                    "The stitch pattern is empty. "
+                    "Add stitch points before sending to the machine."
+                ),
+            )
+            return
+        self._query_and_show_card_memory(CardMemoryDialog.ACTION_SEND)
+
+    def _machine_insert_card(self):
+        self._query_and_show_card_memory(CardMemoryDialog.ACTION_INSERT)
+
+    def _machine_delete_card(self):
+        self._query_and_show_card_memory(CardMemoryDialog.ACTION_DELETE)
 
     # ── Settings ──
 
