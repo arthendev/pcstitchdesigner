@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout,
     QTabWidget, QWidget,
-    QListWidget, QListWidgetItem,
+    QListWidget, QListWidgetItem, QListView, QAbstractItemView,
     QPushButton, QLabel, QMessageBox,
     QApplication,
 )
@@ -111,7 +111,8 @@ class CardMemoryDialog(QDialog):
 
         # ── Tab widget (one per pattern type) ────────────────────────────
         self._tabs = QTabWidget()
-        outer.addWidget(self._tabs, 1)
+        # We'll place the tabs and the action/info area in a horizontal middle row
+        # so the action button can sit at the right with labels below it.
 
         self._lists = {}   # ptype → QListWidget
         for tab_name, ptype in (("9mm", "9mm"), ("MAXI", "MAXI"), ("Embroidery", "Embroidery")):
@@ -127,6 +128,11 @@ class CardMemoryDialog(QDialog):
             list_widget.setResizeMode(QListWidget.Adjust)
             list_widget.setSpacing(10)
             list_widget.setSelectionMode(QListWidget.SingleSelection)
+            # Disable dragging/moving of icons; allow click selection only
+            list_widget.setDragEnabled(False)
+            list_widget.setAcceptDrops(False)
+            list_widget.setDragDropMode(QAbstractItemView.NoDragDrop)
+            list_widget.setMovement(QListView.Static)
             list_widget.itemSelectionChanged.connect(self._on_selection_changed)
             list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
 
@@ -154,19 +160,14 @@ class CardMemoryDialog(QDialog):
 
         self._tabs.currentChanged.connect(self._on_tab_changed)
 
-        # ── Pattern info area ─────────────────────────────────────────────
-        info_row = QHBoxLayout()
-        self._name_label = QLabel(self.tr("Name: —"))
-        self._size_label = QLabel(self.tr("Size: —"))
-        info_row.addWidget(self._name_label)
-        info_row.addStretch()
-        info_row.addWidget(self._size_label)
-        outer.addLayout(info_row)
+        # ── Middle row: tabs on the left, action button + info on the right
+        middle_row = QHBoxLayout()
+        middle_row.addWidget(self._tabs, 1)
 
-        # ── Bottom button row ─────────────────────────────────────────────
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-
+        right_v = QVBoxLayout()
+        # Add some top padding so the action button sits lower from the top edge
+        right_v.setContentsMargins(0, 20, 0, 0)
+        # Action button (moved to right side of window)
         if self._action == self.ACTION_LOAD:
             action_label = self.tr("Load")
         elif self._action == self.ACTION_INSERT:
@@ -180,7 +181,22 @@ class CardMemoryDialog(QDialog):
         self._action_btn.setEnabled(False)
         self._action_btn.setMinimumWidth(90)
         self._action_btn.clicked.connect(self._on_action)
-        btn_row.addWidget(self._action_btn)
+        right_v.addWidget(self._action_btn, 0, Qt.AlignTop)
+
+        # Name and size labels go below the action button
+        self._name_label = QLabel(self.tr("Name: —"))
+        self._size_label = QLabel(self.tr("Size: —"))
+        right_v.addSpacing(8)
+        right_v.addWidget(self._name_label)
+        right_v.addWidget(self._size_label)
+        right_v.addStretch()
+
+        middle_row.addLayout(right_v)
+        outer.addLayout(middle_row, 1)
+
+        # ── Bottom button row ─────────────────────────────────────────────
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
 
         close_btn = QPushButton(self.tr("Close"))
         close_btn.setMinimumWidth(80)
