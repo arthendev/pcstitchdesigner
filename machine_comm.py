@@ -916,7 +916,8 @@ class MachineComm:
                 )
 
             card_no_bytes = bytes(buf[3:5])
-            card_no = (buf[3] << 8) | buf[4]
+            # Convert 0x10 0x02 -> 1002 (dec); check if this is how machine really shows it on display
+            card_no = int(''.join(f'{b:02x}' for b in card_no_bytes))
             # offset into buf for the payload fields (buf[6] = payload[0])
             n_9mm = buf[8]   # payload byte 2
             n_embr = buf[11]  # payload byte 5
