@@ -109,6 +109,8 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         # Apply saved display settings to canvas
         self._apply_display_settings()
+        # Enable/disable card memory actions based on configured machine model
+        self._update_machine_card_actions_state()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
 
@@ -982,6 +984,21 @@ class MainWindow(QMainWindow):
         if not enabled and self._canvas._tool in (self._add_tool, self._delete_tool):
             self._act_pan.setChecked(True)
             self._on_tool_pan()
+
+    def _update_machine_card_actions_state(self):
+        """Enable card-related machine actions only when PFAFF 7570 is configured.
+
+        This function reads the configured machine model from the persistent
+        `Config` and enables/disables the card actions accordingly. There is
+        a single definitive implementation and no fallback logic.
+        """
+        prefs = self._config.get_machine_preferences()
+        model = prefs.get("model", "")
+        enabled = model == "PFAFF Creative 7570"
+        self._act_machine_load_card.setEnabled(enabled)
+        self._act_machine_send_card.setEnabled(enabled)
+        self._act_machine_insert_card.setEnabled(enabled)
+        self._act_machine_delete_card.setEnabled(enabled)
 
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
@@ -2053,6 +2070,8 @@ class MainWindow(QMainWindow):
         dlg = PreferencesDialog(self._config, parent=self)
         if dlg.exec_() == PreferencesDialog.Accepted:
             self._apply_display_settings()
+            # Re-evaluate machine-specific actions (card memory actions)
+            self._update_machine_card_actions_state()
 
     def _apply_display_settings(self):
         d = self._config.get_display_preferences()
