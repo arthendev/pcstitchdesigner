@@ -19,7 +19,7 @@ class CardMemoryDialog(QDialog):
     Layout::
 
         ┌─────────────────────────────────────────────────────┐
-        │ Card No: 1002  |  9mm: 3  MAXI: 1  Embroidery: 2   │
+        │ Card No: 1002  |  9mm: 3  MAXI: 1  Embroidery: 2    │
         │ ┌──────────────────────────────────────────────┐    │
         │ │ [9mm] [MAXI] [Embroidery]                    │    │
         │ │ ┌──────────────────────────────────────────┐ │    │
@@ -67,8 +67,9 @@ class CardMemoryDialog(QDialog):
     ACTION_DELETE = "delete"
 
     # Display scale applied to the raw preview pixmaps before use as icons.
-    # 9mm images are 24 px tall; 4× gives 96 px.  MAXI/Embroidery are 48 px.
-    _ICON_SIZE = QSize(200, 120)
+    # 9mm images are 24 px tall, 53 px wide; MAXI 48 x 53 px; Embroidery 48 x 48 px.
+    _ICON_SIZE = QSize(53, 48)
+    # _ICON_SIZE = QSize(106, 96)
 
     def __init__(self, card_info, patterns, action, comm, parent=None):
         super().__init__(parent)
@@ -96,11 +97,14 @@ class CardMemoryDialog(QDialog):
         # ── Card summary ──────────────────────────────────────────────────
         card_no = self._card_info.get('card_no', 0)
         info_label = QLabel(
-            self.tr("Card No: {0}   |   9mm: {1}   MAXI: {2}   Embroidery: {3}").format(
+            # self.tr("Card No: {0}   |   9 mm: {1}   MAXI: {2}   Embroidery: {3}").format(
+            #     card_no,
+            #     self._card_info.get('n_9mm', 0),
+            #     self._card_info.get('n_maxi', 0),
+            #     self._card_info.get('n_embr', 0),
+            # )
+            self.tr("Card No: {0}").format(
                 card_no,
-                self._card_info.get('n_9mm', 0),
-                self._card_info.get('n_maxi', 0),
-                self._card_info.get('n_embr', 0),
             )
         )
         outer.addWidget(info_label)
