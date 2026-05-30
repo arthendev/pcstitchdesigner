@@ -95,19 +95,9 @@ class CardMemoryDialog(QDialog):
         outer.setSpacing(6)
 
         # ── Card summary ──────────────────────────────────────────────────
-        card_no = self._card_info.get('card_no', 0)
-        info_label = QLabel(
-            # self.tr("Card No: {0}   |   9 mm: {1}   MAXI: {2}   Embroidery: {3}").format(
-            #     card_no,
-            #     self._card_info.get('n_9mm', 0),
-            #     self._card_info.get('n_maxi', 0),
-            #     self._card_info.get('n_embr', 0),
-            # )
-            self.tr("Card No: {0}").format(
-                card_no,
-            )
-        )
-        outer.addWidget(info_label)
+        self._card_info_label = QLabel()
+        self._update_card_info_label(self._card_info)
+        outer.addWidget(self._card_info_label)
 
         # ── Tab widget (one per pattern type) ────────────────────────────
         self._tabs = QTabWidget()
@@ -207,6 +197,80 @@ class CardMemoryDialog(QDialog):
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
+    def _update_card_info_label(self, card_info):
+        """Refresh the card-summary label from *card_info*."""
+        self._card_info_label.setText(
+            self.tr("Card No: {0}   |   9mm: {1}   MAXI: {2}   Embroidery: {3}").format(
+                card_info.get('card_no', 0),
+                card_info.get('n_9mm', 0),
+                card_info.get('n_maxi', 0),
+                card_info.get('n_embr', 0),
+            )
+        )
+
+    def _reload_previews(self, card_info):
+        """Reload all preview images from the machine using *card_info*.
+
+        Called on the slow path when the post-delete card-index verification
+        reveals an unexpected change.  Clears all list widgets, fetches fresh
+        previews for every pattern still on the card, repopulates the lists,
+        and updates ``self._card_info`` and ``self._patterns``.
+        """
+        # Clear all list widgets first
+        for lw in self._lists.values():
+            lw.clear()
+
+        offs_map = {
+            '9mm':        'offs_9mm',
+            'MAXI':       'offs_maxi',
+            'Embroidery': 'offs_embr',
+        }
+        count_map = {
+            '9mm':        'n_9mm',
+            'MAXI':       'n_maxi',
+            'Embroidery': 'n_embr',
+        }
+
+        new_patterns = []
+        for ptype, lw in self._lists.items():
+            count = card_info.get(count_map[ptype], 0)
+            offset = card_info.get(offs_map[ptype], 0)
+            for i in range(count):
+                card_slot = i + offset
+                try:
+                    preview = self._comm.query_card_preview(
+                        card_info['card_no_bytes'], card_slot, ptype
+                    )
+                except Exception:
+                    preview = {
+                        'name': '',
+                        'size': 0,
+                        'pattern_type': ptype,
+                        'slot': card_slot,
+                        'preview_hex': '',
+                    }
+                pixmap = self._build_pixmap(
+                    preview['preview_hex'],
+                    ptype,
+                    is_embroidery=(ptype == 'Embroidery'),
+                )
+                item = QListWidgetItem()
+                item.setText(preview['name'] or self.tr('(unnamed)'))
+                if pixmap is not None:
+                    scaled = pixmap.scaled(
+                        self._ICON_SIZE,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation,
+                    )
+                    item.setIcon(QIcon(scaled))
+                item.setData(Qt.UserRole, preview)
+                lw.addItem(item)
+                new_patterns.append(preview)
+
+        self._patterns = new_patterns
+        self._card_info = card_info
+        self._update_card_info_label(card_info)
+
     def _current_list(self):
         """Return the QListWidget for the currently visible tab."""
         idx = self._tabs.currentIndex()
@@ -265,15 +329,93 @@ class CardMemoryDialog(QDialog):
         )
 
     def _do_delete(self, pattern):
-        """Placeholder: deleting patterns from card memory is not yet implemented."""
-        QMessageBox.information(
+        """Delete *pattern* from the memory card.
+
+        Workflow:
+
+        1. Ask the user to confirm.
+        2. Send KL command via :meth:`MachineComm.delete_card_pattern`.
+        3. On CTRL_NAK / error → show error message, close dialog.
+        4. On CTRL_ACK → re-query card index.
+        5. If counts match expectations (card_no same, deleted type count -1,
+           others unchanged) → fast path: remove item from list, update label.
+        6. Otherwise → slow path: reload all preview images from the machine.
+        """
+        ptype = pattern['pattern_type']
+        name  = pattern['name'] or '(unnamed)'
+
+        # ── 1. Confirmation ───────────────────────────────────────────────
+        ret = QMessageBox.question(
             self,
-            self.tr("Not Yet Implemented"),
+            self.tr("Confirm Delete"),
             self.tr(
-                "Deleting patterns from card memory is not yet supported.\n"
-                "This feature will be available in a future version."
-            ),
+                "Delete pattern \u201c{0}\u201d ({1}) from the memory card?\n"
+                "This action cannot be undone."
+            ).format(name, ptype),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
+        if ret != QMessageBox.Yes:
+            return
+
+        old_card_info = dict(self._card_info)
+        slot_byte = pattern['slot']
+
+        # ── 2. Send KL delete command ────────────────────────────────────
+        try:
+            self._comm.delete_card_pattern(
+                self._card_info['card_no_bytes'], slot_byte, ptype
+            )
+        except (MachineCommError, Exception) as exc:
+            QMessageBox.critical(
+                self,
+                self.tr("Delete Failed"),
+                self.tr("Could not delete the pattern from the card:\n{0}").format(exc),
+            )
+            self._end_transmission()
+            self.reject()
+            return
+
+        # ── 3. Re-query card index ────────────────────────────────────────
+        try:
+            new_card_info = self._comm.query_card()
+        except (MachineCommError, Exception) as exc:
+            QMessageBox.critical(
+                self,
+                self.tr("Card Memory"),
+                self.tr(
+                    "Pattern deleted, but the card index could not be re-read:\n{0}"
+                ).format(exc),
+            )
+            self._end_transmission()
+            self.reject()
+            return
+
+        # ── 4. Verify expected outcome ────────────────────────────────────
+        count_key  = {'9mm': 'n_9mm', 'MAXI': 'n_maxi', 'Embroidery': 'n_embr'}[ptype]
+        other_keys = [k for k in ('n_9mm', 'n_maxi', 'n_embr') if k != count_key]
+
+        counts_ok = (
+            new_card_info['card_no'] == old_card_info['card_no']
+            and new_card_info[count_key] == old_card_info[count_key] - 1
+            and all(new_card_info[k] == old_card_info[k] for k in other_keys)
+        )
+
+        if counts_ok:
+            # ── 5. Fast path: remove item from the list widget only ───────
+            lw = self._lists[ptype]
+            for i in range(lw.count()):
+                if lw.item(i).data(Qt.UserRole) is pattern:
+                    lw.takeItem(i)
+                    break
+            self._patterns = [p for p in self._patterns if p is not pattern]
+            self._card_info = new_card_info
+            self._update_card_info_label(new_card_info)
+        else:
+            # ── 6. Slow path: reload all previews from the machine ────────
+            self._reload_previews(new_card_info)
+
+        self._on_selection_changed()
 
     def _do_send(self, pattern):
         """Placeholder: writing patterns to card memory is not yet implemented."""

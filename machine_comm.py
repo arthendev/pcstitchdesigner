@@ -1170,6 +1170,83 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
+    def delete_card_pattern(self, card_no_bytes, slot_byte, pattern_type, timeout=5.0):
+        """Delete a pattern from the memory card.
+
+        Sends::
+
+            CTRL_ETX + "KL" + 0x00 0x00 + <CardNo[2]>
+            + <BANK> + <SLOT> + <TYPE> + CTRL_ETX
+
+        Type / bank encoding:
+
+        ============= ====== ======
+        pattern_type  TYPE   BANK
+        ============= ====== ======
+        9mm           0x01   0xC0
+        MAXI          0x02   0xD0
+        Embroidery    0x03   0xC0
+        ============= ====== ======
+
+        The machine confirms deletion with CTRL_ACK.  CTRL_NAK indicates
+        failure (e.g. write-protected card).
+
+        Args:
+            card_no_bytes (bytes): Raw 2-byte card number from
+                :meth:`query_card`.
+            slot_byte (int): Absolute slot index on the card (offset already
+                applied; use the ``'slot'`` value stored in the pattern dict
+                returned by :meth:`query_card_preview`).
+            pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
+            timeout (float): Read timeout in seconds.  Default: 5.0.
+
+        Raises:
+            serial.SerialException: If the port is not open.
+            MachineCommError: If the machine responds with CTRL_NAK, returns
+                an unexpected byte, or times out.
+        """
+        self._require_open()
+
+        type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
+        if pattern_type not in type_byte_map:
+            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+
+        type_byte = type_byte_map[pattern_type]
+        bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
+
+        cmd = (
+            bytes([self.CTRL_ETX]) + b"KL" +
+            bytes([0x00, 0x00]) +
+            card_no_bytes +
+            bytes([bank_byte, slot_byte, type_byte, self.CTRL_ETX])
+        )
+
+        saved_timeout = self._serial.timeout
+        self._serial.timeout = timeout
+        try:
+            self.flush()
+            self._serial.write(cmd)
+
+            resp = self._serial.read(1)
+            if not resp:
+                raise MachineCommError(
+                    f"No response to delete command "
+                    f"({pattern_type} slot {slot_byte:#04x})."
+                )
+            if resp[0] == self.CTRL_NAK:
+                raise MachineCommError(
+                    f"Machine rejected delete command "
+                    f"({pattern_type} slot {slot_byte:#04x}). "
+                    "The card may be write-protected."
+                )
+            if resp[0] != self.CTRL_ACK:
+                raise MachineCommError(
+                    f"Unexpected response 0x{resp[0]:02X} to delete command "
+                    f"({pattern_type} slot {slot_byte:#04x})."
+                )
+        finally:
+            self._serial.timeout = saved_timeout
+
     # ── P-Memory decoding ──
 
     @staticmethod
