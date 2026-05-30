@@ -2002,15 +2002,26 @@ class MainWindow(QMainWindow):
 
         # Fetch preview images for every pattern on the card
         patterns = []
+        # Map pattern type to the offset field returned by query_card()
+        offs_map = {
+            '9mm': 'offs_9mm',
+            'MAXI': 'offs_maxi',
+            'Embroidery': 'offs_embr',
+        }
         for ptype, count_key in (
             ('9mm',         'n_9mm'),
             ('MAXI',        'n_maxi'),
             ('Embroidery',  'n_embr'),
         ):
+            offs_key = offs_map.get(ptype, None)
             for slot in range(card_info[count_key]):
                 try:
+                    # The machine uses an absolute slot index on the card;
+                    # add the per-type offset returned by query_card().
+                    offset = card_info.get(offs_key, 0) if offs_key is not None else 0
+                    card_slot = slot + offset
                     preview = self._machine_comm.query_card_preview(
-                        card_info['card_no_bytes'], slot, ptype
+                        card_info['card_no_bytes'], card_slot, ptype
                     )
                     patterns.append(preview)
                 except (MachineCommError, Exception) as exc:
@@ -2018,7 +2029,7 @@ class MainWindow(QMainWindow):
                     self._machine_error(
                         self.tr(
                             "Failed to load card preview for {0} slot {1}:\n{2}"
-                        ).format(ptype, slot, exc)
+                        ).format(ptype, slot + offset, exc)
                     )
                     return
 

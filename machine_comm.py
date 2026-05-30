@@ -816,8 +816,8 @@ class MachineComm:
         Response format (raw bytes before CTRL_ETB)::
 
             06 00 00 <CardNo[2]> <PayloadSize>
-            01 00 <N9mm> 03 C8 <NEmbr>
-            00*6 02 00 <NMaxi> 00*9 <PayloadSize>
+            01 <Offs9mm> <N9mm> 03 <OffsEmbr> <NEmbr>
+            00*6 02 <OffsMaxi> <NMaxi> 00*9 <PayloadSize>
 
             + CTRL_ETB + checksum
 
@@ -919,8 +919,11 @@ class MachineComm:
             # Convert 0x10 0x02 -> 1002 (dec); check if this is how machine really shows it on display
             card_no = int(''.join(f'{b:02x}' for b in card_no_bytes))
             # offset into buf for the payload fields (buf[6] = payload[0])
+            offs_9mm = buf[7]
             n_9mm = buf[8]   # payload byte 2
+            offs_embr = buf[10]
             n_embr = buf[11]  # payload byte 5
+            offs_maxi = buf[19]
             n_maxi = buf[20]  # payload byte 14
 
             return {
@@ -929,6 +932,9 @@ class MachineComm:
                 'n_9mm':         n_9mm,
                 'n_maxi':        n_maxi,
                 'n_embr':        n_embr,
+                'offs_9mm':      offs_9mm,
+                'offs_maxi':     offs_maxi,
+                'offs_embr':     offs_embr,
             }
         finally:
             self._serial.timeout = saved_timeout
@@ -947,9 +953,9 @@ class MachineComm:
         ============= ====== ========================
         pattern_type  TYPE   BANK   SLOT
         ============= ====== ========================
-        9mm           0x01   0xC0   slot (0-based)
-        MAXI          0x02   0xD0   slot (0-based)
-        Embroidery    0x03   0xC0   slot + 0xC8
+        9mm           0x01   0xC0   slot (usually 0-based)
+        MAXI          0x02   0xD0   slot (usually 0-based)
+        Embroidery    0x03   0xC0   slot (usually offset by 0xC8 but the values comes from the card query response)
         ============= ====== ========================
 
         The machine replies in one or more chunks.
@@ -998,7 +1004,8 @@ class MachineComm:
 
         type_byte = type_byte_map[pattern_type]
         bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
-        slot_byte = (slot + 0xC8) if pattern_type == 'Embroidery' else slot
+        # slot_byte = (slot + 0xC8) if pattern_type == 'Embroidery' else slot
+        slot_byte = slot
 
         cmd = (
             bytes([self.CTRL_ETX]) + b"KB" +
