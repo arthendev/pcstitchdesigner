@@ -362,9 +362,15 @@ class CardMemoryDialog(QDialog):
         slot_byte = pattern['slot']
 
         # ── 2. Send KL delete command ────────────────────────────────────
+        # Use the card-type offset from the card index to compute the
+        # physical slot on the card (slots are reported relative to the
+        # type's offset in the index).  This ensures we delete the correct
+        # absolute slot on the machine.
+        offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
+        card_slot = slot_byte + old_card_info.get(offs_map.get(ptype, ''), 0)
         try:
             self._comm.delete_card_pattern(
-                self._card_info['card_no_bytes'], slot_byte, ptype
+                self._card_info['card_no_bytes'], card_slot, ptype
             )
         except (MachineCommError, Exception) as exc:
             QMessageBox.critical(
@@ -403,12 +409,44 @@ class CardMemoryDialog(QDialog):
 
         if counts_ok:
             # ── 5. Fast path: remove item from the list widget only ───────
+            # Match and remove by slot and pattern_type rather than object
+            # identity — pattern dicts may not be the same object. Also
+            # adjust the remaining patterns' slot numbers because slots are
+            # not permanent: items after the deleted slot shift down by one.
             lw = self._lists[ptype]
+            deleted_slot = slot_byte
+
+            # Remove the corresponding QListWidgetItem by matching slot
             for i in range(lw.count()):
-                if lw.item(i).data(Qt.UserRole) is pattern:
+                item = lw.item(i)
+                item_p = item.data(Qt.UserRole)
+                if item_p and item_p.get('slot') == deleted_slot:
                     lw.takeItem(i)
                     break
-            self._patterns = [p for p in self._patterns if p is not pattern]
+
+            # Build updated patterns list: remove the deleted entry and
+            # decrement slot numbers for same-type patterns coming after it.
+            new_patterns = []
+            for p in self._patterns:
+                if p.get('pattern_type') == ptype and p.get('slot') == deleted_slot:
+                    # skip the deleted pattern
+                    continue
+                # If same type and slot is after deleted, shift it left
+                if p.get('pattern_type') == ptype and p.get('slot', 0) > deleted_slot:
+                    p['slot'] = p.get('slot', 0) - 1
+                new_patterns.append(p)
+
+            # Update the QListWidget items' UserRole data to point to the
+            # updated pattern dicts for this ptype so future actions use
+            # the correct slot numbers.
+            # Collect patterns for this ptype in display order
+            ptype_patterns = [p for p in new_patterns if p.get('pattern_type') == ptype]
+            for idx in range(lw.count()):
+                item = lw.item(idx)
+                if idx < len(ptype_patterns):
+                    item.setData(Qt.UserRole, ptype_patterns[idx])
+
+            self._patterns = new_patterns
             self._card_info = new_card_info
             self._update_card_info_label(new_card_info)
         else:
