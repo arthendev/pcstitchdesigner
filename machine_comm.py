@@ -805,7 +805,7 @@ class MachineComm:
 
     # ── Card Memory commands ──
 
-    def query_card(self, timeout=2.0):
+    def query_card(self, timeout=1.0):
         """Query the machine memory card index.
 
         Sends "KI" + CTRL_ETX and reads the response.
@@ -940,7 +940,7 @@ class MachineComm:
             self._serial.timeout = saved_timeout
 
     def query_card_preview(self, card_no_bytes, slot, pattern_type,
-                           timeout=5.0, max_retries=3):
+                           timeout=1.0, max_retries=3):
         """Request and receive a preview image for one card memory pattern.
 
         Sends::
@@ -1170,7 +1170,227 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def delete_card_pattern(self, card_no_bytes, slot_byte, pattern_type, timeout=5.0):
+    def load_card_slot(self, card_no_bytes, slot, pattern_type, timeout=1.0, max_retries=3,
+                       progress_callback=None):
+        """Load (read) a pattern from a memory card slot.
+
+        Sends::
+
+            CTRL_ETX + "KS" + 0x00 0x00 + <CardNo[2]>
+            + <BANK> + <SLOT> + <TYPE> + CTRL_ETX
+
+        Type / bank encoding:
+
+        ============= ====== ======
+        pattern_type  TYPE   BANK
+        ============= ====== ======
+        9mm           0x01   0xC0
+        MAXI          0x02   0xD0
+        Embroidery    0x03   0xC0
+        ============= ====== ======
+
+        The machine confirms with CTRL_ACK (or CTRL_NAK = rejected).
+
+        *First chunk* (after CTRL_ACK):
+            ``<zero bytes…> + SIZE + <SIZE payload bytes> + SIZE + CTRL_ETB + <2 hex checksum>``
+
+            The leading zero bytes are discarded; SIZE is the first non-zero
+            byte and denotes the payload length that follows.
+            Checksum covers ``SIZE + payload + SIZE``.
+
+        *Subsequent chunks*:
+            ``CTRL_ENQ + SIZE + <SIZE payload bytes> + SIZE + CTRL_ETB + <2 hex checksum>``
+
+            Checksum covers ``SIZE + payload + SIZE``.
+
+        For each good chunk send CTRL_ACK; for a bad checksum send CTRL_NAK
+        so the machine retransmits.  Transfer ends when the machine sends
+        CTRL_ETX after the final CTRL_ACK.
+
+        Args:
+            card_no_bytes (bytes): Raw 2-byte card number from query_card().
+            slot (int): Zero-based absolute slot index on the card (offset
+                already applied).
+            pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
+            timeout (float): Per-read timeout in seconds. Default: 1.0.
+            max_retries (int): Maximum chunk retransmit attempts. Default: 3.
+            progress_callback: Optional ``(received_bytes, total_bytes)``
+                callable; total_bytes is 0 when unknown.
+
+        Returns:
+            bytes: Concatenated raw stitch-data payload from all chunks.
+
+        Raises:
+            serial.SerialException: If the port is not open.
+            MachineCommError: On CTRL_NAK, checksum error after all retries,
+                or timeout.
+        """
+        self._require_open()
+
+        type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
+        if pattern_type not in type_byte_map:
+            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+
+        type_byte = type_byte_map[pattern_type]
+        bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
+
+        cmd = (
+            bytes([self.CTRL_ETX]) + b"KS" +
+            bytes([0x00, 0x00]) +
+            card_no_bytes +
+            bytes([bank_byte, slot, type_byte, self.CTRL_ETX])
+        )
+
+        saved_timeout = self._serial.timeout
+        self._serial.timeout = timeout
+        try:
+            self.flush()
+            self._serial.write(cmd)
+
+            # Machine should reply with CTRL_ACK to accept the request
+            resp = self._serial.read(1)
+            if not resp:
+                raise MachineCommError(
+                    f"No response to load command ({pattern_type} slot {slot})."
+                )
+            if resp[0] == self.CTRL_NAK:
+                raise MachineCommError(
+                    f"Machine rejected load command ({pattern_type} slot {slot})."
+                )
+            if resp[0] != self.CTRL_ACK:
+                raise MachineCommError(
+                    f"Unexpected response 0x{resp[0]:02X} to load command "
+                    f"({pattern_type} slot {slot})."
+                )
+
+            all_data = bytearray()
+
+            # ── First chunk ──────────────────────────────────────────────
+            # Skip leading zero bytes to find SIZE byte
+            for attempt in range(max_retries + 1):
+                # Drain leading zero bytes; the first non-zero byte is SIZE
+                size_byte = None
+                while True:
+                    b = self._serial.read(1)
+                    if not b:
+                        raise MachineCommError(
+                            "Timeout waiting for SIZE byte in first chunk."
+                        )
+                    if b[0] != 0x00:
+                        size_byte = b[0]
+                        break
+
+                ps = size_byte
+                chunk_payload = self._serial.read(ps)
+                if len(chunk_payload) < ps:
+                    raise MachineCommError("Timeout reading payload in first chunk.")
+
+                ps_repeat_raw = self._serial.read(1)
+                if not ps_repeat_raw:
+                    raise MachineCommError(
+                        "Timeout reading repeated SIZE in first chunk."
+                    )
+
+                etb_raw = self._serial.read(1)
+                if not etb_raw or etb_raw[0] != self.CTRL_ETB:
+                    raise MachineCommError(
+                        f"Expected CTRL_ETB in first chunk, got "
+                        f"0x{etb_raw[0] if etb_raw else 0:02X}."
+                    )
+
+                cs_raw = self._serial.read(2)
+                if len(cs_raw) < 2:
+                    raise MachineCommError("Timeout reading checksum in first chunk.")
+
+                cs_data = bytes([size_byte]) + chunk_payload + ps_repeat_raw
+                received_cs = int(cs_raw.decode('ascii'), 16)
+                expected_cs = self.checksum(cs_data)
+
+                if received_cs == expected_cs:
+                    all_data.extend(chunk_payload)
+                    if progress_callback:
+                        progress_callback(len(all_data), 0)
+                    self._serial.write(bytes([self.CTRL_ACK]))
+                    break
+                else:
+                    self._serial.write(bytes([self.CTRL_NAK]))
+                    if attempt == max_retries:
+                        raise MachineCommError(
+                            f"First chunk checksum mismatch ({pattern_type} slot {slot}) "
+                            f"after {max_retries} retries."
+                        )
+                    # Machine will retransmit; loop to try again
+
+            # ── Subsequent chunks ────────────────────────────────────────
+            while True:
+                nb = self._serial.read(1)
+                if not nb:
+                    raise MachineCommError(
+                        "Timeout waiting for next chunk marker."
+                    )
+
+                if nb[0] == self.CTRL_ETX:
+                    break  # All data received
+
+                if nb[0] != self.CTRL_ENQ:
+                    raise MachineCommError(
+                        f"Unexpected byte 0x{nb[0]:02X} expecting CTRL_ENQ or CTRL_ETX."
+                    )
+
+                for attempt in range(max_retries + 1):
+                    ps_raw = self._serial.read(1)
+                    if not ps_raw:
+                        raise MachineCommError("Timeout reading SIZE in chunk.")
+                    ps = ps_raw[0]
+
+                    chunk_payload = self._serial.read(ps)
+                    if len(chunk_payload) < ps:
+                        raise MachineCommError("Timeout reading payload in chunk.")
+
+                    ps_repeat_raw = self._serial.read(1)
+                    if not ps_repeat_raw:
+                        raise MachineCommError("Timeout reading repeated SIZE in chunk.")
+
+                    etb_raw = self._serial.read(1)
+                    if not etb_raw or etb_raw[0] != self.CTRL_ETB:
+                        raise MachineCommError(
+                            f"Expected CTRL_ETB in chunk, got "
+                            f"0x{etb_raw[0] if etb_raw else 0:02X}."
+                        )
+
+                    cs_raw = self._serial.read(2)
+                    if len(cs_raw) < 2:
+                        raise MachineCommError("Timeout reading checksum in chunk.")
+
+                    cs_data = nb + ps_raw + chunk_payload + ps_repeat_raw
+                    received_cs = int(cs_raw.decode('ascii'), 16)
+                    expected_cs = self.checksum(cs_data)
+
+                    if received_cs == expected_cs:
+                        all_data.extend(chunk_payload)
+                        if progress_callback:
+                            progress_callback(len(all_data), 0)
+                        self._serial.write(bytes([self.CTRL_ACK]))
+                        break
+                    else:
+                        self._serial.write(bytes([self.CTRL_NAK]))
+                        if attempt == max_retries:
+                            raise MachineCommError(
+                                f"Chunk checksum mismatch ({pattern_type} slot {slot}) "
+                                f"after {max_retries} retries."
+                            )
+                        # Machine retransmits starting with CTRL_ENQ; re-read it
+                        enq_retry = self._serial.read(1)
+                        if not enq_retry or enq_retry[0] != self.CTRL_ENQ:
+                            raise MachineCommError(
+                                "Expected CTRL_ENQ on chunk retransmit."
+                            )
+
+            return bytes(all_data)
+        finally:
+            self._serial.timeout = saved_timeout
+
+    def delete_card_pattern(self, card_no_bytes, slot_byte, pattern_type, timeout=1.0):
         """Delete a pattern from the memory card.
 
         Sends::
@@ -1246,6 +1466,64 @@ class MachineComm:
                 )
         finally:
             self._serial.timeout = saved_timeout
+
+    # ── Card Memory decoding ──
+
+    @staticmethod
+    def decode_card_slot_9mm(raw_bytes):
+        """Decode raw bytes from a 9mm card memory slot into stitch coordinates.
+
+        Format:
+          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Remaining bytes are pairs ``(dx_byte, y_byte)``:
+              - ``dx = dx_byte - 0x5B``  (signed differential x)
+              - ``x(n) = x(n-1) - dx``   (running accumulator, starts at 0)
+              - ``y``  is absolute.
+          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
+          - If any x-coordinate is negative after decoding, all x values are
+            shifted so that ``min(x) == 0``.
+
+        Args:
+            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
+
+        Returns:
+            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
+
+        Raises:
+            MachineCommError: If the payload (after stripping sentinels) has an
+                odd number of bytes.
+        """
+        data = bytearray(raw_bytes)
+
+        # Strip optional leading sentinel
+        if data and data[0] in (0x80, 0x8A):
+            data = data[1:]
+
+        # Strip optional trailing sentinel
+        if data and data[-1] in (0x80, 0x8A):
+            data = data[:-1]
+
+        if len(data) % 2 != 0:
+            raise MachineCommError(
+                f"9mm card slot payload has odd byte count ({len(data)}) "
+                "after stripping sentinels."
+            )
+
+        points = []
+        x = 0
+        for i in range(0, len(data), 2):
+            dx = data[i] - 0x5B
+            y  = data[i + 1]
+            x  = x - dx
+            points.append((x, y))
+
+        # Shift so that min(x) == 0 if any coordinate went negative
+        if points:
+            min_x = min(px for px, _ in points)
+            if min_x < 0:
+                points = [(px - min_x, py) for px, py in points]
+
+        return points
 
     # ── P-Memory decoding ──
 

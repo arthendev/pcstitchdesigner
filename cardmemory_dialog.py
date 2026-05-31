@@ -318,15 +318,61 @@ class CardMemoryDialog(QDialog):
             self._do_send(p)
 
     def _do_load(self, pattern):
-        """Placeholder: loading stitch data from card memory is not yet implemented."""
-        QMessageBox.information(
-            self,
-            self.tr("Not Yet Implemented"),
-            self.tr(
-                "Loading stitch data from card memory is not yet supported.\n"
-                "This feature will be available in a future version."
-            ),
-        )
+        """Load stitch data from a card memory slot.
+
+        Computes the absolute card slot from the pattern's slot index and the
+        type-specific offset stored in ``self._card_info``, then calls
+        :meth:`MachineComm.load_card_slot`.  On success the raw payload is
+        stored in ``self.loaded_points`` / ``self.loaded_slot_type`` and the
+        dialog is accepted so the caller can retrieve the data.
+        """
+        ptype    = pattern['pattern_type']
+        offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
+        card_slot = pattern['slot'] + self._card_info.get(offs_map.get(ptype, ''), 0)
+
+        try:
+            raw_data = self._comm.load_card_slot(
+                self._card_info['card_no_bytes'],
+                card_slot,
+                ptype,
+            )
+        except (MachineCommError, Exception) as exc:
+            QMessageBox.critical(
+                self,
+                self.tr("Load Failed"),
+                self.tr("Could not load the pattern from the card:\n{0}").format(exc),
+            )
+            self._end_transmission()
+            self.reject()
+            return
+
+        try:
+            if ptype == '9mm':
+                points = MachineComm.decode_card_slot_9mm(raw_data)
+            else:
+                QMessageBox.information(
+                    self,
+                    self.tr("Not Yet Implemented"),
+                    self.tr(
+                        "Loading {0} patterns from card memory is not yet supported.\n"
+                        "This feature will be available in a future version."
+                    ).format(ptype),
+                )
+                return
+        except MachineCommError as exc:
+            QMessageBox.critical(
+                self,
+                self.tr("Decode Failed"),
+                self.tr("Could not decode the pattern data:\n{0}").format(exc),
+            )
+            self._end_transmission()
+            self.reject()
+            return
+
+        self.loaded_points    = points
+        self.loaded_slot_type = ptype
+        self._end_transmission()
+        self.accept()
 
     def _do_delete(self, pattern):
         """Delete *pattern* from the memory card.
