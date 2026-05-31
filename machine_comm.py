@@ -1525,6 +1525,71 @@ class MachineComm:
 
         return points
 
+    @staticmethod
+    def decode_card_slot_maxi(raw_bytes):
+        """Decode raw bytes from a MAXI card memory slot into stitch coordinates.
+
+        Format:
+          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Remaining bytes are triplets ``(dt_byte, dx_byte, y_byte)``:
+              - ``dy_acc += dt_byte - 0xC6``  (accumulates side-transport offset)
+              - ``dx = dx_byte - 0x5B``       (signed differential x)
+              - ``x(n) = x(n-1) - dx``        (running accumulator, starts at 0)
+              - ``y = y_byte + dy_acc``        (absolute base + accumulated offset)
+          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
+          - If any x-coordinate is negative, all x values are shifted so
+            that ``min(x) == 0``.
+          - If any y-coordinate is negative, all y values are shifted so
+            that ``min(y) == 0``.
+
+        Args:
+            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
+
+        Returns:
+            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
+
+        Raises:
+            MachineCommError: If the payload (after stripping sentinels) is not
+                a multiple of 3 bytes.
+        """
+        data = bytearray(raw_bytes)
+
+        # Strip optional leading sentinel
+        if data and data[0] in (0x80, 0x8A):
+            data = data[1:]
+
+        # Strip optional trailing sentinel
+        if data and data[-1] in (0x80, 0x8A):
+            data = data[:-1]
+
+        if len(data) % 3 != 0:
+            raise MachineCommError(
+                f"MAXI card slot payload length {len(data)} is not a multiple of 3 "
+                "after stripping sentinels."
+            )
+
+        points = []
+        x = 0
+        dy_acc = 0
+        for i in range(0, len(data), 3):
+            dy_acc += data[i]     - 0xC6
+            dx      = data[i + 1] - 0x5B
+            y_base  = data[i + 2]
+            x = x - dx
+            y = y_base + dy_acc
+            points.append((x, y))
+
+        if points:
+            min_x = min(px for px, _ in points)
+            if min_x < 0:
+                points = [(px - min_x, py) for px, py in points]
+
+            min_y = min(py for _, py in points)
+            if min_y < 0:
+                points = [(px, py - min_y) for px, py in points]
+
+        return points
+
     # ── P-Memory decoding ──
 
     @staticmethod
