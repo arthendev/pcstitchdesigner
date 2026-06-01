@@ -1840,7 +1840,7 @@ class MachineComm:
             return bytes([0x80, 0x8A])
 
         result = bytearray([0x80])
-        x_prev = 0
+        x_prev = points[0][0]
         for i, (x, y) in enumerate(points):
             dx = x_prev - x
             if not (-90 < dx < 90):
@@ -1892,7 +1892,7 @@ class MachineComm:
         translated_xyt, _ = MachineComm._translate_maxi_points(raw_elems)
 
         result = bytearray([0x80])
-        x_prev = 0
+        x_prev = translated_xyt[0][0]  # x of the first stitch
         for i, (x, stored_y, delta) in enumerate(translated_xyt):
             dx = x_prev - x
             if not (-90 < dx < 90):
