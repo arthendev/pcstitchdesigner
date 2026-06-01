@@ -1481,7 +1481,7 @@ class MachineComm:
             CTRL_ETX + "KN" + 0x00 0x00 + <CardNo[2]>
             + <BANK> + 0x00 + <TYPE>
             + d0x_min_abs[2] + pn_x[2] + span_x[2] + y_min_to_bound[2]
-            + span_y[2] + 0x0000[2] + 0x10 + 0x0000[2] + dx_abs_max[2]
+            + span_y[2] + 0x0000[2] + unknown_1 + 0x0000[2] + unknown_2 + dx_abs_max
             + size_preview[2] + 0x01 + size_pattern[2] + size_name[1]
             + CTRL_ETX
 
@@ -1567,6 +1567,9 @@ class MachineComm:
         def _pack2(v):
             return (v & 0xFFFF).to_bytes(2, 'big')
 
+        unknown_1 = 0x10 # allows longitudinal scaling in machine menu; 0x10 seems to give much freedom
+        unknown_2 = 0x00 # ToDo: figure out what this does and how to calculate it
+
         cmd = (
             bytes([self.CTRL_ETX]) + b"KN" +
             bytes([0x00, 0x00]) +
@@ -1578,9 +1581,10 @@ class MachineComm:
             _pack2(y_min_to_bound) +
             _pack2(span_y) +
             bytes([0x00, 0x00]) +
-            bytes([0x10]) +
+            bytes([unknown_1]) +
             bytes([0x00, 0x00]) +
-            _pack2(dx_abs_max) +
+            bytes([unknown_2]) +
+            bytes([dx_abs_max]) +
             _pack2(size_preview) +
             bytes([0x01]) +
             _pack2(size_pattern) +
