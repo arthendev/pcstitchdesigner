@@ -95,23 +95,26 @@ class PatternPreviewWidget(QWidget):
 
         # Draw connecting lines, respecting color changes and trims
         current_color_idx = 0
-        trim_pending = False
+        kind = None
+        last_kind = None
         last_sx, last_sy = None, None
         for elem in elements:
+            if kind is not None:
+                last_kind = kind
             kind = elem[0]
             if kind == ELEM_COLOR:
                 current_color_idx = elem[1]
                 continue
-            if kind == ELEM_TRIM:
-                trim_pending = True
-                continue
+            # if kind == ELEM_TRIM:
+            #     trim_pending = True
+            #     # continue
             if not elem_has_coords(elem):
                 continue
 
             x, y = elem[1], elem[2]
             sx, sy = to_screen(x, y)
 
-            if last_sx is not None and not trim_pending:
+            if last_sx is not None and not (kind in (ELEM_TRIM, ELEM_COLOR) and last_kind in (ELEM_TRIM, ELEM_COLOR)):
                 if self._pattern.has_palette and current_color_idx < len(self._pattern.colors):
                     r, g, b = self._pattern.colors[current_color_idx]
                     line_color = QColor(r, g, b)
@@ -121,7 +124,6 @@ class PatternPreviewWidget(QWidget):
                 painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
             last_sx, last_sy = sx, sy
-            trim_pending = False
 
         # Draw start/end markers for stitch formats on top of lines.
         if self._pattern.stitch_type in ("9mm", "MAXI") and coord_elems:
