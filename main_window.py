@@ -1970,7 +1970,7 @@ class MainWindow(QMainWindow):
 
         # Query card index
         try:
-            card_info = self._machine_comm.query_card()
+            card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
             # query_card sends CTRL_EOT itself for "no card" / checksum errors;
             # end_transmission here closes the port (idempotent extra EOT is harmless).
@@ -2143,7 +2143,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            card_info = self._machine_comm.query_card()
+            card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
             self._machine_comm.end_transmission()
             self._machine_error(str(exc))
@@ -2177,7 +2177,7 @@ class MainWindow(QMainWindow):
 
         # ── Verify by re-querying the card index ──────────────────────────
         try:
-            new_card_info = self._machine_comm.query_card()
+            new_card_info = self._machine_comm.query_card_index()
         except Exception as exc:
             self._machine_comm.end_transmission()
             self._machine_error(

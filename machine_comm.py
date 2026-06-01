@@ -698,7 +698,7 @@ class MachineComm:
 
     # ── Memory Card commands ──
 
-    def query_card(self, timeout=1.0):
+    def query_card_index(self, timeout=1.0):
         """Query the machine memory card index.
 
         Sends "KI" + CTRL_ETX and reads the response.
