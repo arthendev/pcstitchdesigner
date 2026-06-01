@@ -1880,6 +1880,9 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
         self._recalculate_auto_if_active()
 
+    def _machine_configuration(self):
+        self._settings_preferences()
+
     # ── P-Memory handlers ──
 
     def _machine_query_and_show_pmemory(self, action):
@@ -1949,9 +1952,6 @@ class MainWindow(QMainWindow):
 
     def _machine_delete_pmemory(self):
         self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_DELETE)
-
-    def _machine_configuration(self):
-        self._settings_preferences()
 
     # ── Memory Card handlers ──
 
