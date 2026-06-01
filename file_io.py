@@ -129,7 +129,10 @@ def load_pattern(path):
 
         all_elems = []
 
-        for i in range(stitch_count):
+        # for i in range(stitch_count):
+        i = 0
+        extra_records = 0
+        while i < stitch_count + extra_records:
             point_data = f.read(point_size)
             if len(point_data) < point_size:
                 raise ValueError("Unexpected end of file while reading stitch points")
@@ -173,10 +176,16 @@ def load_pattern(path):
             elif control_byte == 0x03:
                 # Color change: palette index in c0
                 all_elems.append((ELEM_COLOR, c0))
+                extra_records += 1 # color change records don't correspond to actual stitches, so we need to read extra records until we get stitch_count stitch points
             elif control_byte == 0x04:
-                # Trim: line is drawn to this point, line broken after it
-                all_elems.append((ELEM_TRIM, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                if pattern.stitch_type in ("small hoop", "large hoop"):
+                    # Trim: line is drawn to this point, line broken after it
+                    all_elems.append((ELEM_TRIM, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                else:
+                    # Treat as normal stitch for 9mm and MAXI
+                    all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts
             # Any other control byte is silently ignored.
+            i += 1
 
     pattern._load_elements(all_elems)
     return pattern
