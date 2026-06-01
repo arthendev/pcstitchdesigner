@@ -1856,6 +1856,59 @@ class MachineComm:
         result.append(0x8A)
         return bytes(result)
 
+    @staticmethod
+    def encode_card_slot_maxi(pattern):
+        """Encode a MAXI stitch pattern into the memory card byte format.
+
+        Calls :meth:`_translate_maxi_points` to convert pattern coordinates into
+        ``(x, stored_y, transport_delta)`` triplets, then encodes each stitch as
+        three bytes:
+
+        * ``b[0] = transport_delta + 0xC6``  — differential side-transport with
+          0xC6 bias.
+        * ``b[1] = (x(n-1) - x(n)) + 0x5B`` — differential x with 0x5B bias.
+          The virtual previous-x for the first stitch is 0.
+        * ``b[2] = stored_y``                — absolute (transport-adjusted) y.
+
+        The payload is wrapped with a leading ``0x80`` sentinel and a trailing
+        ``0x8A`` sentinel (matching the card-read sentinels stripped by
+        :meth:`decode_card_slot_maxi`).
+
+        Args:
+            pattern: StitchPattern instance (``stitch_type`` must be ``'MAXI'``).
+
+        Returns:
+            bytes: ``0x80 + N×3 payload bytes + 0x8A``.
+
+        Raises:
+            MachineCommError: If any differential-x value is outside the open
+                interval ``(-90, 90)``.  The error message names the offending
+                stitch and advises inserting intermediate stitches.
+        """
+        raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+        if not raw_elems:
+            return bytes([0x80, 0x8A])
+
+        translated_xyt, _ = MachineComm._translate_maxi_points(raw_elems)
+
+        result = bytearray([0x80])
+        x_prev = 0
+        for i, (x, stored_y, delta) in enumerate(translated_xyt):
+            dx = x_prev - x
+            if not (-90 < dx < 90):
+                raise MachineCommError(
+                    f"Stitch point {i + 1}: dx = {dx} is outside the valid range "
+                    "(-90, 90).\n"
+                    "The distance between consecutive stitch points is too large.\n"
+                    "Please insert intermediate stitches and try again."
+                )
+            result.append((delta + 0xC6) & 0xFF)
+            result.append((dx   + 0x5B) & 0xFF)
+            result.append(stored_y & 0xFF)
+            x_prev = x
+        result.append(0x8A)
+        return bytes(result)
+
     # ── Memory Card decoding ──
 
     @staticmethod

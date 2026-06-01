@@ -2051,7 +2051,7 @@ class MainWindow(QMainWindow):
         self._query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
     def _ask_card_filename(self):
-        """Show a dialog asking the user for a card slot filename (max 8 chars).
+        """Show a dialog asking the user for a card pattern filename (max 8 chars).
 
         Returns:
             str | None: Entered filename (1–8 chars), or None if cancelled.
@@ -2136,8 +2136,14 @@ class MainWindow(QMainWindow):
                     self, self.tr("Send Card Stitch"), str(exc)
                 )
                 return
-        else:
-            pattern_raw = b''   # TODO: implement MAXI card-format stitch encoding
+        else:  # MAXI
+            try:
+                pattern_raw = MachineComm.encode_card_slot_maxi(self._pattern)
+            except MachineCommError as exc:
+                QMessageBox.warning(
+                    self, self.tr("Send Card Stitch"), str(exc)
+                )
+                return
 
         # ── Open machine connection and query card ────────────────────────
         if not self._open_machine_connection():
