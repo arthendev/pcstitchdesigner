@@ -855,8 +855,8 @@ class StitchCanvas(QWidget):
 
                 if last_coord is not None:
                     last_display_idx, last_sx, last_sy, last_kind = last_coord
-                    # Suppress line only between two consecutive ELEM_TRIM elements
-                    if not (kind == ELEM_TRIM and last_kind == ELEM_TRIM):
+                    # Suppress line only between two consecutive ELEM_TRIM or ELEM_COLOR elements
+                    if not (kind in (ELEM_TRIM, ELEM_COLOR) and last_kind in (ELEM_TRIM, ELEM_COLOR)):
                         # Determine which base index to use for selection highlight.
                         # For ELEM_AUTO starting points, fall back to the last known base index.
                         start_base = display_map[last_display_idx]
