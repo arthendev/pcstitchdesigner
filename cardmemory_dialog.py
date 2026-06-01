@@ -55,14 +55,12 @@ class CardMemoryDialog(QDialog):
                     'preview_hex':  str,
                 }
 
-        action (str): One of :attr:`ACTION_LOAD`, :attr:`ACTION_SEND`,
-            :attr:`ACTION_INSERT`, :attr:`ACTION_DELETE`.
+        action (str): One of :attr:`ACTION_LOAD`, :attr:`ACTION_INSERT`, :attr:`ACTION_DELETE`.
         comm (MachineComm): Open machine communication instance.
         parent: Parent widget.
     """
 
     ACTION_LOAD   = "load"
-    ACTION_SEND   = "send"
     ACTION_INSERT = "insert"
     ACTION_DELETE = "delete"
 
@@ -314,8 +312,6 @@ class CardMemoryDialog(QDialog):
             self._do_load(p)
         elif self._action == self.ACTION_DELETE:
             self._do_delete(p)
-        elif self._action == self.ACTION_SEND:
-            self._do_send(p)
 
     def _do_load(self, pattern):
         """Load stitch data from a card memory slot.
@@ -502,17 +498,6 @@ class CardMemoryDialog(QDialog):
             self._reload_previews(new_card_info)
 
         self._on_selection_changed()
-
-    def _do_send(self, pattern):
-        """Placeholder: writing patterns to card memory is not yet implemented."""
-        QMessageBox.information(
-            self,
-            self.tr("Not Yet Implemented"),
-            self.tr(
-                "Writing patterns to card memory is not yet supported.\n"
-                "This feature will be available in a future version."
-            ),
-        )
 
     def _on_close(self):
         self._end_transmission()
