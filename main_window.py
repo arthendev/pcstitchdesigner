@@ -8,8 +8,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
     QLineEdit,
 )
-from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent, QTimer
-from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
+from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer
+from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator
 from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
@@ -1972,8 +1972,6 @@ class MainWindow(QMainWindow):
         try:
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
-            # query_card sends CTRL_EOT itself for "no card" / checksum errors;
-            # end_transmission here closes the port (idempotent extra EOT is harmless).
             self._machine_comm.end_transmission()
             self._machine_error(str(exc))
             return
@@ -1995,7 +1993,7 @@ class MainWindow(QMainWindow):
             return
 
         # Fetch preview images for every pattern on the memory card
-        patterns = []
+        previews = []
         # Map pattern type to the offset field returned by query_card()
         offs_map = {
             '9mm': 'offs_9mm',
@@ -2017,7 +2015,7 @@ class MainWindow(QMainWindow):
                     preview = self._machine_comm.query_card_preview(
                         card_info['card_no_bytes'], card_slot, ptype
                     )
-                    patterns.append(preview)
+                    previews.append(preview)
                 except (MachineCommError, Exception) as exc:
                     self._machine_comm.end_transmission()
                     self._machine_error(
@@ -2028,7 +2026,7 @@ class MainWindow(QMainWindow):
                     return
 
         dlg = CardMemoryDialog(
-            card_info, patterns, action, self._machine_comm, parent=self
+            card_info, previews, action, self._machine_comm, parent=self
         )
         result = dlg.exec_()
 
@@ -2064,7 +2062,10 @@ class MainWindow(QMainWindow):
         edit.setMaxLength(8)
         edit.setPlaceholderText(self.tr("Pattern name"))
         layout.addWidget(edit)
-
+        # Allow only alphanumeric characters, spaces, underscores, hyphens, and tildes, since the machine may not support others
+        regex = QRegExp("[A-Za-z0-9 _\\-~]{0,8}")
+        edit.setValidator(QRegExpValidator(regex, edit))
+        
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 4, 0, 0)
         btn_row.addStretch()
@@ -2102,8 +2103,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self, self.tr("Send Card Stitch"),
                 self.tr(
-                    "Sending {0} patterns to memory card is not yet supported."
-                ).format(stitch_type),
+                    "Sending embroidery patterns to memory card is not yet supported."
+                ),
             )
             return
 
@@ -2114,29 +2115,6 @@ class MainWindow(QMainWindow):
             filename = self._ask_card_filename()
             if filename is None:
                 return  # user cancelled
-
-        # Null-terminated, max 9 bytes (8 chars + '\0')
-        filename_bytes = filename[:8].encode('ascii', errors='replace') + b'\x00'
-
-        # ── Build preview image and encode pattern data (before connecting) ──
-        preview_bytes = MachineComm.encode_card_preview(self._pattern)
-
-        if stitch_type == '9mm':
-            try:
-                pattern_raw = MachineComm.encode_card_pattern_9mm(self._pattern)
-            except MachineCommError as exc:
-                QMessageBox.warning(
-                    self, self.tr("Send Card Stitch"), str(exc)
-                )
-                return
-        else:  # MAXI
-            try:
-                pattern_raw = MachineComm.encode_card_slot_maxi(self._pattern)
-            except MachineCommError as exc:
-                QMessageBox.warning(
-                    self, self.tr("Send Card Stitch"), str(exc)
-                )
-                return
 
         # ── Open machine connection and query card ────────────────────────
         if not self._open_machine_connection():
@@ -2157,13 +2135,7 @@ class MainWindow(QMainWindow):
 
         # ── Send the pattern to the card ──────────────────────────────────
         try:
-            assigned_slot = self._machine_comm.send_card_slot(
-                card_info['card_no_bytes'],
-                self._pattern,
-                filename_bytes,
-                preview_bytes,
-                pattern_raw,
-            )
+            self._machine_comm.send_card_slot(card_info['card_no_bytes'], self._pattern, filename, progress_callback=None)
         except MachineCommError as exc:
             self._machine_comm.end_transmission()
             self._machine_error(str(exc))

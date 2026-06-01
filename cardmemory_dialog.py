@@ -69,10 +69,10 @@ class CardMemoryDialog(QDialog):
     _ICON_SIZE = QSize(53, 48)
     # _ICON_SIZE = QSize(106, 96)
 
-    def __init__(self, card_info, patterns, action, comm, parent=None):
+    def __init__(self, card_info, previews, action, comm, parent=None):
         super().__init__(parent)
         self._card_info = card_info
-        self._patterns = patterns
+        self._previews = previews
         self._action = action
         self._comm = comm
         self._transmission_ended = False
@@ -86,7 +86,7 @@ class CardMemoryDialog(QDialog):
     # ── UI construction ──────────────────────────────────────────────────────
 
     def _setup_ui(self):
-        self.setWindowTitle(self.tr("Card Memory"))
+        self.setWindowTitle(self.tr("Memory Card"))
         self.resize(640, 500)
 
         outer = QVBoxLayout(self)
@@ -104,7 +104,7 @@ class CardMemoryDialog(QDialog):
 
         self._lists = {}   # ptype → QListWidget
         for tab_name, ptype in (("9mm", "9mm"), ("MAXI", "MAXI"), ("Embroidery", "Embroidery")):
-            tab_patterns = [p for p in self._patterns if p['pattern_type'] == ptype]
+            tab_patterns = [p for p in self._previews if p['pattern_type'] == ptype]
 
             tab_widget = QWidget()
             tab_layout = QVBoxLayout(tab_widget)
@@ -229,24 +229,13 @@ class CardMemoryDialog(QDialog):
             'Embroidery': 'n_embr',
         }
 
-        new_patterns = []
+        new_previews = []
         for ptype, lw in self._lists.items():
             count = card_info.get(count_map[ptype], 0)
             offset = card_info.get(offs_map[ptype], 0)
             for i in range(count):
                 card_slot = i + offset
-                try:
-                    preview = self._comm.query_card_preview(
-                        card_info['card_no_bytes'], card_slot, ptype
-                    )
-                except Exception:
-                    preview = {
-                        'name': '',
-                        'size': 0,
-                        'pattern_type': ptype,
-                        'slot': card_slot,
-                        'preview_hex': '',
-                    }
+                preview = self._comm.query_card_preview(card_info['card_no_bytes'], card_slot, ptype)
                 pixmap = self._build_pixmap(
                     preview['preview_hex'],
                     ptype,
@@ -263,10 +252,9 @@ class CardMemoryDialog(QDialog):
                     item.setIcon(QIcon(scaled))
                 item.setData(Qt.UserRole, preview)
                 lw.addItem(item)
-                new_patterns.append(preview)
+                new_previews.append(preview)
 
-        self._patterns = new_patterns
-        self._card_info = card_info
+        self._previews = new_previews
         self._update_card_info_label(card_info)
 
     def _current_list(self):
@@ -314,7 +302,7 @@ class CardMemoryDialog(QDialog):
             self._do_delete(p)
 
     def _do_load(self, pattern):
-        """Load stitch data from a card memory slot.
+        """Load stitch data from a memory card slot.
 
         Computes the absolute card slot from the pattern's slot index and the
         type-specific offset stored in ``self._card_info``, then calls
@@ -352,7 +340,7 @@ class CardMemoryDialog(QDialog):
                     self,
                     self.tr("Not Yet Implemented"),
                     self.tr(
-                        "Loading {0} patterns from card memory is not yet supported.\n"
+                        "Loading {0} patterns from memory card is not yet supported.\n"
                         "This feature will be available in a future version."
                     ).format(ptype),
                 )
@@ -432,7 +420,7 @@ class CardMemoryDialog(QDialog):
         except (MachineCommError, Exception) as exc:
             QMessageBox.critical(
                 self,
-                self.tr("Card Memory"),
+                self.tr("Memory Card"),
                 self.tr(
                     "Pattern deleted, but the card index could not be re-read:\n{0}"
                 ).format(exc),
@@ -471,7 +459,7 @@ class CardMemoryDialog(QDialog):
             # Build updated patterns list: remove the deleted entry and
             # decrement slot numbers for same-type patterns coming after it.
             new_patterns = []
-            for p in self._patterns:
+            for p in self._previews:
                 if p.get('pattern_type') == ptype and p.get('slot') == deleted_slot:
                     # skip the deleted pattern
                     continue
@@ -490,13 +478,25 @@ class CardMemoryDialog(QDialog):
                 if idx < len(ptype_patterns):
                     item.setData(Qt.UserRole, ptype_patterns[idx])
 
-            self._patterns = new_patterns
-            self._card_info = new_card_info
-            self._update_card_info_label(new_card_info)
+            self._previews = new_patterns
         else:
             # ── 6. Slow path: reload all previews from the machine ────────
-            self._reload_previews(new_card_info)
+            try:
+                self._reload_previews(new_card_info)
+            except (MachineCommError, Exception) as exc:
+                QMessageBox.critical(
+                    self,
+                    self.tr("Memory Card"),
+                    self.tr(
+                        "Failed to reload previews from the machine:\n{0}"
+                    ).format(exc),
+                )
+                self._end_transmission()
+                self.reject()
+                return
 
+        self._card_info = new_card_info
+        self._update_card_info_label(new_card_info)
         self._on_selection_changed()
 
     def _on_close(self):
