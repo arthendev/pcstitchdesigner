@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
+    QLineEdit,
 )
 from PyQt5.QtCore import Qt, QUrl, QPoint, QEvent, QTimer
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor
@@ -109,7 +110,7 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         # Apply saved display settings to canvas
         self._apply_display_settings()
-        # Enable/disable card memory actions based on configured machine model
+        # Enable/disable memory card actions based on configured machine model
         self._update_machine_card_actions_state()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
@@ -527,7 +528,7 @@ class MainWindow(QMainWindow):
         self._act_machine_config = QAction(self.tr("Configuration…"), self)
         self._act_machine_config.triggered.connect(self._machine_configuration)
 
-        # Machine – Card Memory
+        # Machine – Memory Card
         self._act_machine_load_card = QAction(self.tr("Load Card Stitch"), self)
         self._act_machine_load_card.triggered.connect(self._machine_load_card)
 
@@ -1959,10 +1960,10 @@ class MainWindow(QMainWindow):
     def _machine_configuration(self):
         self._settings_preferences()
 
-    # ── Card Memory handlers ──
+    # ── Memory Card handlers ──
 
     def _query_and_show_card_memory(self, action):
-        """Open connection, query card memory index and previews, then show dialog.
+        """Open connection, query memory card index and previews, then show dialog.
 
         Args:
             action (str): One of CardMemoryDialog.ACTION_* constants.
@@ -1986,7 +1987,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self._machine_comm.end_transmission()
             self._machine_error(
-                self.tr("Failed to query card memory:\n{0}").format(exc)
+                self.tr("Failed to query memory card:\n{0}").format(exc)
             )
             return
 
@@ -1995,12 +1996,12 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.information(
                 self,
-                self.tr("Card Memory"),
+                self.tr("Memory Card"),
                 self.tr("No patterns found on the memory card."),
             )
             return
 
-        # Fetch preview images for every pattern on the card
+        # Fetch preview images for every pattern on the memory card
         patterns = []
         # Map pattern type to the offset field returned by query_card()
         offs_map = {
@@ -2049,6 +2050,49 @@ class MainWindow(QMainWindow):
     def _machine_load_card(self):
         self._query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
+    def _ask_card_filename(self):
+        """Show a dialog asking the user for a card slot filename (max 8 chars).
+
+        Returns:
+            str | None: Entered filename (1–8 chars), or None if cancelled.
+        """
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Pattern Name"))
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 16, 16, 12)
+        layout.setSpacing(8)
+
+        lbl = QLabel(self.tr("Enter a name for this pattern (max 8 characters):"))
+        layout.addWidget(lbl)
+
+        edit = QLineEdit()
+        edit.setMaxLength(8)
+        edit.setPlaceholderText(self.tr("Pattern name"))
+        layout.addWidget(edit)
+
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 4, 0, 0)
+        btn_row.addStretch()
+        ok_btn = QPushButton(self.tr("OK"))
+        ok_btn.setDefault(True)
+        ok_btn.setMinimumWidth(70)
+        cancel_btn = QPushButton(self.tr("Cancel"))
+        cancel_btn.setMinimumWidth(70)
+        btn_row.addWidget(ok_btn)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+        ok_btn.clicked.connect(dlg.accept)
+        cancel_btn.clicked.connect(dlg.reject)
+        dlg.adjustSize()
+
+        if dlg.exec_() != QDialog.Accepted:
+            return None
+        name = edit.text().strip()
+        return name[:8] if name else None
+
     def _machine_send_card(self):
         if not any(elem_has_coords(e) for e in self._pattern.elements):
             QMessageBox.warning(
@@ -2059,7 +2103,122 @@ class MainWindow(QMainWindow):
                 ),
             )
             return
-        self._query_and_show_card_memory(CardMemoryDialog.ACTION_SEND)
+
+        stitch_type = self._pattern.stitch_type
+        if stitch_type not in ('9mm', 'MAXI'):
+            QMessageBox.warning(
+                self, self.tr("Send Card Stitch"),
+                self.tr(
+                    "Sending {0} patterns to memory card is not yet supported."
+                ).format(stitch_type),
+            )
+            return
+
+        # ── Determine filename ────────────────────────────────────────────
+        if self._file_path:
+            filename = os.path.splitext(os.path.basename(self._file_path))[0][:8]
+        else:
+            filename = self._ask_card_filename()
+            if filename is None:
+                return  # user cancelled
+
+        # Null-terminated, max 9 bytes (8 chars + '\0')
+        filename_bytes = filename[:8].encode('ascii', errors='replace') + b'\x00'
+
+        # ── Build preview image and encode pattern data (before connecting) ──
+        preview_bytes = MachineComm.encode_card_preview(self._pattern)
+
+        if stitch_type == '9mm':
+            try:
+                pattern_raw = MachineComm.encode_card_slot_9mm(self._pattern)
+            except MachineCommError as exc:
+                QMessageBox.warning(
+                    self, self.tr("Send Card Stitch"), str(exc)
+                )
+                return
+        else:
+            pattern_raw = b''   # TODO: implement MAXI card-format stitch encoding
+
+        # ── Open machine connection and query card ────────────────────────
+        if not self._open_machine_connection():
+            return
+
+        try:
+            card_info = self._machine_comm.query_card()
+        except MachineCommError as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(str(exc))
+            return
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(
+                self.tr("Failed to query memory card:\n{0}").format(exc)
+            )
+            return
+
+        # ── Send the pattern to the card ──────────────────────────────────
+        try:
+            assigned_slot = self._machine_comm.send_card_slot(
+                card_info['card_no_bytes'],
+                self._pattern,
+                filename_bytes,
+                preview_bytes,
+                pattern_raw,
+            )
+        except MachineCommError as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(str(exc))
+            return
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(
+                self.tr("Failed to write pattern to memory card:\n{0}").format(exc)
+            )
+            return
+
+        # ── Verify by re-querying the card index ──────────────────────────
+        try:
+            new_card_info = self._machine_comm.query_card()
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(
+                self.tr(
+                    "Pattern was sent, but the card index could not be "
+                    "re-read to confirm:\n{0}"
+                ).format(exc)
+            )
+            return
+
+        self._machine_comm.end_transmission()
+
+        count_key_map = {'9mm': 'n_9mm', 'MAXI': 'n_maxi', 'Embroidery': 'n_embr'}
+        count_key  = count_key_map.get(stitch_type, '')
+        other_keys = [k for k in ('n_9mm', 'n_maxi', 'n_embr') if k != count_key]
+
+        success = (
+            count_key
+            and new_card_info['card_no'] == card_info['card_no']
+            and new_card_info[count_key] == card_info[count_key] + 1
+            and all(new_card_info[k] == card_info[k] for k in other_keys)
+        )
+
+        if success:
+            QMessageBox.information(
+                self,
+                self.tr("Send Card Stitch"),
+                self.tr(
+                    'Pattern "{0}" successfully written to memory card.'
+                ).format(filename),
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                self.tr("Send Card Stitch"),
+                self.tr(
+                    "The pattern was sent to the memory card, but the card index "
+                    "changed unexpectedly.\nPlease verify the card contents."
+                ),
+            )
 
     def _machine_insert_card(self):
         self._query_and_show_card_memory(CardMemoryDialog.ACTION_INSERT)
@@ -2081,7 +2240,7 @@ class MainWindow(QMainWindow):
         dlg = PreferencesDialog(self._config, parent=self)
         if dlg.exec_() == PreferencesDialog.Accepted:
             self._apply_display_settings()
-            # Re-evaluate machine-specific actions (card memory actions)
+            # Re-evaluate machine-specific actions (memory card actions)
             self._update_machine_card_actions_state()
 
     def _apply_display_settings(self):

@@ -803,7 +803,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    # ── Card Memory commands ──
+    # ── Memory Card commands ──
 
     def query_card(self, timeout=1.0):
         """Query the machine memory card index.
@@ -941,7 +941,7 @@ class MachineComm:
 
     def query_card_preview(self, card_no_bytes, slot, pattern_type,
                            timeout=1.0, max_retries=3):
-        """Request and receive a preview image for one card memory pattern.
+        """Request and receive a preview image for one card pattern.
 
         Sends::
 
@@ -1467,11 +1467,396 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    # ── Card Memory decoding ──
+    def send_card_slot(self, card_no_bytes, pattern, filename_bytes,
+                       preview_bytes, pattern_raw, timeout=1.0,
+                       progress_callback=None):
+        """Write a new pattern to the next free card slot (KN command).
+
+        The machine assigns the physical slot automatically; the caller
+        specifies the card, the pattern type/name, the preview bitmap, and
+        the encoded stitch data.
+
+        KN command frame::
+
+            CTRL_ETX + "KN" + 0x00 0x00 + <CardNo[2]>
+            + <BANK> + 0x00 + <TYPE>
+            + d0x_min_abs[2] + pn_x[2] + span_x[2] + y_min_to_bound[2]
+            + span_y[2] + 0x0000[2] + 0x10 + 0x0000[2] + dx_abs_max[2]
+            + size_preview[2] + 0x01 + size_pattern[2] + size_name[1]
+            + CTRL_ETX
+
+        All multi-byte values are big-endian.
+        BANK is 0xC0 for 9mm/Embroidery and 0xD0 for MAXI.
+        TYPE is 0x01 for 9mm, 0x02 for MAXI, 0x03 for Embroidery.
+
+        Machine acknowledges with CTRL_ACK + <BANK> + <SLOT>,
+        or CTRL_NAK if the card is full or write-protected.
+
+        Data payload = ``<filename_bytes> + <preview_bytes> + <pattern_raw>``
+
+        Data chunks::
+
+            CTRL_ENQ + SIZE + <payload> + SIZE + CTRL_ETB + <2 hex checksum>
+
+        Checksum covers: CTRL_ENQ + SIZE_BYTE + payload + SIZE_BYTE.
+        Machine acknowledges each chunk with CTRL_ACK; on CTRL_NAK the chunk
+        is retransmitted (max 3 retries).
+
+        Args:
+            card_no_bytes (bytes): Raw 2-byte card number from query_card().
+            pattern: StitchPattern instance used to derive KN header parameters.
+            filename_bytes (bytes): Null-terminated filename (max 9 bytes:
+                8 chars + '\\0').
+            preview_bytes (bytes): Binary preview image payload.
+            pattern_raw (bytes): Encoded stitch data payload.
+            timeout (float): Per-read timeout in seconds.  Default: 1.0.
+            progress_callback: Optional ``(done_bytes, total_bytes)`` callable.
+
+        Returns:
+            int: The slot number assigned by the machine.
+
+        Raises:
+            serial.SerialException: If the port is not open.
+            MachineCommError: On timeout, CTRL_NAK, checksum error, or
+                unexpected response.
+        """
+        self._require_open()
+
+        pattern_type = pattern.stitch_type
+        type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
+        if pattern_type not in type_byte_map:
+            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+
+        type_byte = type_byte_map[pattern_type]
+        bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
+
+        CHUNK_SIZE  = 0x80   # 128 bytes max payload per chunk
+        MAX_RETRIES = 3
+
+        # ── Compute KN header parameters (same logic as encode_machine_header_75xx) ──
+        points = [
+            (e[1], e[2])
+            for e in pattern.rounded_display_elements()
+            if elem_has_coords(e)
+        ]
+        if not points:
+            raise MachineCommError("Cannot send an empty pattern to memory card.")
+
+        xs  = [x for x, y in points]
+        ys  = [y for x, y in points]
+        dxs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
+
+        dx_abs_max  = max((abs(dx) for dx in dxs), default=0)
+        d0x_min_abs = abs(min(xs) - xs[0])
+        pn_x        = xs[-1]
+        span_x      = max(xs) - min(xs)
+        span_y      = max(ys) - min(ys)
+
+        if pattern_type == '9mm':
+            y_min_to_bound = 0x36 - min(ys)
+        elif pattern_type == 'MAXI':
+            ys_norm_27     = [y - ys[0] + 27 for y in ys]
+            y_min_to_bound = 0x36 - min(ys_norm_27)
+        else:
+            y_min_to_bound = 0
+
+        size_preview = len(preview_bytes)
+        size_pattern = len(pattern_raw)
+        size_name    = len(filename_bytes)   # includes null terminator
+
+        def _pack2(v):
+            return (v & 0xFFFF).to_bytes(2, 'big')
+
+        cmd = (
+            bytes([self.CTRL_ETX]) + b"KN" +
+            bytes([0x00, 0x00]) +
+            card_no_bytes +
+            bytes([bank_byte, 0x00, type_byte]) +
+            _pack2(d0x_min_abs) +
+            _pack2(pn_x) +
+            _pack2(span_x) +
+            _pack2(y_min_to_bound) +
+            _pack2(span_y) +
+            bytes([0x00, 0x00]) +
+            bytes([0x10]) +
+            bytes([0x00, 0x00]) +
+            _pack2(dx_abs_max) +
+            _pack2(size_preview) +
+            bytes([0x01]) +
+            _pack2(size_pattern) +
+            bytes([size_name]) +
+            bytes([self.CTRL_ETX])
+        )
+
+        saved_timeout = self._serial.timeout
+        self._serial.timeout = timeout
+        try:
+            self.flush()
+            self._serial.write(cmd)
+
+            # Machine replies: CTRL_ACK + <BANK> + <SLOT>
+            resp = self._serial.read(3)
+            if not resp:
+                raise MachineCommError(
+                    "No response to card write (KN) command."
+                )
+            if resp[0] == self.CTRL_NAK:
+                raise MachineCommError(
+                    "Machine rejected the card write command. "
+                    "The card may be full or write-protected."
+                )
+            if resp[0] != self.CTRL_ACK:
+                raise MachineCommError(
+                    f"Unexpected response 0x{resp[0]:02X} to card write command."
+                )
+            if len(resp) < 3:
+                raise MachineCommError(
+                    "Incomplete acknowledgement to card write command "
+                    f"({len(resp)} byte(s) received, expected 3)."
+                )
+            assigned_slot = resp[2]
+
+            # ── Send data in chunks ───────────────────────────────────────
+            data  = bytes(filename_bytes) + bytes(preview_bytes) + bytes(pattern_raw)
+            total = len(data)
+            done  = 0
+
+            for offset in range(0, max(total, 1), CHUNK_SIZE):
+                chunk     = data[offset:offset + CHUNK_SIZE]
+                size_byte = len(chunk)
+                cs_input  = bytes([size_byte]) + chunk + bytes([size_byte])
+                cs_hex    = f"{self.checksum(cs_input):02X}".encode('ascii')
+                frame = (
+                    bytes([self.CTRL_ENQ, size_byte]) +
+                    chunk +
+                    bytes([size_byte, self.CTRL_ETB]) +
+                    cs_hex
+                )
+
+                for attempt in range(MAX_RETRIES + 1):
+                    self._serial.write(frame)
+                    ack = self._serial.read(1)
+                    if not ack:
+                        raise MachineCommError(
+                            f"Timeout waiting for acknowledgement after chunk "
+                            f"{offset // CHUNK_SIZE + 1}."
+                        )
+                    if ack[0] == self.CTRL_ACK:
+                        done += size_byte
+                        if progress_callback is not None:
+                            progress_callback(min(done, total), total)
+                        break
+                    if ack[0] == self.CTRL_NAK:
+                        if attempt == MAX_RETRIES:
+                            raise MachineCommError(
+                                f"Machine rejected chunk {offset // CHUNK_SIZE + 1} "
+                                f"after {MAX_RETRIES} retries."
+                            )
+                        # Retry the same chunk
+                        continue
+                    raise MachineCommError(
+                        f"Unexpected response 0x{ack[0]:02X} after chunk "
+                        f"{offset // CHUNK_SIZE + 1}."
+                    )
+            # After the final chunk, send CTRL_ETX to indicate completion
+            self._serial.write(bytes([self.CTRL_ETX]))
+            return assigned_slot
+        finally:
+            self._serial.timeout = saved_timeout
+
+    @staticmethod
+    def encode_card_preview(pattern):
+        """Generate a column-major 1-bit-per-pixel preview image for memory card.
+
+        Draws line segments between consecutive stitch points, scaled and
+        centred within the type-specific preview dimensions:
+
+        =========== ====== ======
+        Stitch type Height Width
+        =========== ====== ======
+        9mm           24     53
+        MAXI          48     53
+        Embroidery    48     48
+        =========== ====== ======
+
+        Bit-stream layout (matches the decoding in CardMemoryDialog._build_pixmap):
+
+        * Data is column-major (all bytes for column 0, then column 1, …).
+        * Each column occupies ``col_height // 8`` bytes, ordered bottom-to-top
+          (byte 0 = bottom-most 8-row group, last byte = top-most group).
+        * Within each byte bit 7 (MSB) is the top-most pixel of that 8-row
+          group; bit 0 (LSB) is the bottom-most.
+        * Embroidery images are rotated 180° before encoding.
+
+        Args:
+            pattern: StitchPattern instance.
+
+        Returns:
+            bytes: Encoded preview bitmap.
+                   Size: ``img_w * (img_h // 8)`` bytes.
+        """
+        stitch_type = pattern.stitch_type
+        if stitch_type == '9mm':
+            img_h, img_w = 24, 53
+        elif stitch_type == 'MAXI':
+            img_h, img_w = 48, 53
+        else:   # Embroidery
+            img_h, img_w = 48, 48
+
+        bytes_per_col = img_h // 8
+        blank = bytes(img_w * bytes_per_col)
+
+        points = [
+            (e[1], e[2])
+            for e in pattern.rounded_display_elements()
+            if elem_has_coords(e)
+        ]
+        if len(points) < 2:
+            return blank
+
+        xs = [x for x, y in points]
+        ys = [y for x, y in points]
+        min_x, min_y = min(xs), min(ys)
+        span_x = max(xs) - min_x
+        span_y = max(ys) - min_y
+
+        # Scale so the pattern fills the image with 1-px margin on each side
+        avail_w = img_w - 2
+        avail_h = img_h - 2
+
+        if span_x == 0 and span_y == 0:
+            scale = 1.0
+        elif span_x == 0:
+            scale = avail_h / span_y
+        elif span_y == 0:
+            scale = avail_w / span_x
+        else:
+            scale = min(avail_w / span_x, avail_h / span_y)
+
+        scaled_w = span_x * scale
+        scaled_h = span_y * scale
+        off_x = (img_w - scaled_w) / 2.0 - min_x * scale
+        off_y = (img_h - scaled_h) / 2.0 - min_y * scale
+
+        # Flat row-major bitmap; index = y * img_w + x; 1 = black, 0 = white
+        bitmap = bytearray(img_w * img_h)
+
+        def _draw_line(x0f, y0f, x1f, y1f):
+            """Bresenham line from float coords, clipped to bitmap bounds."""
+            x0, y0 = round(x0f), round(y0f)
+            x1, y1 = round(x1f), round(y1f)
+            dx = abs(x1 - x0)
+            dy = abs(y1 - y0)
+            sx = 1 if x0 < x1 else -1
+            sy = 1 if y0 < y1 else -1
+            err = dx - dy
+            while True:
+                if 0 <= x0 < img_w and 0 <= y0 < img_h:
+                    bitmap[y0 * img_w + x0] = 1
+                if x0 == x1 and y0 == y1:
+                    break
+                e2 = 2 * err
+                if e2 > -dy:
+                    err -= dy
+                    x0 += sx
+                if e2 < dx:
+                    err += dx
+                    y0 += sy
+
+        for i in range(len(points) - 1):
+            px0, py0 = points[i]
+            px1, py1 = points[i + 1]
+            _draw_line(
+                px0 * scale + off_x, py0 * scale + off_y,
+                px1 * scale + off_x, py1 * scale + off_y,
+            )
+
+        # Mirror upside-down
+        mirrored = bytearray(img_w * img_h)
+        for y in range(img_h):
+            for x in range(img_w):
+                mirrored[(img_h - 1 - y) * img_w + x] = bitmap[y * img_w + x]
+        bitmap = mirrored
+
+        # Rotate 180° for Embroidery
+        if stitch_type == 'Embroidery':
+            rotated = bytearray(img_w * img_h)
+            for y in range(img_h):
+                for x in range(img_w):
+                    rotated[(img_h - 1 - y) * img_w + (img_w - 1 - x)] = (
+                        bitmap[y * img_w + x]
+                    )
+            bitmap = rotated
+        
+        # Encode: column-major, groups of 8 rows from bottom to top,
+        # MSB = top-most pixel within each 8-row group.
+        result = bytearray(img_w * bytes_per_col)
+        for col in range(img_w):
+            for byte_idx in range(bytes_per_col):
+                y_base = img_h - 8 - byte_idx * 8   # bottom group first
+                byte_val = 0
+                for bit in range(8):
+                    if bitmap[(y_base + bit) * img_w + col]:
+                        byte_val |= 1 << (7 - bit)  # MSB = topmost pixel
+                result[col * bytes_per_col + byte_idx] = byte_val
+        return bytes(result)
+
+    @staticmethod
+    def encode_card_slot_9mm(pattern):
+        """Encode a 9mm stitch pattern into the memory card byte format.
+
+        Each stitch point produces two bytes:
+
+        * ``b[0] = (x(n-1) - x(n)) + 0x5B``  — differential x with 0x5B bias.
+          The virtual previous-x for the first stitch is 0.
+        * ``b[1] = y(n)``                      — absolute y.
+
+        The payload is wrapped with a leading ``0x80`` sentinel and a trailing
+        ``0x8A`` sentinel (matching the card-read sentinels stripped by
+        :meth:`decode_card_slot_9mm`).
+
+        Args:
+            pattern: StitchPattern instance (``stitch_type`` must be ``'9mm'``).
+
+        Returns:
+            bytes: ``0x80 + N×2 payload bytes + 0x8A``.
+
+        Raises:
+            MachineCommError: If any differential-x value is outside the open
+                interval ``(-90, 90)``, i.e. ``|dx| >= 90``.  The error message
+                names the offending stitch and advises inserting intermediate
+                stitches.
+        """
+        points = [
+            (e[1], e[2])
+            for e in pattern.rounded_display_elements()
+            if elem_has_coords(e)
+        ]
+        if not points:
+            return bytes([0x80, 0x8A])
+
+        result = bytearray([0x80])
+        x_prev = 0
+        for i, (x, y) in enumerate(points):
+            dx = x_prev - x
+            if not (-90 < dx < 90):
+                raise MachineCommError(
+                    f"Stitch point {i + 1}: dx = {dx} is outside the valid range "
+                    "(-90, 90).\n"
+                    "The distance between consecutive stitch points is too large.\n"
+                    "Please insert intermediate stitches and try again."
+                )
+            result.append(dx + 0x5B)
+            result.append(y & 0xFF)
+            x_prev = x
+        result.append(0x8A)
+        return bytes(result)
+
+    # ── Memory Card decoding ──
 
     @staticmethod
     def decode_card_slot_9mm(raw_bytes):
-        """Decode raw bytes from a 9mm card memory slot into stitch coordinates.
+        """Decode raw bytes from a 9mm memory card slot into stitch coordinates.
 
         Format:
           - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
@@ -1527,7 +1912,7 @@ class MachineComm:
 
     @staticmethod
     def decode_card_slot_maxi(raw_bytes):
-        """Decode raw bytes from a MAXI card memory slot into stitch coordinates.
+        """Decode raw bytes from a MAXI card slot into stitch coordinates.
 
         Format:
           - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
