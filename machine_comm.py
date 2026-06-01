@@ -289,63 +289,6 @@ class MachineComm:
             checksum_val = (checksum_val + byte) & 0xFF
         return checksum_val
 
-
-    def read_pfaff_chunk(self, timeout=1.0):
-        """Read a PFAFF protocol chunk from the serial port.
-
-        Reads bytes in a loop until CTRL_END_OF_TRANS_BLOCK (0x17) followed by
-        2 ASCII hex checksum bytes is detected, or the timeout expires.
-        Verifies the checksum and returns the payload.
-
-        Args:
-            timeout (float): Maximum seconds to wait for a complete chunk. Default: 1.0.
-
-        Returns:
-            bytes: Chunk payload (stripped of terminator and checksum).
-
-        Raises:
-            serial.SerialException: If the port is not open.
-            MachineCommError: If the timeout expires before a complete chunk is
-                received, or if the checksum is invalid.
-        """
-        self._require_open()
-
-        buf = bytearray()
-        deadline = time.monotonic() + timeout
-
-        while time.monotonic() < deadline:
-            if self._serial.in_waiting:
-                buf.extend(self._serial.read(self._serial.in_waiting))
-
-                # End condition: CTRL_ETB at [-3] + 2 checksum bytes
-                if len(buf) >= 3 and buf[-3] == self.CTRL_ETB:
-                    payload = bytes(buf[:-3])
-                    received_checksum_bytes = bytes(buf[-2:])
-
-                    # Decode two ASCII hex characters into an integer (e.g. b'A3' -> 0xA3)
-                    try:
-                        received_checksum = int(received_checksum_bytes.decode('ascii'), 16)
-                    except (ValueError, UnicodeDecodeError) as exc:
-                        raise MachineCommError(
-                            f"Invalid checksum encoding: {received_checksum_bytes!r}"
-                        ) from exc
-
-                    expected_checksum = self.checksum(payload)
-                    if received_checksum != expected_checksum:
-                        raise MachineCommError(
-                            f"Checksum mismatch: expected {expected_checksum:02X}, "
-                            f"got {received_checksum:02X}"
-                        )
-
-                    return payload
-            else:
-                time.sleep(0.005)  # Short sleep to avoid busy-waiting
-
-        raise MachineCommError(
-            f"Timeout waiting for chunk after {timeout:.1f}s "
-            f"(received {len(buf)} bytes so far)."
-        )
-
     # ── Transmission control ──
 
     def end_transmission(self):
@@ -359,7 +302,7 @@ class MachineComm:
 
     # ── P-Memory commands ──
 
-    def query_pmemory(self, timeout=1.0):
+    def query_pmemory_index(self, timeout=1.0):
         """Query the machine P-Memory directory.
 
         Sends the "PI" command terminated with CTRL_ETX. Reads the response
@@ -434,8 +377,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_pmemory_slot(self, slot_index, slot_type, timeout=1.0,
-                          total_size=0, progress_callback=None):
+    def load_pmemory_slot(self, slot_index, slot_type, timeout=1.0, total_size=0, progress_callback=None):
         """Load a pattern from a P-Memory slot.
 
         Sends 'RM06<XX><T>' + CTRL_ETX, where XX is the zero-based slot index
@@ -536,54 +478,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pattern(self, data, chunk_size=250, timeout=1.0, progress_callback=None):
-        """Send pattern data to the machine in chunked PFAFF protocol frames.
-
-        Each chunk is wrapped as: <payload> + CTRL_ETB + <2 ASCII-hex checksum bytes>.
-        After each frame the method waits for CTRL_ACK from the machine.
-
-        Args:
-            data (bytes | bytearray): Serialised pattern data to send.
-            chunk_size (int): Payload size per chunk in bytes. Default: 250.
-            timeout (float): Per-chunk read timeout in seconds. Default: 1.0.
-
-        Raises:
-            serial.SerialException: If the port is not open.
-            MachineCommError: If the machine replies with CTRL_NAK, sends an
-                unexpected byte, or does not respond within the timeout.
-        """
-        self._require_open()
-
-        saved_timeout = self._serial.timeout
-        self._serial.timeout = timeout
-        try:
-            for offset in range(0, len(data), chunk_size):
-                chunk = data[offset:offset + chunk_size]
-                cs = self.checksum(chunk)
-                frame = chunk + bytes([self.CTRL_ETB]) + f"{cs:02X}".encode('ascii')
-                self._serial.write(frame)
-
-                response = self._serial.read(1)
-                if not response:
-                    raise MachineCommError(
-                        "Timeout waiting for acknowledgement after chunk "
-                        f"{offset // chunk_size + 1}."
-                    )
-                if response[0] == self.CTRL_NAK:
-                    raise MachineCommError(
-                        "Error occurred while sending the pattern"
-                    )
-                if response[0] != self.CTRL_ACK:
-                    raise MachineCommError(
-                        f"Unexpected response 0x{response[0]:02X} during transfer."
-                    )
-                if progress_callback is not None:
-                    progress_callback(min(offset + chunk_size, len(data)), len(data))
-        finally:
-            self._serial.timeout = saved_timeout
-
-    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250,
-                          timeout=1.0, progress_callback=None):
+    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None):
         """Dispatch to the appropriate send method based on machine_model.
         """
 
@@ -596,8 +491,7 @@ class MachineComm:
                                         chunk_size=chunk_size, timeout=timeout,
                                         progress_callback=progress_callback)
 
-    def send_pmemory_slot_75xx(self, slot_index, pattern, chunk_size=250, timeout=1.0,
-                          progress_callback=None):
+    def send_pmemory_slot_75xx(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -635,7 +529,7 @@ class MachineComm:
             stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
 
             # ── Pre-compute stitch data and final machine-side points ──────
-            stitch_data, final_points = self.encode_machine_stitch_data(pattern)
+            stitch_data, final_points = self.encode_pmemory_stitch_data(pattern)
             expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
 
             # ── Phase 1: write command ─────────────────────────────────────
@@ -662,7 +556,7 @@ class MachineComm:
                 )
 
             # ── Phase 2: header ────────────────────────────────────────────
-            header = self.encode_machine_header_75xx(pattern, final_points)
+            header = self.encode_pmemory_header_75xx(pattern, final_points)
             cs = self.checksum(header)
             self._serial.write(
                 header
@@ -711,8 +605,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0,
-                          progress_callback=None):
+    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -747,11 +640,11 @@ class MachineComm:
             stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
 
             # ── Pre-compute stitch data and final machine-side points ──────
-            stitch_data, final_points = self.encode_machine_stitch_data(pattern)
+            stitch_data, final_points = self.encode_pmemory_stitch_data(pattern)
             expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
 
             # ── Phase 1: write command with header ─────────────────────────
-            header = self.encode_machine_header_1475cd(pattern, final_points)
+            header = self.encode_pmemory_header_1475cd(pattern, final_points)
             cmd_payload = (
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii') + header
@@ -939,8 +832,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def query_card_preview(self, card_no_bytes, slot, pattern_type,
-                           timeout=1.0, max_retries=3):
+    def query_card_preview(self, card_no_bytes, slot_index, pattern_type, timeout=1.0, max_retries=3):
         """Request and receive a preview image for one card pattern.
 
         Sends::
@@ -1005,7 +897,7 @@ class MachineComm:
         type_byte = type_byte_map[pattern_type]
         bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
         # slot_byte = (slot + 0xC8) if pattern_type == 'Embroidery' else slot
-        slot_byte = slot
+        slot_byte = slot_index
 
         cmd = (
             bytes([self.CTRL_ETX]) + b"KB" +
@@ -1029,12 +921,12 @@ class MachineComm:
                 if not fb:
                     raise MachineCommError(
                         f"No response to card preview command "
-                        f"({pattern_type} slot {slot})."
+                        f"({pattern_type} slot {slot_index})."
                     )
                 if fb[0] == self.CTRL_NAK:
                     raise MachineCommError(
                         f"Machine rejected card preview request "
-                        f"({pattern_type} slot {slot})."
+                        f"({pattern_type} slot {slot_index})."
                     )
                 if fb[0] != self.CTRL_ACK:
                     raise MachineCommError(
@@ -1097,7 +989,7 @@ class MachineComm:
                     if attempt == max_retries:
                         raise MachineCommError(
                             f"First chunk checksum mismatch "
-                            f"({pattern_type} slot {slot}) after {max_retries} retries."
+                            f"({pattern_type} slot {slot_index}) after {max_retries} retries."
                         )
                     # Machine retransmits starting with CTRL_ACK; loop retries
 
@@ -1152,7 +1044,7 @@ class MachineComm:
                         self._serial.write(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
-                                f"Chunk checksum mismatch ({pattern_type} slot {slot}) "
+                                f"Chunk checksum mismatch ({pattern_type} slot {slot_index}) "
                                 f"after {max_retries} retries."
                             )
                         # Machine retransmits CTRL_ENQ; re-read it before inner loop retry
@@ -1164,14 +1056,13 @@ class MachineComm:
                 'name':         name,
                 'size':         size,
                 'pattern_type': pattern_type,
-                'slot':         slot,
+                'slot':         slot_index,
                 'preview_hex':  all_payload.hex(),
             }
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_card_slot(self, card_no_bytes, slot, pattern_type, timeout=1.0, max_retries=3,
-                       progress_callback=None):
+    def load_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0, max_retries=3, progress_callback=None):
         """Load (read) a pattern from a memory card slot.
 
         Sends::
@@ -1209,7 +1100,7 @@ class MachineComm:
 
         Args:
             card_no_bytes (bytes): Raw 2-byte card number from query_card().
-            slot (int): Zero-based absolute slot index on the card (offset
+            slot_index (int): Zero-based absolute slot index on the card (offset
                 already applied).
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
             timeout (float): Per-read timeout in seconds. Default: 1.0.
@@ -1238,7 +1129,7 @@ class MachineComm:
             bytes([self.CTRL_ETX]) + b"KS" +
             bytes([0x00, 0x00]) +
             card_no_bytes +
-            bytes([bank_byte, slot, type_byte, self.CTRL_ETX])
+            bytes([bank_byte, slot_index, type_byte, self.CTRL_ETX])
         )
 
         saved_timeout = self._serial.timeout
@@ -1251,16 +1142,16 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    f"No response to load command ({pattern_type} slot {slot})."
+                    f"No response to load command ({pattern_type} slot {slot_index})."
                 )
             if resp[0] == self.CTRL_NAK:
                 raise MachineCommError(
-                    f"Machine rejected load command ({pattern_type} slot {slot})."
+                    f"Machine rejected load command ({pattern_type} slot {slot_index})."
                 )
             if resp[0] != self.CTRL_ACK:
                 raise MachineCommError(
                     f"Unexpected response 0x{resp[0]:02X} to load command "
-                    f"({pattern_type} slot {slot})."
+                    f"({pattern_type} slot {slot_index})."
                 )
 
             all_data = bytearray()
@@ -1316,7 +1207,7 @@ class MachineComm:
                     self._serial.write(bytes([self.CTRL_NAK]))
                     if attempt == max_retries:
                         raise MachineCommError(
-                            f"First chunk checksum mismatch ({pattern_type} slot {slot}) "
+                            f"First chunk checksum mismatch ({pattern_type} slot {slot_index}) "
                             f"after {max_retries} retries."
                         )
                     # Machine will retransmit; loop to try again
@@ -1376,7 +1267,7 @@ class MachineComm:
                         self._serial.write(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
-                                f"Chunk checksum mismatch ({pattern_type} slot {slot}) "
+                                f"Chunk checksum mismatch ({pattern_type} slot {slot_index}) "
                                 f"after {max_retries} retries."
                             )
                         # Machine retransmits starting with CTRL_ENQ; re-read it
@@ -1390,7 +1281,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def delete_card_pattern(self, card_no_bytes, slot_byte, pattern_type, timeout=1.0):
+    def delete_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0):
         """Delete a pattern from the memory card.
 
         Sends::
@@ -1414,7 +1305,7 @@ class MachineComm:
         Args:
             card_no_bytes (bytes): Raw 2-byte card number from
                 :meth:`query_card`.
-            slot_byte (int): Absolute slot index on the card (offset already
+            slot_index (int): Absolute slot index on the card (offset already
                 applied; use the ``'slot'`` value stored in the pattern dict
                 returned by :meth:`query_card_preview`).
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
@@ -1438,7 +1329,7 @@ class MachineComm:
             bytes([self.CTRL_ETX]) + b"KL" +
             bytes([0x00, 0x00]) +
             card_no_bytes +
-            bytes([bank_byte, slot_byte, type_byte, self.CTRL_ETX])
+            bytes([bank_byte, slot_index, type_byte, self.CTRL_ETX])
         )
 
         saved_timeout = self._serial.timeout
@@ -1451,25 +1342,23 @@ class MachineComm:
             if not resp:
                 raise MachineCommError(
                     f"No response to delete command "
-                    f"({pattern_type} slot {slot_byte:#04x})."
+                    f"({pattern_type} slot {slot_index:#04x})."
                 )
             if resp[0] == self.CTRL_NAK:
                 raise MachineCommError(
                     f"Machine rejected delete command "
-                    f"({pattern_type} slot {slot_byte:#04x}). "
+                    f"({pattern_type} slot {slot_index:#04x}). "
                     "The card may be write-protected."
                 )
             if resp[0] != self.CTRL_ACK:
                 raise MachineCommError(
                     f"Unexpected response 0x{resp[0]:02X} to delete command "
-                    f"({pattern_type} slot {slot_byte:#04x})."
+                    f"({pattern_type} slot {slot_index:#04x})."
                 )
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_card_slot(self, card_no_bytes, pattern, filename_bytes,
-                       preview_bytes, pattern_raw, timeout=1.0,
-                       progress_callback=None):
+    def send_card_slot(self, card_no_bytes, pattern, filename_bytes, preview_bytes, pattern_raw, timeout=1.0, progress_callback=None):
         """Write a new pattern to the next free card slot (KN command).
 
         The machine assigns the physical slot automatically; the caller
@@ -1668,6 +1557,129 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
+    # ── Memory Card encoding/decoding ──
+
+    @staticmethod
+    def decode_card_pattern_9mm(raw_bytes):
+        """Decode raw bytes from a 9mm memory card slot into stitch coordinates.
+
+        Format:
+          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Remaining bytes are pairs ``(dx_byte, y_byte)``:
+              - ``dx = dx_byte - 0x5B``  (signed differential x)
+              - ``x(n) = x(n-1) - dx``   (running accumulator, starts at 0)
+              - ``y``  is absolute.
+          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
+          - If any x-coordinate is negative after decoding, all x values are
+            shifted so that ``min(x) == 0``.
+
+        Args:
+            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
+
+        Returns:
+            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
+
+        Raises:
+            MachineCommError: If the payload (after stripping sentinels) has an
+                odd number of bytes.
+        """
+        data = bytearray(raw_bytes)
+
+        # Strip optional leading sentinel
+        if data and data[0] in (0x80, 0x8A):
+            data = data[1:]
+
+        # Strip optional trailing sentinel
+        if data and data[-1] in (0x80, 0x8A):
+            data = data[:-1]
+
+        if len(data) % 2 != 0:
+            raise MachineCommError(
+                f"9mm card slot payload has odd byte count ({len(data)}) "
+                "after stripping sentinels."
+            )
+
+        points = []
+        x = 0
+        for i in range(0, len(data), 2):
+            dx = data[i] - 0x5B
+            y  = data[i + 1]
+            x  = x - dx
+            points.append((x, y))
+
+        # Shift so that min(x) == 0 if any coordinate went negative
+        if points:
+            min_x = min(px for px, _ in points)
+            if min_x < 0:
+                points = [(px - min_x, py) for px, py in points]
+
+        return points
+
+    @staticmethod
+    def decode_card_pattern_maxi(raw_bytes):
+        """Decode raw bytes from a MAXI card pattern into stitch coordinates.
+
+        Format:
+          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Remaining bytes are triplets ``(dt_byte, dx_byte, y_byte)``:
+              - ``dy_acc += dt_byte - 0xC6``  (accumulates side-transport offset)
+              - ``dx = dx_byte - 0x5B``       (signed differential x)
+              - ``x(n) = x(n-1) - dx``        (running accumulator, starts at 0)
+              - ``y = y_byte + dy_acc``        (absolute base + accumulated offset)
+          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
+          - If any x-coordinate is negative, all x values are shifted so
+            that ``min(x) == 0``.
+          - If any y-coordinate is negative, all y values are shifted so
+            that ``min(y) == 0``.
+
+        Args:
+            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
+
+        Returns:
+            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
+
+        Raises:
+            MachineCommError: If the payload (after stripping sentinels) is not
+                a multiple of 3 bytes.
+        """
+        data = bytearray(raw_bytes)
+
+        # Strip optional leading sentinel
+        if data and data[0] in (0x80, 0x8A):
+            data = data[1:]
+
+        # Strip optional trailing sentinel
+        if data and data[-1] in (0x80, 0x8A):
+            data = data[:-1]
+
+        if len(data) % 3 != 0:
+            raise MachineCommError(
+                f"MAXI card slot payload length {len(data)} is not a multiple of 3 "
+                "after stripping sentinels."
+            )
+
+        points = []
+        x = 0
+        dy_acc = 0
+        for i in range(0, len(data), 3):
+            dy_acc += data[i]     - 0xC6
+            dx      = data[i + 1] - 0x5B
+            y_base  = data[i + 2]
+            x = x - dx
+            y = y_base + dy_acc
+            points.append((x, y))
+
+        if points:
+            min_x = min(px for px, _ in points)
+            if min_x < 0:
+                points = [(px - min_x, py) for px, py in points]
+
+            min_y = min(py for _, py in points)
+            if min_y < 0:
+                points = [(px, py - min_y) for px, py in points]
+
+        return points
+
     @staticmethod
     def encode_card_preview(pattern):
         """Generate a column-major 1-bit-per-pixel preview image for memory card.
@@ -1806,7 +1818,7 @@ class MachineComm:
         return bytes(result)
 
     @staticmethod
-    def encode_card_slot_9mm(pattern):
+    def encode_card_pattern_9mm(pattern):
         """Encode a 9mm stitch pattern into the memory card byte format.
 
         Each stitch point produces two bytes:
@@ -1889,7 +1901,7 @@ class MachineComm:
         if not raw_elems:
             return bytes([0x80, 0x8A])
 
-        translated_xyt, _ = MachineComm._translate_maxi_points(raw_elems)
+        translated_xyt, translated_xy = MachineComm._translate_maxi_points(raw_elems)
 
         result = bytearray([0x80])
         x_prev = translated_xyt[0][0]  # x of the first stitch
@@ -1909,136 +1921,13 @@ class MachineComm:
         result.append(0x8A)
         return bytes(result)
 
-    # ── Memory Card decoding ──
+    # ── P-Memory decoding/encoding ──
 
     @staticmethod
-    def decode_card_slot_9mm(raw_bytes):
-        """Decode raw bytes from a 9mm memory card slot into stitch coordinates.
-
-        Format:
-          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
-          - Remaining bytes are pairs ``(dx_byte, y_byte)``:
-              - ``dx = dx_byte - 0x5B``  (signed differential x)
-              - ``x(n) = x(n-1) - dx``   (running accumulator, starts at 0)
-              - ``y``  is absolute.
-          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
-          - If any x-coordinate is negative after decoding, all x values are
-            shifted so that ``min(x) == 0``.
-
-        Args:
-            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
-
-        Returns:
-            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
-
-        Raises:
-            MachineCommError: If the payload (after stripping sentinels) has an
-                odd number of bytes.
-        """
-        data = bytearray(raw_bytes)
-
-        # Strip optional leading sentinel
-        if data and data[0] in (0x80, 0x8A):
-            data = data[1:]
-
-        # Strip optional trailing sentinel
-        if data and data[-1] in (0x80, 0x8A):
-            data = data[:-1]
-
-        if len(data) % 2 != 0:
-            raise MachineCommError(
-                f"9mm card slot payload has odd byte count ({len(data)}) "
-                "after stripping sentinels."
-            )
-
-        points = []
-        x = 0
-        for i in range(0, len(data), 2):
-            dx = data[i] - 0x5B
-            y  = data[i + 1]
-            x  = x - dx
-            points.append((x, y))
-
-        # Shift so that min(x) == 0 if any coordinate went negative
-        if points:
-            min_x = min(px for px, _ in points)
-            if min_x < 0:
-                points = [(px - min_x, py) for px, py in points]
-
-        return points
-
-    @staticmethod
-    def decode_card_slot_maxi(raw_bytes):
-        """Decode raw bytes from a MAXI card slot into stitch coordinates.
-
-        Format:
-          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
-          - Remaining bytes are triplets ``(dt_byte, dx_byte, y_byte)``:
-              - ``dy_acc += dt_byte - 0xC6``  (accumulates side-transport offset)
-              - ``dx = dx_byte - 0x5B``       (signed differential x)
-              - ``x(n) = x(n-1) - dx``        (running accumulator, starts at 0)
-              - ``y = y_byte + dy_acc``        (absolute base + accumulated offset)
-          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
-          - If any x-coordinate is negative, all x values are shifted so
-            that ``min(x) == 0``.
-          - If any y-coordinate is negative, all y values are shifted so
-            that ``min(y) == 0``.
-
-        Args:
-            raw_bytes (bytes | bytearray): Payload returned by load_card_slot().
-
-        Returns:
-            list[tuple[int, int]]: Decoded ``[(x, y), ...]`` stitch coordinates.
-
-        Raises:
-            MachineCommError: If the payload (after stripping sentinels) is not
-                a multiple of 3 bytes.
-        """
-        data = bytearray(raw_bytes)
-
-        # Strip optional leading sentinel
-        if data and data[0] in (0x80, 0x8A):
-            data = data[1:]
-
-        # Strip optional trailing sentinel
-        if data and data[-1] in (0x80, 0x8A):
-            data = data[:-1]
-
-        if len(data) % 3 != 0:
-            raise MachineCommError(
-                f"MAXI card slot payload length {len(data)} is not a multiple of 3 "
-                "after stripping sentinels."
-            )
-
-        points = []
-        x = 0
-        dy_acc = 0
-        for i in range(0, len(data), 3):
-            dy_acc += data[i]     - 0xC6
-            dx      = data[i + 1] - 0x5B
-            y_base  = data[i + 2]
-            x = x - dx
-            y = y_base + dy_acc
-            points.append((x, y))
-
-        if points:
-            min_x = min(px for px, _ in points)
-            if min_x < 0:
-                points = [(px - min_x, py) for px, py in points]
-
-            min_y = min(py for _, py in points)
-            if min_y < 0:
-                points = [(px, py - min_y) for px, py in points]
-
-        return points
-
-    # ── P-Memory decoding ──
-
-    @staticmethod
-    def decode_pmemory(raw_bytes, machine_model):
+    def decode_pmemory_index(raw_bytes, machine_model):
         """Decode raw P-Memory query response bytes into a structured dict.
 
-        The expected layout of raw_bytes (as returned by query_pmemory) is:
+        The expected layout of raw_bytes (as returned by query_pmemory_index) is:
             <payload ASCII chars> + CTRL_ETB + <2 ASCII-hex checksum chars>
 
         Payload structure (all values ASCII-hex encoded):
@@ -2051,7 +1940,7 @@ class MachineComm:
             last 4 chars            - total free memory (2 bytes, unsigned hex)
 
         Args:
-            raw_bytes (bytes): Raw bytes returned by query_pmemory().
+            raw_bytes (bytes): Raw bytes returned by query_pmemory_index().
             machine_model (str): Machine model string from configuration
 
         Returns:
@@ -2159,7 +2048,7 @@ class MachineComm:
         }
 
     @staticmethod
-    def decode_machine_pattern(data, slot_type):
+    def decode_pmemory_pattern(data, slot_type):
         """Decode a raw hex-ASCII pattern payload received from the machine.
 
         9mm format  - repeating groups of 5 ASCII-hex chars:
@@ -2248,7 +2137,7 @@ class MachineComm:
         return points
 
     @staticmethod
-    def encode_machine_header_75xx(pattern, points=None):
+    def encode_pmemory_header_75xx(pattern, points=None):
         """Encode the fixed header for the given pattern. Valid for Creative 7550/7570.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
@@ -2323,7 +2212,7 @@ class MachineComm:
             )
 
     @staticmethod
-    def encode_machine_header_1475cd(pattern, points=None):
+    def encode_pmemory_header_1475cd(pattern, points=None):
         """Encode the fixed header for the given pattern. Valid for Creative 1475 CD.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
@@ -2374,6 +2263,46 @@ class MachineComm:
                 f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
             )
         
+    @staticmethod
+    def encode_pmemory_stitch_data(pattern):
+        """Encode only the stitch point coordinates (no header, no framing).
+
+        9mm:  each stitch → 5 ASCII decimal chars ``XXX`` + ``YY``.
+        MAXI: each stitch → 7 ASCII decimal chars ``XXX`` + ``YY`` + ``sT``
+              where s is '+' or '-' and T is the transport-delta magnitude (0 or 6).
+
+        Returns:
+            tuple[bytes, list[tuple[int, int]]]: A pair of
+                ``(encoded_bytes, final_points)`` where ``final_points`` is the
+                list of ``(x, y)`` coordinates exactly as the machine will
+                interpret them — after the y-offset, any inserted intermediate
+                stitches, and all transport adjustments applied by
+                :meth:`_translate_maxi_points`.
+
+        Raises:
+            MachineCommError: If the stitch type is not supported.
+        """
+        if pattern.stitch_type == "9mm":
+            elems = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+            encoded = ''.join(f"{x:03d}{y:02d}" for x, y in elems).encode('ascii')
+            return encoded, elems
+        elif pattern.stitch_type == "MAXI":
+            raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
+            if not raw_elems:
+                return b'', []
+            translated_xyt, translated_xy = MachineComm._translate_maxi_points(raw_elems)
+            encoded = ''.join(
+                f"{x:03d}{sy:02d}{'+' if d >= 0 else '-'}{abs(d):1d}"
+                for x, sy, d in translated_xyt
+            ).encode('ascii')
+            return encoded, translated_xy
+        else:
+            raise MachineCommError(
+                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
+            )
+
+    # ── Pattern translations ──
+
     @staticmethod
     def _translate_maxi_points(raw_elems):
         """Translate raw MAXI stitch elements into a list of (x, stored_y, delta) tuples.
@@ -2535,44 +2464,6 @@ class MachineComm:
             result_xyt.append((x, stored_y, delta))
             result_xy.append((x, stored_y + transport))
         return result_xyt, result_xy
-
-    @staticmethod
-    def encode_machine_stitch_data(pattern):
-        """Encode only the stitch point coordinates (no header, no framing).
-
-        9mm:  each stitch → 5 ASCII decimal chars ``XXX`` + ``YY``.
-        MAXI: each stitch → 7 ASCII decimal chars ``XXX`` + ``YY`` + ``sT``
-              where s is '+' or '-' and T is the transport-delta magnitude (0 or 6).
-
-        Returns:
-            tuple[bytes, list[tuple[int, int]]]: A pair of
-                ``(encoded_bytes, final_points)`` where ``final_points`` is the
-                list of ``(x, y)`` coordinates exactly as the machine will
-                interpret them — after the y-offset, any inserted intermediate
-                stitches, and all transport adjustments applied by
-                :meth:`_translate_maxi_points`.
-
-        Raises:
-            MachineCommError: If the stitch type is not supported.
-        """
-        if pattern.stitch_type == "9mm":
-            elems = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
-            encoded = ''.join(f"{x:03d}{y:02d}" for x, y in elems).encode('ascii')
-            return encoded, elems
-        elif pattern.stitch_type == "MAXI":
-            raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
-            if not raw_elems:
-                return b'', []
-            translated_xyt, translated_xy = MachineComm._translate_maxi_points(raw_elems)
-            encoded = ''.join(
-                f"{x:03d}{sy:02d}{'+' if d >= 0 else '-'}{abs(d):1d}"
-                for x, sy, d in translated_xyt
-            ).encode('ascii')
-            return encoded, translated_xy
-        else:
-            raise MachineCommError(
-                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
-            )
 
     # ── Context manager support ──
 

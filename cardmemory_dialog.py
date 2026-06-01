@@ -344,9 +344,9 @@ class CardMemoryDialog(QDialog):
 
         try:
             if ptype == '9mm':
-                points = MachineComm.decode_card_slot_9mm(raw_data)
+                points = MachineComm.decode_card_pattern_9mm(raw_data)
             elif ptype == 'MAXI':
-                points = MachineComm.decode_card_slot_maxi(raw_data)
+                points = MachineComm.decode_card_pattern_maxi(raw_data)
             else:
                 QMessageBox.information(
                     self,

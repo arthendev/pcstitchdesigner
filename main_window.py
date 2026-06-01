@@ -1444,15 +1444,6 @@ class MainWindow(QMainWindow):
         self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
-    def _edit_mirror_horizontal(self):
-        """Mirror selected points horizontally around the center of selection."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None:
-            return  # No selection
-        
-        self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
-        self._canvas.update()
-        self._on_pattern_changed()
 
     # ── Resize/Rotate selection ──
 
@@ -1738,56 +1729,6 @@ class MainWindow(QMainWindow):
 
         return info
 
-    def _query_and_show_pmemory(self, action):
-        """Open connection, query P-Memory, and show the P-Memory dialog.
-
-        Args:
-            action (str): One of PMemoryDialog.ACTION_* constants.
-        """
-        # For Load, confirm discarding unsaved changes before touching the machine.
-        # Insert keeps the current design open, so no confirmation is needed.
-        if action == PMemoryDialog.ACTION_LOAD:
-            if not self._confirm_discard():
-                return
-
-        if not self._open_machine_connection():
-            return
-
-        # Query P-Memory directory
-        try:
-            raw = self._machine_comm.query_pmemory()
-        except (MachineCommError, Exception) as exc:
-            self._machine_comm.end_transmission()
-            self._machine_error(self.tr("Failed to read P-Memory:\n{0}").format(exc))
-            return
-
-        # Decode the raw response
-        machine_model = self._config.get_machine_preferences().get("model", "")
-        try:
-            pmem_info = MachineComm.decode_pmemory(raw, machine_model)
-        except Exception as exc:
-            self._machine_comm.end_transmission()
-            self._machine_error(self.tr("Failed to decode P-Memory data:\n{0}").format(exc))
-            return
-
-        dlg = PMemoryDialog(
-            pmem_info,
-            action,
-            comm=self._machine_comm,
-            machine_model=machine_model,
-            pattern=self._pattern if action == PMemoryDialog.ACTION_SEND else None,
-            parent=self,
-        )
-        result = dlg.exec_()
-
-        if action == PMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
-            if dlg.loaded_points is not None:
-                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
-
-        if action == PMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
-            if dlg.loaded_points is not None:
-                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
-
     def _apply_machine_pattern(self, points, slot_type):
         """Replace the current pattern with points loaded from the machine."""
         new_pattern = StitchPattern()
@@ -1939,8 +1880,60 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
         self._recalculate_auto_if_active()
 
+    # ── P-Memory handlers ──
+
+    def _machine_query_and_show_pmemory(self, action):
+        """Open connection, query P-Memory, and show the P-Memory dialog.
+
+        Args:
+            action (str): One of PMemoryDialog.ACTION_* constants.
+        """
+        # For Load, confirm discarding unsaved changes before touching the machine.
+        # Insert keeps the current design open, so no confirmation is needed.
+        if action == PMemoryDialog.ACTION_LOAD:
+            if not self._confirm_discard():
+                return
+
+        if not self._open_machine_connection():
+            return
+
+        # Query P-Memory directory
+        try:
+            raw = self._machine_comm.query_pmemory_index()
+        except (MachineCommError, Exception) as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(self.tr("Failed to read P-Memory:\n{0}").format(exc))
+            return
+
+        # Decode the raw response
+        machine_model = self._config.get_machine_preferences().get("model", "")
+        try:
+            pmem_info = MachineComm.decode_pmemory_index(raw, machine_model)
+        except Exception as exc:
+            self._machine_comm.end_transmission()
+            self._machine_error(self.tr("Failed to decode P-Memory data:\n{0}").format(exc))
+            return
+
+        dlg = PMemoryDialog(
+            pmem_info,
+            action,
+            comm=self._machine_comm,
+            machine_model=machine_model,
+            pattern=self._pattern if action == PMemoryDialog.ACTION_SEND else None,
+            parent=self,
+        )
+        result = dlg.exec_()
+
+        if action == PMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+
+        if action == PMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
+            if dlg.loaded_points is not None:
+                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+    
     def _machine_load_pmemory(self):
-        self._query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
+        self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
 
     def _machine_send_pmemory(self):
         if not any(elem_has_coords(e) for e in self._pattern.elements):
@@ -1949,20 +1942,20 @@ class MainWindow(QMainWindow):
                 self.tr("The stitch pattern is empty. Add stitch points before sending to the machine.")
             )
             return
-        self._query_and_show_pmemory(PMemoryDialog.ACTION_SEND)
+        self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_SEND)
 
     def _machine_insert_pmemory(self):
-        self._query_and_show_pmemory(PMemoryDialog.ACTION_INSERT)
+        self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_INSERT)
 
     def _machine_delete_pmemory(self):
-        self._query_and_show_pmemory(PMemoryDialog.ACTION_DELETE)
+        self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_DELETE)
 
     def _machine_configuration(self):
         self._settings_preferences()
 
     # ── Memory Card handlers ──
 
-    def _query_and_show_card_memory(self, action):
+    def _machine_query_and_show_card_memory(self, action):
         """Open connection, query memory card index and previews, then show dialog.
 
         Args:
@@ -2048,7 +2041,7 @@ class MainWindow(QMainWindow):
                 self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
 
     def _machine_load_card(self):
-        self._query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
+        self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
     def _ask_card_filename(self):
         """Show a dialog asking the user for a card pattern filename (max 8 chars).
@@ -2130,7 +2123,7 @@ class MainWindow(QMainWindow):
 
         if stitch_type == '9mm':
             try:
-                pattern_raw = MachineComm.encode_card_slot_9mm(self._pattern)
+                pattern_raw = MachineComm.encode_card_pattern_9mm(self._pattern)
             except MachineCommError as exc:
                 QMessageBox.warning(
                     self, self.tr("Send Card Stitch"), str(exc)
@@ -2227,10 +2220,10 @@ class MainWindow(QMainWindow):
             )
 
     def _machine_insert_card(self):
-        self._query_and_show_card_memory(CardMemoryDialog.ACTION_INSERT)
+        self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_INSERT)
 
     def _machine_delete_card(self):
-        self._query_and_show_card_memory(CardMemoryDialog.ACTION_DELETE)
+        self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_DELETE)
 
     # ── Settings ──
 

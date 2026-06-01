@@ -160,7 +160,7 @@ class PMemoryDialog(QDialog):
         # intermediate stitches that _translate_maxi_points may insert.
         if self._action == self.ACTION_SEND and self._pattern is not None:
             try:
-                _, final_points = MachineComm.encode_machine_stitch_data(self._pattern)
+                _, final_points = MachineComm.encode_pmemory_stitch_data(self._pattern)
                 st = self._pattern.stitch_type
                 self._needed_bytes = (len(final_points) * 2 if st == "9mm"
                                       else len(final_points) * 3 if st == "MAXI"
@@ -354,7 +354,7 @@ class PMemoryDialog(QDialog):
         self._preview_btn.setEnabled(True)
 
         try:
-            points = MachineComm.decode_machine_pattern(raw_data, slot_type)
+            points = MachineComm.decode_pmemory_pattern(raw_data, slot_type)
         except Exception as exc:
             QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Failed to decode pattern: {0}").format(exc))
             return
@@ -400,7 +400,7 @@ class PMemoryDialog(QDialog):
             # Refresh the table so the slot shows as empty.
             try:
                 raw = self._comm.query_pmemory()
-                pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
+                pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
             except Exception as exc:
                 QMessageBox.critical(
                     self, self.tr("Machine Error"),
@@ -476,7 +476,7 @@ class PMemoryDialog(QDialog):
         # Refresh P-Memory info from the machine
         try:
             raw = self._comm.query_pmemory()
-            pmem_info = MachineComm.decode_pmemory(raw, self._machine_model)
+            pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
         except Exception as exc:
             QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Error during communication"))
             self._end_transmission()
@@ -521,7 +521,7 @@ class PMemoryDialog(QDialog):
             return
 
         try:
-            points = MachineComm.decode_machine_pattern(raw_data, slot_type)
+            points = MachineComm.decode_pmemory_pattern(raw_data, slot_type)
         except Exception as exc:
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
