@@ -1774,35 +1774,55 @@ class MachineComm:
         if not points:
             raise MachineCommError("Cannot encode header for an empty pattern.")
         
+        stitch_type = pattern.stitch_type
+
         xs = [x for x, y in points]
         ys = [y for x, y in points]
         dxs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
 
         y_min         = min(ys)
         y_max         = max(ys)
-        y_min_abs     = abs(min(ys))
+        y_min_neg     = -min(ys)
         dy_0n         = ys[-1] - ys[0]
         dx_abs_max    = max((abs(dx) for dx in dxs), default=0)
         d0x_min_abs   = abs(min(xs) - xs[0])
         pn_x          = xs[-1]
         span_x        = max(xs) - min(xs)
         span_y        = max(ys) - min(ys)
+
+        # Calculate y_min_symmetry
+        # It is based on y_min but with additional flag (MSB set) if the pattern is "top-heavy" (y_max farther from 27 than y_min)
+        # if pattern is "symmetrical" (i.e. y_max and y_min are equally distant from 27, or y_max=53 and y_min=0), then y_min_symmetry is 0 (with no extra flag)
+        if stitch_type == '9mm':
+            y_min_symmetry = y_min
+            if y_max - 27 > 27 - y_min: # Check if top-heavy
+                y_min_symmetry |= 0x80  # set MSB to indicate top-heavy
+                
+                if y_max >= 27 and y_min <= 27: # If pattern is symmetrical, set y_min_symmetry to 0 (no extra flag)
+                    dymax_27 = y_max - 27
+                    dymin_27 = 27 - y_min
+                    is_max_width = y_max == 53 and y_min == 0
+
+                    if dymax_27 == dymin_27 or is_max_width:
+                        y_min_symmetry = 0
+        else:
+            y_min_symmetry = 0  # Not used for MAXI or Embroidery, set to 0
+
         
         size_preview = len(preview_bytes)
         size_pattern = len(pattern_bytes)
         size_name    = len(name_bytes)   # includes null terminator
 
         unknown_1 = 0x10 # allows longitudinal scaling in machine menu; 0x10 seems to give much freedom
-        unknown_2 = 0x00 # ToDo: figure out what this does and how to calculate it
 
-        stitch_type = pattern.stitch_type
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if stitch_type not in type_byte_map:
             raise MachineCommError(f"Unknown pattern type: {stitch_type!r}")
 
         type_byte = type_byte_map[stitch_type]
-        bank_byte = 0xD0 if stitch_type == 'MAXI' else 0xC0
-        
+        # bank_byte = 0xD0 if stitch_type == 'MAXI' else 0xC0
+        bank_byte = 0xC0 # Not sure why but PCD sends here 0xC0 for both 9mm and MAXI patterns, even though it uses 0xD0 for MAXI in the load/delete commands
+
         def _pack2(v):
             return (v & 0xFFFF).to_bytes(2, 'big')
         
@@ -1825,10 +1845,10 @@ class MachineComm:
             _pack2(span_x) +
             _pack2(y_min_to_bound) +
             _pack2(span_y) +
-            bytes([0x00, 0x00]) +
+            (_pack2(dy_0n) if stitch_type == "MAXI" else _pack2(0)) +
             bytes([unknown_1]) +
-            _pack2(y_min_abs) +
-            bytes([unknown_2]) +
+            (_pack2(y_min_neg) if stitch_type == "MAXI" else _pack2(0)) +
+            bytes([y_min_symmetry] if stitch_type == "9mm" else bytes([0])) +
             bytes([dx_abs_max]) +
             _pack2(size_preview) +
             bytes([0x01]) +
@@ -1870,13 +1890,15 @@ class MachineComm:
         if not points:
             return bytes([0x80, 0x8A]), []  # Empty pattern with leading sentinel
         
-        # Make x_min = 0
-        x_min = min(x for x, y in points)
-        translated_xy = [(x - x_min, y) for x, y in points]
+        # # Make x_min = 0
+        # x_min = min(x for x, y in points)
+        # translated_xy = [(x - x_min, y) for x, y in points]
+
+        translated_xy = MachineComm._translate_9mm_points(points)
 
         encoded = bytearray([0x80])
-        x_prev = points[0][0]
-        for i, (x, y) in enumerate(points):
+        x_prev = translated_xy[0][0]
+        for i, (x, y) in enumerate(translated_xy):
             dx = x_prev - x
             if not (-90 < dx < 90):
                 raise MachineCommError(
@@ -2305,8 +2327,9 @@ class MachineComm:
         """
         if pattern.stitch_type == "9mm":
             elems = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
-            encoded = ''.join(f"{x:03d}{y:02d}" for x, y in elems).encode('ascii')
-            return encoded, elems
+            translated_xy = MachineComm._translate_9mm_points(elems)
+            encoded = ''.join(f"{x:03d}{y:02d}" for x, y in translated_xy).encode('ascii')
+            return encoded, translated_xy
         elif pattern.stitch_type == "MAXI":
             raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
             if not raw_elems:
@@ -2325,8 +2348,33 @@ class MachineComm:
     # ── Pattern translations ──
 
     @staticmethod
+    def _translate_9mm_points(elems):
+        """Translate raw 9mm stitch elements into a list of (x, y) tuples.
+
+        Applies x-offset so min(x) becomes 0.  No y-offset or transport adjustments
+        are needed for 9mm patterns since the machine accepts absolute y values in
+        the full range [0, 53].
+
+        Args:
+            elems: Iterable of elements with coords (e[0]=x, e[1]=y).
+
+        Returns:
+            list[tuple[int, int]]: Each entry is (x, y).
+        """
+        pts = [[e[0], e[1]] for e in elems]
+        if not pts:
+            return []
+        x_offset = min(pt[0] for pt in pts)
+        for pt in pts:
+            pt[0] -= x_offset
+            
+        return [(pt[0], pt[1]) for pt in pts]
+
+    @staticmethod
     def _translate_maxi_points(raw_elems):
         """Translate raw MAXI stitch elements into a list of (x, stored_y, delta) tuples.
+
+        Applies x-offset so min(x) becomes 0.
 
         Applies a y-offset so the first stitch begins at stored_y = 27 (centre of
         the valid machine range [0, 54]).  Assigns a per-stitch transport_delta of
@@ -2357,11 +2405,14 @@ class MachineComm:
         """
         pts = [[e[1], e[2], 0] for e in raw_elems]
         if not pts:
-            return []
+            return [], []
 
-        # Step 1: y-offset so the first stitch lands at stored_y = 27.
+        # Step 1: x-offset so min(x) becomes 0 and y-offset so the first stitch lands at stored_y = 27.
+        xs = [pt[0] for pt in pts]
+        x_offset = min(xs)
         y_offset = 27 - pts[0][1]
         for pt in pts:
+            pt[0] -= x_offset
             pt[1] += y_offset
 
         # Step 2: forward pass – assign transport_deltas so stored_y stays in [0, 54].
