@@ -399,7 +399,7 @@ class PMemoryDialog(QDialog):
 
             # Refresh the table so the slot shows as empty.
             try:
-                raw = self._comm.query_pmemory()
+                raw = self._comm.query_pmemory_index()
                 pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
             except Exception as exc:
                 QMessageBox.critical(
@@ -475,7 +475,7 @@ class PMemoryDialog(QDialog):
 
         # Refresh P-Memory info from the machine
         try:
-            raw = self._comm.query_pmemory()
+            raw = self._comm.query_pmemory_index()
             pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
         except Exception as exc:
             QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Error during communication"))
