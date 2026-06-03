@@ -2000,6 +2000,19 @@ class MainWindow(QMainWindow):
             'MAXI': 'offs_maxi',
             'Embroidery': 'offs_embr',
         }
+
+        preview_progress = QProgressDialog(
+            self.tr("Loading card previews\u2026"),
+            None,  # no cancel button
+            0, n_total,
+            self,
+        )
+        preview_progress.setWindowTitle(self.tr("Memory Card"))
+        preview_progress.setWindowModality(Qt.WindowModal)
+        preview_progress.setMinimumDuration(0)
+        preview_progress.setValue(0)
+        loaded = 0
+
         for ptype, count_key in (
             ('9mm',         'n_9mm'),
             ('MAXI',        'n_maxi'),
@@ -2016,7 +2029,11 @@ class MainWindow(QMainWindow):
                         card_info['card_no_bytes'], card_slot, ptype
                     )
                     previews.append(preview)
+                    loaded += 1
+                    preview_progress.setValue(loaded)
+                    QApplication.processEvents()
                 except (MachineCommError, Exception) as exc:
+                    preview_progress.close()
                     self._machine_comm.end_transmission()
                     self._machine_error(
                         self.tr(
@@ -2024,6 +2041,8 @@ class MainWindow(QMainWindow):
                         ).format(ptype, slot + offset, exc)
                     )
                     return
+
+        preview_progress.close()
 
         dlg = CardMemoryDialog(
             card_info, previews, action, self._machine_comm, parent=self
