@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
-    QLineEdit,
+    QLineEdit, QProgressDialog, QApplication,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator
@@ -2134,18 +2134,42 @@ class MainWindow(QMainWindow):
             return
 
         # ── Send the pattern to the card ──────────────────────────────────
+        progress_dlg = QProgressDialog(
+            self.tr("Writing pattern to memory card\u2026"),
+            None,  # no cancel button
+            0, 100,
+            self,
+        )
+        progress_dlg.setWindowTitle(self.tr("Send Card Stitch"))
+        progress_dlg.setWindowModality(Qt.WindowModal)
+        progress_dlg.setMinimumDuration(0)
+        progress_dlg.setValue(0)
+
+        def _send_progress(done, total):
+            if total > 0:
+                progress_dlg.setValue(done * 100 // total)
+            QApplication.processEvents()
+
         try:
-            self._machine_comm.send_card_slot(card_info['card_no_bytes'], self._pattern, filename, progress_callback=None)
+            self._machine_comm.send_card_slot(
+                card_info['card_no_bytes'], self._pattern, filename,
+                progress_callback=_send_progress,
+            )
         except MachineCommError as exc:
+            progress_dlg.close()
             self._machine_comm.end_transmission()
             self._machine_error(str(exc))
             return
         except Exception as exc:
+            progress_dlg.close()
             self._machine_comm.end_transmission()
             self._machine_error(
                 self.tr("Failed to write pattern to memory card:\n{0}").format(exc)
             )
             return
+
+        progress_dlg.setValue(100)
+        progress_dlg.close()
 
         # ── Verify by re-querying the card index ──────────────────────────
         try:

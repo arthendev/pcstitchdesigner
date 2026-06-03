@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QTabWidget, QWidget,
     QListWidget, QListWidgetItem, QListView, QAbstractItemView,
     QPushButton, QLabel, QMessageBox,
-    QApplication,
+    QApplication, QProgressBar,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor, QTransform
@@ -67,6 +67,11 @@ class CardMemoryDialog(QDialog):
     # Display scale applied to the raw preview pixmaps before use as icons.
     # 9mm images are 24 px tall, 53 px wide; MAXI 48 x 53 px; Embroidery 48 x 48 px.
     _ICON_SIZE = QSize(53, 48)
+
+    _PROGRESS_BAR_HIDDEN_STYLE = (
+        "QProgressBar { background: transparent; border: none; color: transparent; }"
+        "QProgressBar::chunk { background: transparent; }"
+    )
     # _ICON_SIZE = QSize(106, 96)
 
     def __init__(self, card_info, previews, action, comm, parent=None):
@@ -184,7 +189,14 @@ class CardMemoryDialog(QDialog):
 
         # ── Bottom button row ─────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_row.addStretch()
+        btn_row.setSpacing(8)
+
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setMaximumHeight(18)
+        self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+        btn_row.addWidget(self._progress_bar, 1)
 
         close_btn = QPushButton(self.tr("Close"))
         close_btn.setMinimumWidth(80)
@@ -229,6 +241,13 @@ class CardMemoryDialog(QDialog):
             'Embroidery': 'n_embr',
         }
 
+        total_patterns = sum(card_info.get(count_map[pt], 0) for pt in count_map)
+        loaded = 0
+
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet("")
+        QApplication.processEvents()
+
         new_previews = []
         for ptype, lw in self._lists.items():
             count = card_info.get(count_map[ptype], 0)
@@ -236,6 +255,10 @@ class CardMemoryDialog(QDialog):
             for i in range(count):
                 card_slot = i + offset
                 preview = self._comm.query_card_preview(card_info['card_no_bytes'], card_slot, ptype)
+                loaded += 1
+                if total_patterns > 0:
+                    self._progress_bar.setValue(loaded * 100 // total_patterns)
+                QApplication.processEvents()
                 pixmap = self._build_pixmap(
                     preview['preview_hex'],
                     ptype,
@@ -255,6 +278,8 @@ class CardMemoryDialog(QDialog):
                 new_previews.append(preview)
 
         self._previews = new_previews
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         self._update_card_info_label(card_info)
 
     def _current_list(self):
@@ -314,13 +339,26 @@ class CardMemoryDialog(QDialog):
         offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
         card_slot = pattern['slot'] + self._card_info.get(offs_map.get(ptype, ''), 0)
 
+        self._action_btn.setEnabled(False)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet("")
+
+        def _load_progress(done, total):
+            if total > 0:
+                self._progress_bar.setValue(done * 100 // total)
+            QApplication.processEvents()
+
         try:
             raw_data = self._comm.load_card_slot(
                 self._card_info['card_no_bytes'],
                 card_slot,
                 ptype,
+                total_size=pattern['size'],
+                progress_callback=_load_progress,
             )
         except (MachineCommError, Exception) as exc:
+            self._progress_bar.setValue(0)
+            self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             QMessageBox.critical(
                 self,
                 self.tr("Load Failed"),
@@ -336,6 +374,9 @@ class CardMemoryDialog(QDialog):
             elif ptype == 'MAXI':
                 points = MachineComm.decode_card_pattern_maxi(raw_data)
             else:
+                self._progress_bar.setValue(0)
+                self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+                self._action_btn.setEnabled(True)
                 QMessageBox.information(
                     self,
                     self.tr("Not Yet Implemented"),
@@ -346,6 +387,8 @@ class CardMemoryDialog(QDialog):
                 )
                 return
         except MachineCommError as exc:
+            self._progress_bar.setValue(0)
+            self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             QMessageBox.critical(
                 self,
                 self.tr("Decode Failed"),
@@ -355,6 +398,8 @@ class CardMemoryDialog(QDialog):
             self.reject()
             return
 
+        self._progress_bar.setValue(0)
+        self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         self.loaded_points    = points
         self.loaded_slot_type = ptype
         self._end_transmission()

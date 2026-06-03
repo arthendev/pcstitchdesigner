@@ -1060,7 +1060,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0, max_retries=3, progress_callback=None):
+    def load_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0, max_retries=3, total_size=0, progress_callback=None):
         """Load (read) a pattern from a memory card slot.
 
         Sends::
@@ -1103,6 +1103,9 @@ class MachineComm:
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
             timeout (float): Per-read timeout in seconds. Default: 1.0.
             max_retries (int): Maximum chunk retransmit attempts. Default: 3.
+            total_size (int): Expected total payload size in bytes, used as the
+                ``total_bytes`` argument passed to *progress_callback*.  Pass
+                ``0`` (default) when the size is unknown.
             progress_callback: Optional ``(received_bytes, total_bytes)``
                 callable; total_bytes is 0 when unknown.
 
@@ -1198,7 +1201,7 @@ class MachineComm:
                 if received_cs == expected_cs:
                     all_data.extend(chunk_payload)
                     if progress_callback:
-                        progress_callback(len(all_data), 0)
+                        progress_callback(len(all_data), total_size)
                     self._serial.write(bytes([self.CTRL_ACK]))
                     break
                 else:
@@ -1258,7 +1261,7 @@ class MachineComm:
                     if received_cs == expected_cs:
                         all_data.extend(chunk_payload)
                         if progress_callback:
-                            progress_callback(len(all_data), 0)
+                            progress_callback(len(all_data), total_size)
                         self._serial.write(bytes([self.CTRL_ACK]))
                         break
                     else:
