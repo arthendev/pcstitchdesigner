@@ -1385,7 +1385,12 @@ Bitte einen oder mehrere Speicher löschen, um Speicherplatz freizugeben.</trans
     <message>
         <location filename="../cardmemory_dialog.py" line="214"/>
         <source>Card No: {0}   |   9mm: {1}   MAXI: {2}   Embroidery: {3}</source>
-        <translation>Karte Nr.: {0}   |   9mm: {1}   MAXI: {2}   Stickerei: {3}</translation>
+        <translation>Karte Nr.: {0}   |   9mm: {1}   MAXI: {2}   Stickmuster: {3}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="112"/>
+        <source>Embroidery</source>
+        <translation>Stickmuster</translation>
     </message>
     <message>
         <location filename="../cardmemory_dialog.py" line="166"/>

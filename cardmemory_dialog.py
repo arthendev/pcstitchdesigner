@@ -109,7 +109,7 @@ class CardMemoryDialog(QDialog):
         # so the action button can sit at the right with labels below it.
 
         self._lists = {}   # ptype → QListWidget
-        for tab_name, ptype in (("9mm", "9mm"), ("MAXI", "MAXI"), ("Embroidery", "Embroidery")):
+        for tab_name, ptype in (("9mm", "9mm"), ("MAXI", "MAXI"), (self.tr("Embroidery"), "Embroidery")):
             tab_patterns = [p for p in self._previews if p['pattern_type'] == ptype]
 
             tab_widget = QWidget()
