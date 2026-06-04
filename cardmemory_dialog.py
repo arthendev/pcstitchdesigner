@@ -35,7 +35,7 @@ class CardMemoryDialog(QDialog):
 
     Args:
         card_info (dict): Card information as returned by
-            :meth:`MachineComm.query_card`::
+            :meth:`MachineComm.query_card_index`::
 
                 {
                     'card_no':   int,
@@ -381,10 +381,7 @@ class CardMemoryDialog(QDialog):
                 QMessageBox.information(
                     self,
                     self.tr("Not Yet Implemented"),
-                    self.tr(
-                        "Loading {0} patterns from memory card is not yet supported.\n"
-                        "This feature will be available in a future version."
-                    ).format(ptype),
+                    self.tr("Loading {0} patterns from memory card is not yet supported.").format(ptype),
                 )
                 return
         except MachineCommError as exc:
@@ -413,7 +410,7 @@ class CardMemoryDialog(QDialog):
         Workflow:
 
         1. Ask the user to confirm.
-        2. Send KL command via :meth:`MachineComm.delete_card_pattern`.
+        2. Send KL command via :meth:`MachineComm.delete_card_slot`.
         3. On CTRL_NAK / error → show error message, close dialog.
         4. On CTRL_ACK → re-query card index.
         5. If counts match expectations (card_no same, deleted type count -1,
@@ -428,8 +425,7 @@ class CardMemoryDialog(QDialog):
             self,
             self.tr("Confirm Delete"),
             self.tr(
-                "Delete pattern \u201c{0}\u201d ({1}) from the memory card?\n"
-                "This action cannot be undone."
+                "Delete pattern \"{0}\" ({1}) from the memory card?\nThis action cannot be undone."
             ).format(name, ptype),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -448,7 +444,7 @@ class CardMemoryDialog(QDialog):
         offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
         card_slot = slot_byte + old_card_info.get(offs_map.get(ptype, ''), 0)
         try:
-            self._comm.delete_card_pattern(
+            self._comm.delete_card_slot(
                 self._card_info['card_no_bytes'], card_slot, ptype
             )
         except (MachineCommError, Exception) as exc:
@@ -463,7 +459,7 @@ class CardMemoryDialog(QDialog):
 
         # ── 3. Re-query card index ────────────────────────────────────────
         try:
-            new_card_info = self._comm.query_card()
+            new_card_info = self._comm.query_card_index()
         except (MachineCommError, Exception) as exc:
             QMessageBox.critical(
                 self,
@@ -534,8 +530,7 @@ class CardMemoryDialog(QDialog):
                 QMessageBox.critical(
                     self,
                     self.tr("Memory Card"),
-                    self.tr(
-                        "Failed to reload previews from the machine:\n{0}"
+                    self.tr("Failed to reload previews from the machine:\n{0}"
                     ).format(exc),
                 )
                 self._end_transmission()
