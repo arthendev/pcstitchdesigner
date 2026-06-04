@@ -45,6 +45,10 @@ class MainWindow(QMainWindow):
         # Machine communication
         self._machine_comm = MachineComm()
 
+        # Memory card preview cache (card_no + counts → previews)
+        self._cached_card_info = None
+        self._cached_card_previews = None
+
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of (x, y) tuples copied from selection
@@ -1995,6 +1999,18 @@ class MainWindow(QMainWindow):
             )
             return
 
+        # Check whether cached previews can be reused.
+        # Cached previews are valid when the card number and per-type counts
+        # are identical to the last successful fetch.
+        _previews_cached = False
+        if (self._cached_card_info is not None
+                and self._cached_card_previews is not None
+                and self._cached_card_info.get('card_no') == card_info.get('card_no')
+                and self._cached_card_info.get('n_9mm') == card_info.get('n_9mm')
+                and self._cached_card_info.get('n_maxi') == card_info.get('n_maxi')
+                and self._cached_card_info.get('n_embr') == card_info.get('n_embr')):
+            _previews_cached = True
+
         n_total = (card_info['n_9mm'] + card_info['n_maxi'] + card_info['n_embr'])
         if n_total == 0:
             self._machine_comm.end_transmission()
@@ -2005,57 +2021,64 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Fetch preview images for every pattern on the memory card
-        previews = []
-        # Map pattern type to the offset field returned by query_card()
-        offs_map = {
-            '9mm': 'offs_9mm',
-            'MAXI': 'offs_maxi',
-            'Embroidery': 'offs_embr',
-        }
+        if _previews_cached:
+            previews = self._cached_card_previews
+        else:
+            # Fetch preview images for every pattern on the memory card
+            previews = []
+            # Map pattern type to the offset field returned by query_card()
+            offs_map = {
+                '9mm': 'offs_9mm',
+                'MAXI': 'offs_maxi',
+                'Embroidery': 'offs_embr',
+            }
 
-        preview_progress = QProgressDialog(
-            self.tr("Loading card previews…"),
-            None,  # no cancel button
-            0, n_total,
-            self,
-        )
-        preview_progress.setWindowTitle(self.tr("Memory Card"))
-        preview_progress.setWindowModality(Qt.WindowModal)
-        preview_progress.setMinimumDuration(0)
-        preview_progress.setValue(0)
-        loaded = 0
+            preview_progress = QProgressDialog(
+                self.tr("Loading card previews…"),
+                None,  # no cancel button
+                0, n_total,
+                self,
+            )
+            preview_progress.setWindowTitle(self.tr("Memory Card"))
+            preview_progress.setWindowModality(Qt.WindowModal)
+            preview_progress.setMinimumDuration(0)
+            preview_progress.setValue(0)
+            loaded = 0
 
-        for ptype, count_key in (
-            ('9mm',         'n_9mm'),
-            ('MAXI',        'n_maxi'),
-            ('Embroidery',  'n_embr'),
-        ):
-            offs_key = offs_map.get(ptype, None)
-            for slot in range(card_info[count_key]):
-                try:
-                    # The machine uses an absolute slot index on the card;
-                    # add the per-type offset returned by query_card().
-                    offset = card_info.get(offs_key, 0) if offs_key is not None else 0
-                    card_slot = slot + offset
-                    preview = self._machine_comm.query_card_preview(
-                        card_info['card_no_bytes'], card_slot, ptype
-                    )
-                    previews.append(preview)
-                    loaded += 1
-                    preview_progress.setValue(loaded)
-                    QApplication.processEvents()
-                except (MachineCommError, Exception) as exc:
-                    preview_progress.close()
-                    self._machine_comm.end_transmission()
-                    QMessageBox.critical(self, 
-                        self.tr("Error"),
-                        self.tr("Failed to load card preview for {0} slot {1}:"
-                        ).format(ptype, slot + offset) + "\n" + str(exc)
-                    )
-                    return
+            for ptype, count_key in (
+                ('9mm',         'n_9mm'),
+                ('MAXI',        'n_maxi'),
+                ('Embroidery',  'n_embr'),
+            ):
+                offs_key = offs_map.get(ptype, None)
+                for slot in range(card_info[count_key]):
+                    try:
+                        # The machine uses an absolute slot index on the card;
+                        # add the per-type offset returned by query_card().
+                        offset = card_info.get(offs_key, 0) if offs_key is not None else 0
+                        card_slot = slot + offset
+                        preview = self._machine_comm.query_card_preview(
+                            card_info['card_no_bytes'], card_slot, ptype
+                        )
+                        previews.append(preview)
+                        loaded += 1
+                        preview_progress.setValue(loaded)
+                        QApplication.processEvents()
+                    except (MachineCommError, Exception) as exc:
+                        preview_progress.close()
+                        self._machine_comm.end_transmission()
+                        QMessageBox.critical(self, 
+                            self.tr("Error"),
+                            self.tr("Failed to load card preview for {0} slot {1}:"
+                            ).format(ptype, slot + offset) + "\n" + str(exc)
+                        )
+                        return
 
-        preview_progress.close()
+            preview_progress.close()
+
+            # Cache the results for next time
+            self._cached_card_info = card_info
+            self._cached_card_previews = previews
 
         dlg = CardMemoryDialog(
             card_info, previews, action, self._machine_comm, parent=self
