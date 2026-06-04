@@ -1905,7 +1905,10 @@ class MainWindow(QMainWindow):
             raw = self._machine_comm.query_pmemory_index()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(self.tr("Failed to read P-Memory:\n{0}").format(exc))
+            QMessageBox.critical(self,
+                self.tr("Error"), 
+                self.tr("Failed to read P-Memory:\n{0}").format(exc)
+            )
             return
 
         # Decode the raw response
@@ -1914,7 +1917,10 @@ class MainWindow(QMainWindow):
             pmem_info = MachineComm.decode_pmemory_index(raw, machine_model)
         except Exception as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(self.tr("Failed to decode P-Memory data:\n{0}").format(exc))
+            QMessageBox.critical(self, 
+                self.tr("Error"), 
+                self.tr("Failed to decode P-Memory data:\n{0}").format(exc)
+            )
             return
 
         dlg = PMemoryDialog(
@@ -1973,11 +1979,12 @@ class MainWindow(QMainWindow):
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(
+            QMessageBox.critical(self, 
+                self.tr("Error"), 
                 self.tr("Failed to query memory card:\n{0}").format(exc)
             )
             return
@@ -2035,9 +2042,9 @@ class MainWindow(QMainWindow):
                 except (MachineCommError, Exception) as exc:
                     preview_progress.close()
                     self._machine_comm.end_transmission()
-                    self._machine_error(
-                        self.tr(
-                            "Failed to load card preview for {0} slot {1}:\n{2}"
+                    QMessageBox.critical(self, 
+                        self.tr("Error"),
+                        self.tr( "Failed to load card preview for {0} slot {1}:\n{2}"
                         ).format(ptype, slot + offset, exc)
                     )
                     return
@@ -2143,11 +2150,12 @@ class MainWindow(QMainWindow):
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(
+            QMessageBox.critical(self,
+                self.tr("Error"),
                 self.tr("Failed to query memory card:\n{0}").format(exc)
             )
             return
@@ -2177,12 +2185,13 @@ class MainWindow(QMainWindow):
         except MachineCommError as exc:
             progress_dlg.close()
             self._machine_comm.end_transmission()
-            self._machine_error(str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
             progress_dlg.close()
             self._machine_comm.end_transmission()
-            self._machine_error(
+            QMessageBox.critical(self, 
+                self.tr("Error"),
                 self.tr("Failed to write pattern to memory card:\n{0}").format(exc)
             )
             return
@@ -2195,7 +2204,8 @@ class MainWindow(QMainWindow):
             new_card_info = self._machine_comm.query_card_index()
         except Exception as exc:
             self._machine_comm.end_transmission()
-            self._machine_error(
+            QMessageBox.critical(self,
+                self.tr("Error"),
                 self.tr(
                     "Pattern was sent, but the card index could not be "
                     "re-read to confirm:\n{0}"
