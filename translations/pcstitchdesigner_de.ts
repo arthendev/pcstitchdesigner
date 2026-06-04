@@ -27,6 +27,10 @@
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
+    <message>
+        <source>Stitch %v / %m</source>
+        <translation>Stich %v / %m</translation>
+    </message>
 </context>
 <context>
     <name>AutoStitchLengthDialog</name>

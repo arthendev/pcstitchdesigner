@@ -367,7 +367,7 @@ class AnimationWindow(QDialog):
         self._progress.setMinimum(0)
         self._progress.setMaximum(max(1, sum(1 for e in pattern.elements if elem_has_coords(e))))
         self._progress.setValue(0)
-        self._progress.setFormat("Stitch %v / %m")
+        self._progress.setFormat(self.tr("Stitch %v / %m"))
         self._progress.setMinimumWidth(200)
         self._progress.setCursor(Qt.PointingHandCursor)
         self._progress.step_requested.connect(self._on_progress_seek)
