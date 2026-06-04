@@ -346,7 +346,7 @@ class PMemoryDialog(QDialog):
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._preview_btn.setEnabled(True)
-            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
 
         self._progress_bar.setValue(0)
@@ -356,7 +356,7 @@ class PMemoryDialog(QDialog):
         try:
             points = MachineComm.decode_pmemory_pattern(raw_data, slot_type)
         except Exception as exc:
-            QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Failed to decode pattern: {0}").format(exc))
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to decode pattern: {0}").format(exc))
             return
 
         _PatternPreviewDialog(points, slot_type, slot_index, parent=self).exec_()
@@ -394,7 +394,7 @@ class PMemoryDialog(QDialog):
             try:
                 self._comm.delete_pmemory_slot(slot_index)
             except Exception as exc:
-                QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
+                QMessageBox.critical(self, self.tr("Error"), str(exc))
                 return
 
             # Refresh the table so the slot shows as empty.
@@ -403,7 +403,7 @@ class PMemoryDialog(QDialog):
                 pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
             except Exception as exc:
                 QMessageBox.critical(
-                    self, self.tr("Machine Error"),
+                    self, self.tr("Error"),
                     self.tr("Failed to refresh P-Memory after delete:\n{0}").format(exc)
                 )
                 self._end_transmission()
@@ -441,7 +441,7 @@ class PMemoryDialog(QDialog):
             self.reject()
             QMessageBox.critical(
                 self.parent(),
-                "Machine Error",
+                "Error",
                 str(exc),
             )
             return
@@ -470,7 +470,7 @@ class PMemoryDialog(QDialog):
             self._comm.delete_pmemory_slot(slot_index)
         except Exception as exc:
             self._action_btn.setEnabled(True)
-            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
 
         # Refresh P-Memory info from the machine
@@ -478,7 +478,7 @@ class PMemoryDialog(QDialog):
             raw = self._comm.query_pmemory_index()
             pmem_info = MachineComm.decode_pmemory_index(raw, self._machine_model)
         except Exception as exc:
-            QMessageBox.critical(self, self.tr("Machine Error"), self.tr("Error during communication"))
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Error during communication"))
             self._end_transmission()
             self.reject()
             return
@@ -517,7 +517,7 @@ class PMemoryDialog(QDialog):
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._action_btn.setEnabled(True)
-            QMessageBox.critical(self, self.tr("Machine Error"), str(exc))
+            QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
 
         try:
@@ -528,7 +528,7 @@ class PMemoryDialog(QDialog):
             self._end_transmission()
             self.reject()
             QMessageBox.critical(
-                self.parent(), self.tr("Machine Error"),
+                self.parent(), self.tr("Error"),
                 self.tr("Failed to decode pattern: {0}").format(exc)
             )
             return
