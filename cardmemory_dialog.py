@@ -363,7 +363,8 @@ class CardMemoryDialog(QDialog):
             QMessageBox.critical(
                 self,
                 self.tr("Load Failed"),
-                self.tr("Could not load the pattern from the card:\n{0}").format(exc),
+                self.tr("Could not load the pattern from the card:")
+                + "\n" + str(exc),
             )
             self._end_transmission()
             self.reject()
@@ -390,7 +391,8 @@ class CardMemoryDialog(QDialog):
             QMessageBox.critical(
                 self,
                 self.tr("Decode Failed"),
-                self.tr("Could not decode the pattern data:\n{0}").format(exc),
+                self.tr("Could not decode the pattern data:")
+                + "\n" + str(exc),
             )
             self._end_transmission()
             self.reject()
@@ -424,9 +426,9 @@ class CardMemoryDialog(QDialog):
         ret = QMessageBox.question(
             self,
             self.tr("Confirm Delete"),
-            self.tr(
-                "Delete pattern \"{0}\" ({1}) from the memory card?\nThis action cannot be undone."
-            ).format(name, ptype),
+            self.tr("Delete pattern \"{0}\" ({1}) from the memory card?").format(name, ptype)
+            + "\n" + 
+            self.tr("This action cannot be undone."),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -451,7 +453,8 @@ class CardMemoryDialog(QDialog):
             QMessageBox.critical(
                 self,
                 self.tr("Delete Failed"),
-                self.tr("Could not delete the pattern from the card:\n{0}").format(exc),
+                self.tr("Could not delete the pattern from the card:")
+                + "\n" + str(exc),
             )
             self._end_transmission()
             self.reject()
@@ -464,9 +467,8 @@ class CardMemoryDialog(QDialog):
             QMessageBox.critical(
                 self,
                 self.tr("Memory Card"),
-                self.tr(
-                    "Pattern deleted, but the card index could not be re-read:\n{0}"
-                ).format(exc),
+                self.tr("Pattern deleted, but the card index could not be re-read:")
+                + "\n" + str(exc),
             )
             self._end_transmission()
             self.reject()
@@ -530,8 +532,8 @@ class CardMemoryDialog(QDialog):
                 QMessageBox.critical(
                     self,
                     self.tr("Memory Card"),
-                    self.tr("Failed to reload previews from the machine:\n{0}"
-                    ).format(exc),
+                    self.tr("Failed to reload previews from the machine:")
+                    + "\n" + str(exc),
                 )
                 self._end_transmission()
                 self.reject()

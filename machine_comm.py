@@ -1909,8 +1909,9 @@ class MachineComm:
             dx = x_prev - x
             if not (-90 < dx < 90):
                 raise MachineCommError(
-                    _tr("The distance between consecutive stitch points is too large.\n"
-                    "Please insert intermediate stitches and try again.")
+                    _tr("The distance between consecutive stitch points is too large.")
+                    + "\n" +
+                    _tr("Please insert intermediate stitches and try again.")
                 )
             encoded.append(dx + 0x5B)
             encoded.append(y & 0xFF)
@@ -1960,8 +1961,9 @@ class MachineComm:
             dx = x_prev - x
             if not (-90 < dx < 90):
                 raise MachineCommError(
-                    _tr("The distance between consecutive stitch points is too large.\n"
-                    "Please insert intermediate stitches and try again.")
+                    _tr("The distance between consecutive stitch points is too large.")
+                    + "\n" +
+                    _tr("Please insert intermediate stitches and try again.")
                 )
             encoded.append((delta + 0xC6) & 0xFF)
             encoded.append((dx    + 0x5B) & 0xFF)

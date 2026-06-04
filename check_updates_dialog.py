@@ -73,7 +73,7 @@ class _UpdateWorker(QThread):
 
     def run(self):
         try:
-            self.status_changed.emit("Retrieving list of releases...")
+            self.status_changed.emit(self.tr("Retrieving list of releases…"))
             req = urllib.request.Request(
                 GITHUB_API_URL,
                 headers={
@@ -83,7 +83,7 @@ class _UpdateWorker(QThread):
                 },
             )
             with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-                self.status_changed.emit("Parsing response...")
+                self.status_changed.emit(self.tr("Parsing response…"))
                 releases = json.loads(resp.read())
             self.finished.emit(releases)
         except Exception as exc:
@@ -107,7 +107,7 @@ class _CheckingDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        self._label = QLabel(self.tr("Checking for new version..."))
+        self._label = QLabel(self.tr("Checking for new version…"))
         layout.addWidget(self._label)
 
         progress = QProgressBar()

@@ -224,7 +224,7 @@ class PMemoryDialog(QDialog):
             self._action_btn = QPushButton(self.tr("Write"))
             self._action_btn.setEnabled(False)
             self._action_btn.clicked.connect(self._on_write)
-            mem_label = QLabel(self.tr("Needed memory:\n{0} bytes").format(self._needed_bytes))
+            mem_label = QLabel(self.tr("Needed memory:") + "\n" + self.tr("{0} bytes").format(self._needed_bytes))
             mem_label.setAlignment(Qt.AlignCenter)
             right.addWidget(mem_label)
         elif self._action == self.ACTION_DELETE:
@@ -356,7 +356,7 @@ class PMemoryDialog(QDialog):
         try:
             points = MachineComm.decode_pmemory_pattern(raw_data, slot_type)
         except Exception as exc:
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to decode pattern: {0}").format(exc))
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to decode pattern:") + "\n" + str(exc))
             return
 
         _PatternPreviewDialog(points, slot_type, slot_index, parent=self).exec_()
@@ -383,7 +383,7 @@ class PMemoryDialog(QDialog):
             answer = QMessageBox.question(
                 self,
                 self.tr("Slot Not Empty"),
-                self.tr("Slot {0} already contains data.\nDelete it before writing?").format(slot_index),
+                self.tr("Slot {0} already contains data.").format(slot_index) + "\n" + self.tr("Delete it before writing?"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -404,7 +404,7 @@ class PMemoryDialog(QDialog):
             except Exception as exc:
                 QMessageBox.critical(
                     self, self.tr("Error"),
-                    self.tr("Failed to refresh P-Memory after delete:\n{0}").format(exc)
+                    self.tr("Failed to refresh P-Memory after delete:") + "\n" + str(exc)
                 )
                 self._end_transmission()
                 self.reject()
@@ -417,7 +417,9 @@ class PMemoryDialog(QDialog):
         if self._needed_bytes > free:
             QMessageBox.warning(
                 self, self.tr("Insufficient Memory"),
-                self.tr("The pattern requires {0} bytes but only {1} bytes are free in P-Memory.\n\nPlease delete one or more slots to free up space.").format(self._needed_bytes, free)
+                self.tr("The pattern requires {0} bytes but only {1} bytes are free in P-Memory.").format(self._needed_bytes, free)
+                + "\n\n" + 
+                self.tr("Please delete one or more slots to free up space.")
             )
             return
 
@@ -529,7 +531,7 @@ class PMemoryDialog(QDialog):
             self.reject()
             QMessageBox.critical(
                 self.parent(), self.tr("Error"),
-                self.tr("Failed to decode pattern: {0}").format(exc)
+                self.tr("Failed to decode pattern:") + "\n" + str(exc)
             )
             return
 

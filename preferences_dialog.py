@@ -207,7 +207,7 @@ class GeneralTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(
                 self, self.tr("Test Connection"),
-                self.tr("Could not open port \"{0}\":\n{1}").format(port, exc),
+                self.tr("Could not open port \"{0}\":").format(port) + "\n" + str(exc),
             )
             return
 
@@ -217,7 +217,7 @@ class GeneralTab(QWidget):
             comm.close()
             QMessageBox.critical(
                 self, self.tr("Test Connection"),
-                self.tr("No response from machine on {0}:\n{1}").format(port, exc),
+                self.tr("No response from machine on {0}:").format(port) + "\n" + str(exc),
             )
             return
 
@@ -236,7 +236,9 @@ class GeneralTab(QWidget):
             detail = self.tr(" (detected: {0})").format(detected) if detected else ""
             QMessageBox.information(
                 self, self.tr("Test Connection"),
-                self.tr("Connection successful!{0}\nMachine is responding correctly.").format(detail),
+                self.tr("Connection successful!{0}").format(detail)
+                + "\n" + 
+                self.tr("Machine is responding correctly."),
             )
 
     def _refresh_ports(self):

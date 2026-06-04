@@ -550,7 +550,7 @@ class MainWindow(QMainWindow):
         self._act_about = QAction(self.tr("&About"), self)
         self._act_about.triggered.connect(self._help_about)
 
-        self._act_check_updates = QAction(self.tr("Check for &Updates..."), self)
+        self._act_check_updates = QAction(self.tr("Check for &Updates…"), self)
         self._act_check_updates.triggered.connect(self._help_check_for_updates)
 
         self._act_online_docs = QAction(self.tr("&Online Documentation"), self)
@@ -1087,7 +1087,8 @@ class MainWindow(QMainWindow):
             return True
         ret = QMessageBox.question(
             self, self.tr("Unsaved Changes"),
-            self.tr("The pattern has been modified.\nDo you want to save before continuing?"),
+            self.tr("The pattern has been modified.") + "\n" +
+            self.tr("Do you want to save before continuing?"),
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
             QMessageBox.Save,
         )
@@ -1254,13 +1255,13 @@ class MainWindow(QMainWindow):
     def _file_save_as(self):
         # Determine file filter and extension based on stitch type
         if self._pattern.stitch_type == "9mm":
-            file_filter = "9mm Stitch Files (*.pcd);;All Files (*)"
+            file_filter = ";;".join([self.tr("9mm Stitch Files (*.pcd)"), self.tr("All Files (*)")])
             default_ext = ".pcd"
         elif self._pattern.stitch_type == "MAXI":
-            file_filter = "MAXI Stitch Files (*.pcq);;All Files (*)"
+            file_filter = ";;".join([self.tr("MAXI Stitch Files (*.pcq)"), self.tr("All Files (*)")])
             default_ext = ".pcq"
         else:
-            file_filter = "Stitch Files (*);;All Files (*)"
+            file_filter = ";;".join([self.tr("Embroidery Files (*.pcs)"), self.tr("All Files (*)")])
             default_ext = ""
         
         proposed = self._machine_pattern_name or ""
@@ -1696,10 +1697,8 @@ class MainWindow(QMainWindow):
         port = prefs.get("port", "")
         if not port:
             self._machine_error(
-                self.tr(
-                    "No serial port configured.\n"
-                    "Please set the port in Settings - Preferences - Machine."
-                )
+                self.tr("No serial port configured.") + "\n" +
+                self.tr("Please set the port in Settings - Preferences - Machine.")
             )
             return None
 
@@ -1712,14 +1711,14 @@ class MainWindow(QMainWindow):
         try:
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
-            self._machine_error(self.tr("Could not open port \"{0}\":\n{1}").format(port, exc))
+            self._machine_error(self.tr("Could not open port \"{0}\":").format(port) + "\n" + str(exc))
             return None
 
         try:
             info = self._machine_comm.query_machine()
         except (MachineCommError, Exception) as exc:
             self._machine_comm.close()
-            self._machine_error(self.tr("No communication with the machine:\n{0}").format(exc))
+            self._machine_error(self.tr("No communication with the machine:") + "\n" + str(exc))
             return None
 
         detected = info.get('model', '')
@@ -1728,10 +1727,9 @@ class MainWindow(QMainWindow):
             self._machine_comm.close()
             self._machine_error(
                 self.tr(
-                    "Connected machine ({0}) does not match "
-                    "the configured model ({1}).\n"
-                    "Please check Settings - Preferences - Machine."
-                ).format(detected, configured)
+                    "Connected machine ({0}) does not match the configured model ({1})."
+                ).format(detected, configured) + "\n" +
+                self.tr("Please check Settings - Preferences - Machine.")
             )
             return None
 
@@ -1804,11 +1802,10 @@ class MainWindow(QMainWindow):
             ret = QMessageBox.warning(
                 self, self.tr("Insert P-Memory"),
                 self.tr(
-                    "The loaded slot type ({0}) differs from the current "
-                    "pattern type ({1}).\n\n"
-                    "Point coordinates will be clamped to fit the current canvas.\n"
-                    "Continue?"
-                ).format(slot_type, self._pattern.stitch_type),
+                    "The loaded slot type ({0}) differs from the current pattern type ({1})."
+                ).format(slot_type, self._pattern.stitch_type) + "\n\n" +
+                self.tr("Point coordinates will be clamped to fit the current canvas.") + "\n" +
+                self.tr("Continue?"),
                 QMessageBox.Ok | QMessageBox.Cancel,
                 QMessageBox.Cancel,
             )
@@ -1916,7 +1913,7 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"), 
-                self.tr("Failed to read P-Memory:\n{0}").format(exc)
+                self.tr("Failed to read P-Memory:") + "\n" + str(exc)
             )
             return
 
@@ -1928,7 +1925,7 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
-                self.tr("Failed to decode P-Memory data:\n{0}").format(exc)
+                self.tr("Failed to decode P-Memory data:") + "\n" + str(exc)
             )
             return
 
@@ -1994,7 +1991,7 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
-                self.tr("Failed to query memory card:\n{0}").format(exc)
+                self.tr("Failed to query memory card:") + "\n" + str(exc)
             )
             return
 
@@ -2018,7 +2015,7 @@ class MainWindow(QMainWindow):
         }
 
         preview_progress = QProgressDialog(
-            self.tr("Loading card previews\u2026"),
+            self.tr("Loading card previews…"),
             None,  # no cancel button
             0, n_total,
             self,
@@ -2053,8 +2050,8 @@ class MainWindow(QMainWindow):
                     self._machine_comm.end_transmission()
                     QMessageBox.critical(self, 
                         self.tr("Error"),
-                        self.tr("Failed to load card preview for {0} slot {1}:\n{2}"
-                        ).format(ptype, slot + offset, exc)
+                        self.tr("Failed to load card preview for {0} slot {1}:"
+                        ).format(ptype, slot + offset) + "\n" + str(exc)
                     )
                     return
 
@@ -2165,13 +2162,13 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
-                self.tr("Failed to query memory card:\n{0}").format(exc)
+                self.tr("Failed to query memory card:") + "\n" + str(exc)
             )
             return
 
         # ── Send the pattern to the card ──────────────────────────────────
         progress_dlg = QProgressDialog(
-            self.tr("Writing pattern to memory card\u2026"),
+            self.tr("Writing pattern to memory card…"),
             None,  # no cancel button
             0, 100,
             self,
@@ -2201,7 +2198,7 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"),
-                self.tr("Failed to write pattern to memory card:\n{0}").format(exc)
+                self.tr("Failed to write pattern to memory card:") + "\n" + str(exc)
             )
             return
 
@@ -2215,9 +2212,8 @@ class MainWindow(QMainWindow):
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
-                self.tr(
-                    "Pattern was sent, but the card index could not be re-read to confirm:\n{0}"
-                ).format(exc)
+                self.tr("Pattern was sent, but the card index could not be re-read to confirm:")
+                + "\n" + str(exc)
             )
             return
 
@@ -2238,18 +2234,15 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self,
                 self.tr("Send Card Stitch"),
-                self.tr(
-                    'Pattern "{0}" successfully written to memory card.'
-                ).format(filename),
+                self.tr('Pattern "{0}" successfully written to memory card.').format(filename),
             )
         else:
             QMessageBox.warning(
                 self,
                 self.tr("Send Card Stitch"),
-                self.tr(
-                    "The pattern was sent to the memory card, but the card index "
-                    "changed unexpectedly.\nPlease verify the card contents."
-                ),
+                self.tr("The pattern was sent to the memory card, but the card index changed unexpectedly.")
+                + "\n" +
+                self.tr("Please verify the card contents."),
             )
 
     def _machine_insert_card(self):
@@ -2385,7 +2378,7 @@ class MainWindow(QMainWindow):
             self,
             self.tr("Load Template Image"),
             "",
-            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif)",
+            self.tr("Images (*.png *.jpg *.jpeg *.gif *.bmp *.tiff *.tif)"),
         )
         if not path:
             return
