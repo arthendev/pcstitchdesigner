@@ -114,6 +114,10 @@
         <translation>Größe: {0} Bytes</translation>
     </message>
     <message>
+        <source>Loading card previews…</source>
+        <translation>Vorschaubilder werden geladen…</translation>
+    </message>
+    <message>
         <source>Load Failed</source>
         <translation>Laden fehlgeschlagen</translation>
     </message>
@@ -1327,8 +1331,8 @@
         <translation>Dokumentation:</translation>
     </message>
     <message>
-        <source>Failed to load card preview for {0} slot {1}:</source>
-        <translation>Vorschaubild für {0} Slot {1} konnte nicht geladen werden:</translation>
+        <source>Failed to load card previews:</source>
+        <translation>Vorschaubilder konnten nicht geladen werden:</translation>
     </message>
     <message>
         <source>Memory Card</source>
@@ -1341,10 +1345,6 @@
     <message>
         <source>No patterns found on the memory card.</source>
         <translation>Keine Muster auf der Speicherkarte gefunden.</translation>
-    </message>
-    <message>
-        <source>Loading card previews…</source>
-        <translation>Vorschaubilder werden geladen…</translation>
     </message>
     <message>
         <source>Pattern Name</source>
