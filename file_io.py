@@ -22,7 +22,12 @@ All integer values are little-endian.
 """
 
 import struct
+from PyQt5.QtCore import QCoreApplication
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM
+
+
+def _tr(s):
+    return QCoreApplication.translate("FileIO", s)
 
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
@@ -41,7 +46,7 @@ def save_pattern(path, pattern):
     elif pattern.stitch_type == "large hoop":
         stitch_type_byte = 0x03
     else:
-        raise ValueError("Invalid/unsupported stitch type")
+        raise ValueError(_tr("Invalid/unsupported stitch type"))
 
     with open(path, 'wb') as f:
         # Header: magic, stitch_type, color_count
@@ -83,12 +88,12 @@ def load_pattern(path):
         header_size = struct.calcsize(HEADER_FMT)
         header_data = f.read(header_size)
         if len(header_data) < header_size:
-            raise ValueError("File too short")
+            raise ValueError(_tr("File too short"))
 
         magic_number, stitch_type_byte, color_count = struct.unpack(HEADER_FMT, header_data)
 
         if magic_number != 0x32:
-            raise ValueError("Invalid file format")
+            raise ValueError(_tr("Invalid file format"))
 
         # Set stitch type
         if stitch_type_byte == 0x00:
@@ -100,20 +105,20 @@ def load_pattern(path):
         elif stitch_type_byte == 0x03:
             pattern.stitch_type = "large hoop"
         else:
-            raise ValueError("Invalid/unsupported stitch type")
+            raise ValueError(_tr("Invalid/unsupported stitch type"))
 
         # Read colors
         for _ in range(color_count):
             color_data = f.read(3)
             if len(color_data) < 3:
-                raise ValueError("Unexpected end of file while reading colors")
+                raise ValueError(_tr("Unexpected end of file while reading colors"))
             r, g, b = struct.unpack('BBB', color_data)
             pattern.colors.append((r, g, b))
             f.read(1)  # skip padding byte
 
         stitch_count_data = f.read(2)
         if len(stitch_count_data) < 2:
-            raise ValueError("Unexpected end of file while reading stitch count")
+            raise ValueError(_tr("Unexpected end of file while reading stitch count"))
         stitch_count, = struct.unpack('<H', stitch_count_data)
 
         # Read element records.
@@ -135,7 +140,7 @@ def load_pattern(path):
         while i < stitch_count + extra_records:
             point_data = f.read(point_size)
             if len(point_data) < point_size:
-                raise ValueError("Unexpected end of file while reading stitch points")
+                raise ValueError(_tr("Unexpected end of file while reading stitch points"))
             c0, x_bytes, c1, y_bytes, control_byte = struct.unpack(POINT_FMT, point_data)
             x = int.from_bytes(x_bytes, 'little')
             y = int.from_bytes(y_bytes, 'little')
