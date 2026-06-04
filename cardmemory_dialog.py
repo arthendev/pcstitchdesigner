@@ -85,6 +85,7 @@ class CardMemoryDialog(QDialog):
         # Set by _do_load() / accepted when a pattern is successfully loaded
         self.loaded_points = None
         self.loaded_slot_type = None
+        self.loaded_name = None
 
         self._setup_ui()
 
@@ -402,6 +403,7 @@ class CardMemoryDialog(QDialog):
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         self.loaded_points    = points
         self.loaded_slot_type = ptype
+        self.loaded_name      = pattern['name']
         self._end_transmission()
         self.accept()
 

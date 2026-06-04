@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
         self._machine_comm = MachineComm()
 
         self._file_path = None
+        self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of (x, y) tuples copied from selection
         self._pattern = StitchPattern()
         self._canvas = StitchCanvas(self._pattern)
@@ -1069,7 +1070,12 @@ class MainWindow(QMainWindow):
         self._act_sel_xform.setEnabled(can_xform)
 
     def _update_title(self):
-        name = os.path.basename(self._file_path) if self._file_path else self.tr("Untitled")
+        if self._file_path:
+            name = os.path.basename(self._file_path)
+        elif self._machine_pattern_name:
+            name = self._machine_pattern_name
+        else:
+            name = self.tr("Untitled")
         mod = " *" if self._pattern.modified else ""
         self.setWindowTitle(f"{name}{mod} - PC Stitch Designer")
 
@@ -1095,6 +1101,7 @@ class MainWindow(QMainWindow):
         self._pattern.clear()
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._machine_pattern_name = None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
@@ -1256,8 +1263,9 @@ class MainWindow(QMainWindow):
             file_filter = "Stitch Files (*);;All Files (*)"
             default_ext = ""
         
+        proposed = self._machine_pattern_name or ""
         path, _ = QFileDialog.getSaveFileName(
-            self, self.tr("Save Stitch Pattern"), "",
+            self, self.tr("Save Stitch Pattern"), proposed,
             file_filter,
         )
         if not path:
@@ -1729,7 +1737,7 @@ class MainWindow(QMainWindow):
 
         return info
 
-    def _apply_machine_pattern(self, points, slot_type):
+    def _apply_machine_pattern(self, points, slot_type, name=None):
         """Replace the current pattern with points loaded from the machine."""
         new_pattern = StitchPattern()
         new_pattern.set_machine_data(points, slot_type or self._pattern.stitch_type)
@@ -1738,6 +1746,7 @@ class MainWindow(QMainWindow):
         self._canvas.pattern = new_pattern
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._machine_pattern_name = name or None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
@@ -2058,7 +2067,7 @@ class MainWindow(QMainWindow):
 
         if action == CardMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
             if dlg.loaded_points is not None:
-                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type, dlg.loaded_name)
 
         if action == CardMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
             if dlg.loaded_points is not None:
