@@ -2053,7 +2053,7 @@ class MainWindow(QMainWindow):
                     self._machine_comm.end_transmission()
                     QMessageBox.critical(self, 
                         self.tr("Error"),
-                        self.tr( "Failed to load card preview for {0} slot {1}:\n{2}"
+                        self.tr("Failed to load card preview for {0} slot {1}:\n{2}"
                         ).format(ptype, slot + offset, exc)
                     )
                     return
@@ -2216,8 +2216,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self,
                 self.tr("Error"),
                 self.tr(
-                    "Pattern was sent, but the card index could not be "
-                    "re-read to confirm:\n{0}"
+                    "Pattern was sent, but the card index could not be re-read to confirm:\n{0}"
                 ).format(exc)
             )
             return
