@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QTabWidget, QWidget,
     QListWidget, QListWidgetItem, QListView, QAbstractItemView,
     QPushButton, QLabel, QMessageBox,
-    QApplication, QProgressBar,
+    QApplication, QProgressBar, QProgressDialog,
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor, QTransform
@@ -64,6 +64,10 @@ class CardMemoryDialog(QDialog):
     ACTION_INSERT = "insert"
     ACTION_DELETE = "delete"
 
+    # Class-level cache for preview images (card_no + counts → previews)
+    _cached_card_info = None
+    _cached_card_previews = None
+
     # Display scale applied to the raw preview pixmaps before use as icons.
     # 9mm images are 24 px tall, 53 px wide; MAXI 48 x 53 px; Embroidery 48 x 48 px.
     _ICON_SIZE = QSize(53, 48)
@@ -74,10 +78,9 @@ class CardMemoryDialog(QDialog):
     )
     # _ICON_SIZE = QSize(106, 96)
 
-    def __init__(self, card_info, previews, action, comm, parent=None):
+    def __init__(self, card_info, action, comm, parent=None):
         super().__init__(parent)
         self._card_info = card_info
-        self._previews = previews
         self._action = action
         self._comm = comm
         self._transmission_ended = False
@@ -86,6 +89,9 @@ class CardMemoryDialog(QDialog):
         self.loaded_points = None
         self.loaded_slot_type = None
         self.loaded_name = None
+
+        # Obtain previews — from cache when possible, otherwise load from machine
+        self._previews = self._get_previews(card_info)
 
         self._setup_ui()
 
@@ -219,6 +225,71 @@ class CardMemoryDialog(QDialog):
             )
         )
 
+    def _get_previews(self, card_info):
+        """Return previews for *card_info*, from cache when possible.
+
+        Checks the class-level cache keyed by card number and per-type
+        counts.  On a cache miss, loads all preview images from the machine
+        (slow) and caches the result.  Exceptions from
+        :meth:`MachineComm.query_card_preview` propagate to the caller.
+        """
+        n_total = (card_info['n_9mm'] + card_info['n_maxi'] + card_info['n_embr'])
+        if n_total == 0:
+            return []
+
+        # Check class-level cache
+        if (CardMemoryDialog._cached_card_info is not None
+                and CardMemoryDialog._cached_card_previews is not None
+                and CardMemoryDialog._cached_card_info.get('card_no') == card_info.get('card_no')
+                and CardMemoryDialog._cached_card_info.get('n_9mm') == card_info.get('n_9mm')
+                and CardMemoryDialog._cached_card_info.get('n_maxi') == card_info.get('n_maxi')
+                and CardMemoryDialog._cached_card_info.get('n_embr') == card_info.get('n_embr')):
+            return CardMemoryDialog._cached_card_previews
+
+        # ── Cache miss — load previews from the machine ──────────────────
+        offs_map = {
+            '9mm': 'offs_9mm',
+            'MAXI': 'offs_maxi',
+            'Embroidery': 'offs_embr',
+        }
+
+        preview_progress = QProgressDialog(
+            self.tr("Loading card previews…"),
+            None,  # no cancel button
+            0, n_total,
+            self,
+        )
+        preview_progress.setWindowTitle(self.tr("Memory Card"))
+        preview_progress.setWindowModality(Qt.WindowModal)
+        preview_progress.setMinimumDuration(0)
+        preview_progress.setValue(0)
+
+        previews = []
+        loaded = 0
+        for ptype, count_key in (
+            ('9mm',         'n_9mm'),
+            ('MAXI',        'n_maxi'),
+            ('Embroidery',  'n_embr'),
+        ):
+            offs_key = offs_map.get(ptype)
+            offset = card_info.get(offs_key, 0) if offs_key is not None else 0
+            for slot in range(card_info[count_key]):
+                card_slot = slot + offset
+                preview = self._comm.query_card_preview(
+                    card_info['card_no_bytes'], card_slot, ptype
+                )
+                previews.append(preview)
+                loaded += 1
+                preview_progress.setValue(loaded)
+                QApplication.processEvents()
+
+        preview_progress.close()
+
+        # Update class-level cache
+        CardMemoryDialog._cached_card_info = card_info
+        CardMemoryDialog._cached_card_previews = previews
+        return previews
+
     def _reload_previews(self, card_info):
         """Reload all preview images from the machine using *card_info*.
 
@@ -243,13 +314,20 @@ class CardMemoryDialog(QDialog):
         }
 
         total_patterns = sum(card_info.get(count_map[pt], 0) for pt in count_map)
-        loaded = 0
 
-        self._progress_bar.setValue(0)
-        self._progress_bar.setStyleSheet("")
-        QApplication.processEvents()
+        preview_progress = QProgressDialog(
+            self.tr("Loading card previews…"),
+            None,  # no cancel button
+            0, total_patterns,
+            self,
+        )
+        preview_progress.setWindowTitle(self.tr("Memory Card"))
+        preview_progress.setWindowModality(Qt.WindowModal)
+        preview_progress.setMinimumDuration(0)
+        preview_progress.setValue(0)
 
         new_previews = []
+        loaded = 0
         for ptype, lw in self._lists.items():
             count = card_info.get(count_map[ptype], 0)
             offset = card_info.get(offs_map[ptype], 0)
@@ -257,8 +335,7 @@ class CardMemoryDialog(QDialog):
                 card_slot = i + offset
                 preview = self._comm.query_card_preview(card_info['card_no_bytes'], card_slot, ptype)
                 loaded += 1
-                if total_patterns > 0:
-                    self._progress_bar.setValue(loaded * 100 // total_patterns)
+                preview_progress.setValue(loaded)
                 QApplication.processEvents()
                 pixmap = self._build_pixmap(
                     preview['preview_hex'],
@@ -278,9 +355,12 @@ class CardMemoryDialog(QDialog):
                 lw.addItem(item)
                 new_previews.append(preview)
 
+        preview_progress.close()
+
         self._previews = new_previews
-        self._progress_bar.setValue(0)
-        self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+        # Update class-level cache
+        CardMemoryDialog._cached_card_info = card_info
+        CardMemoryDialog._cached_card_previews = new_previews
         self._update_card_info_label(card_info)
 
     def _current_list(self):
