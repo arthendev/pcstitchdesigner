@@ -582,6 +582,26 @@ Die Nähmaschine antwortet korrekt.</translation>
         <translation>P-Muster löschen</translation>
     </message>
     <message>
+        <location filename="../main_window.py" line="533"/>
+        <source>Load Card Stitch</source>
+        <translation>Kartenmuster laden</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="536"/>
+        <source>Send Card Stitch</source>
+        <translation>Kartenmuster senden</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="539"/>
+        <source>Insert Card Stitch</source>
+        <translation>Kartenmuster einfügen</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="542"/>
+        <source>Delete Card Stitch</source>
+        <translation>Kartenmuster löschen</translation>
+    </message>
+    <message>
         <location filename="../main_window.py" line="524"/>
         <source>Configuration…</source>
         <translation>Konfiguration…</translation>
@@ -859,7 +879,7 @@ Bitte den Port unter Einstellungen - Nähmaschine festlegen.</translation>
         <source>Connected machine ({0}) does not match the configured model ({1}).
 Please check Settings - Preferences - Machine.</source>
         <translation>Die verbundene Nähmaschine ({0}) stimmt nicht mit dem konfigurierten Modell ({1}) überein.
-Bitte unter Einstellungen - Maschine prüfen.</translation>
+Bitte unter Einstellungen - Nähmaschine prüfen.</translation>
     </message>
     <message>
         <location filename="../main_window.py" line="1717"/>
@@ -892,44 +912,141 @@ Fortfahren?</translation>
         <translation>Das Stichmuster ist leer. Bitte Stichpunkte hinzufügen, bevor es an die Nähmaschine gesendet wird.</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2051"/>
+        <location filename="../main_window.py" line="1918"/>
+        <location filename="../main_window.py" line="1930"/>
+        <location filename="../main_window.py" line="1991"/>
+        <location filename="../main_window.py" line="1996"/>
+        <location filename="../main_window.py" line="2055"/>
+        <location filename="../main_window.py" line="2162"/>
+        <location filename="../main_window.py" line="2167"/>
+        <location filename="../main_window.py" line="2197"/>
+        <location filename="../main_window.py" line="2203"/>
+        <location filename="../main_window.py" line="2217"/>
+        <source>Error</source>
+        <translation>Fehler</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2086"/>
+        <location filename="../main_window.py" line="2095"/>
         <source>Load Template Image</source>
         <translation>Vorlagenbild laden</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2051"/>
+        <location filename="../main_window.py" line="2395"/>
         <source>Could not load the selected image.</source>
         <translation>Das ausgewählte Bild konnte nicht geladen werden.</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2098"/>
+        <location filename="../main_window.py" line="2442"/>
         <source>About PC Stitch Designer</source>
         <translation>Über PC Stitch Designer</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2111"/>
+        <location filename="../main_window.py" line="2449"/>
         <source>A stitch pattern editor for 9 mm and MAXI stitches.</source>
         <translation>Ein Stichmuster-Editor für 9-mm- und MAXI-Stiche.</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2112"/>
+        <location filename="../main_window.py" line="2450"/>
         <source>Allows pattern transfer to and from PFAFF Creative 7570, 7550 and 1475 CD.</source>
         <translation>Ermöglicht die Musterübertragung auf PFAFF Creative 7570, 7550 und 1475 CD.</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2113"/>
+        <location filename="../main_window.py" line="2451"/>
         <source>Project:</source>
         <translation>Projektseite:</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2116"/>
+        <location filename="../main_window.py" line="2455"/>
         <source>New Releases:</source>
         <translation>Neue Versionen:</translation>
     </message>
     <message>
-        <location filename="../main_window.py" line="2119"/>
+        <location filename="../main_window.py" line="2457"/>
         <source>Documentation:</source>
         <translation>Dokumentation:</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2056"/>
+        <source>Failed to load card preview for {0} slot {1}:
+{2}</source>
+        <translation>Vorschaubild für {0} Slot {1} konnte nicht geladen werden:
+{2}</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2006"/>
+        <location filename="../main_window.py" line="2026"/>
+        <source>Memory Card</source>
+        <translation>Speicherkarte</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="1997"/>
+        <location filename="../main_window.py" line="2168"/>
+        <source>Failed to query memory card:
+{0}</source>
+        <translation>Speicherkarte konnte nicht abgefragt werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2007"/>
+        <source>No patterns found on the memory card.</source>
+        <translation>Keine Muster auf der Speicherkarte gefunden.</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2021"/>
+        <source>Loading card previews…</source>
+        <translation>Vorschaubilder werden geladen…</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2086"/>
+        <source>Pattern Name</source>
+        <translation>Mustername</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2093"/>
+        <source>Enter a name for this pattern (max 8 characters):</source>
+        <translation>Einen Namen für dieses Muster eingeben (max. 8 Zeichen):</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2098"/>
+        <source>Pattern name</source>
+        <translation>Mustername</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2140"/>
+        <source>Sending embroidery patterns to memory card is not yet supported.</source>
+        <translation>Das Senden von Stickmustern auf die Speicherkarte wird noch nicht unterstützt.</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2174"/>
+        <source>Writing pattern to memory card…</source>
+        <translation>Muster wird auf Speicherkarte geschrieben…</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2204"/>
+        <source>Failed to write pattern to memory card:
+{0}</source>
+        <translation>Muster konnte nicht auf die Speicherkarte geschrieben werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2218"/>
+        <source>Pattern was sent, but the card index could not be re-read to confirm:
+{0}</source>
+        <translation>Muster wurde gesendet, aber der Kartenindex konnte nicht zur Bestätigung erneut gelesen werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2241"/>
+        <source>Pattern "{0}" successfully written to memory card.</source>
+        <translation>Muster „{0}" wurde erfolgreich auf die Speicherkarte geschrieben.</translation>
+    </message>
+    <message>
+        <location filename="../main_window.py" line="2249"/>
+        <source>The pattern was sent to the memory card, but the card index changed unexpectedly.
+Please verify the card contents.</source>
+        <translation>Das Muster wurde an die Speicherkarte gesendet, aber der Kartenindex hat sich unerwartet geändert.
+Bitte den Karteninhalt überprüfen.</translation>
     </message>
 </context>
 <context>
@@ -997,9 +1114,9 @@ Fortfahren?</translation>
         <translation>Freier Speicherplatz: {0} Bytes</translation>
     </message>
     <message>
-        <location filename="../pmemory_dialog.py" line="530"/>
-        <source>Machine Error</source>
-        <translation>Nähmaschinenfehler</translation>
+        <location filename="../pmemory_dialog.py" line="531"/>
+        <source>Error</source>
+        <translation>Fehler</translation>
     </message>
     <message>
         <location filename="../pmemory_dialog.py" line="530"/>
@@ -1254,6 +1371,730 @@ Bitte einen oder mehrere Speicher löschen, um Speicherplatz freizugeben.</trans
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>Eine neue Version ist verfügbar! (aktuell: {0})</translation>
+    </message>
+</context>
+<context>
+    <name>CardMemoryDialog</name>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="95"/>
+        <location filename="../cardmemory_dialog.py" line="466"/>
+        <location filename="../cardmemory_dialog.py" line="532"/>
+        <source>Memory Card</source>
+        <translation>Speicherkarte</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="214"/>
+        <source>Card No: {0}   |   9mm: {1}   MAXI: {2}   Embroidery: {3}</source>
+        <translation>Karte Nr.: {0}   |   9mm: {1}   MAXI: {2}   Stickerei: {3}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="166"/>
+        <source>Load</source>
+        <translation>Laden</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="168"/>
+        <source>Insert</source>
+        <translation>Einfügen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="170"/>
+        <source>Delete</source>
+        <translation>Löschen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="172"/>
+        <source>Write</source>
+        <translation>Schreiben</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="181"/>
+        <location filename="../cardmemory_dialog.py" line="309"/>
+        <source>Name: —</source>
+        <translation>Name: —</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="182"/>
+        <location filename="../cardmemory_dialog.py" line="310"/>
+        <source>Size: —</source>
+        <translation>Größe: —</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="202"/>
+        <source>Close</source>
+        <translation>Schließen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="305"/>
+        <source>Name: {0}</source>
+        <translation>Name: {0}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="306"/>
+        <source>Size: {0} bytes</source>
+        <translation>Größe: {0} Bytes</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="365"/>
+        <source>Load Failed</source>
+        <translation>Laden fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="366"/>
+        <source>Could not load the pattern from the card:
+{0}</source>
+        <translation>Das Muster konnte nicht von der Karte geladen werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="426"/>
+        <source>Confirm Delete</source>
+        <translation>Löschen bestätigen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="427"/>
+        <source>Delete pattern "{0}" ({1}) from the memory card?
+This action cannot be undone.</source>
+        <translation>Muster „{0}“ ({1}) von der Speicherkarte löschen?
+Diese Aktion kann nicht rückgängig gemacht werden.</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="140"/>
+        <location filename="../cardmemory_dialog.py" line="269"/>
+        <source>(unnamed)</source>
+        <translation>(unbenannt)</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="383"/>
+        <source>Not Yet Implemented</source>
+        <translation>Noch nicht implementiert</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="384"/>
+        <source>Loading {0} patterns from memory card is not yet supported.</source>
+        <translation>Das Laden von {0}-Mustern von der Speicherkarte wird noch nicht unterstützt.</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="392"/>
+        <source>Decode Failed</source>
+        <translation>Dekodierung fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="393"/>
+        <source>Could not decode the pattern data:
+{0}</source>
+        <translation>Die Musterdaten konnten nicht dekodiert werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="453"/>
+        <source>Delete Failed</source>
+        <translation>Löschen fehlgeschlagen</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="454"/>
+        <source>Could not delete the pattern from the card:
+{0}</source>
+        <translation>Das Muster konnte nicht von der Karte gelöscht werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="467"/>
+        <source>Pattern deleted, but the card index could not be re-read:
+{0}</source>
+        <translation>Muster gelöscht, aber der Kartenindex konnte nicht erneut gelesen werden:
+{0}</translation>
+    </message>
+    <message>
+        <location filename="../cardmemory_dialog.py" line="533"/>
+        <source>Failed to reload previews from the machine:
+{0}</source>
+        <translation>Vorschauen konnten nicht von der Maschine neu geladen werden:
+{0}</translation>
+    </message>
+</context>
+<context>
+    <name>MachineComm</name>
+    <!-- query_machine -->
+    <message>
+        <location filename="../machine_comm.py" line="270"/>
+        <source>Machine not responding. Please check connection and try again.</source>
+        <translation>Nähmaschine antwortet nicht. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="245"/>
+        <source>Unexpected identification response: {0}</source>
+        <translation>Unerwartete Identifikationsantwort: {0}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="255"/>
+        <source>Unrecognised machine model in response: {0}</source>
+        <translation>Unbekanntes Nähmaschinenmodell in der Antwort: {0}</translation>
+    </message>
+    <!-- P-Memory -->
+    <message>
+        <location filename="../machine_comm.py" line="333"/>
+        <source>Timeout waiting for P-Memory response (CTRL_ETB not received).</source>
+        <translation>Zeitüberschreitung beim Warten auf P-Muster-Antwort (CTRL_ETB nicht empfangen).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="339"/>
+        <source>Timeout waiting for P-Memory checksum bytes.</source>
+        <translation>Zeitüberschreitung beim Warten auf P-Muster-Prüfsummenbytes.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="372"/>
+        <location filename="../machine_comm.py" line="376"/>
+        <source>Error during communication</source>
+        <translation>Kommunikationsfehler</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="374"/>
+        <source>Machine refused deletion</source>
+        <translation>Nähmaschine verweigerte das Löschen</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="409"/>
+        <source>Unknown slot type: {0}</source>
+        <translation>Unbekannter Steckplatztyp: {0}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="420"/>
+        <source>No response from machine.</source>
+        <translation>Keine Antwort von der Nähmaschine.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="422"/>
+        <source>Machine refused the P-Memory read request.</source>
+        <translation>Nähmaschine hat die P-Muster-Leseanforderung abgelehnt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="436"/>
+        <source>Timeout waiting for chunk data.</source>
+        <translation>Zeitüberschreitung beim Warten auf Blockdaten.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="444"/>
+        <source>Timeout waiting for chunk checksum.</source>
+        <translation>Zeitüberschreitung beim Warten auf Blockprüfsumme.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="451"/>
+        <location filename="../machine_comm.py" line="2023"/>
+        <source>Invalid checksum encoding: {0}</source>
+        <translation>Ungültige Prüfsummenkodierung: {0}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="459"/>
+        <source>Chunk checksum mismatch: expected {0}, got {1}</source>
+        <translation>Blockprüfsumme stimmt nicht überein: erwartet {0}, erhalten {1}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="472"/>
+        <source>Timeout waiting for next chunk or end-of-data.</source>
+        <translation>Zeitüberschreitung beim Warten auf nächsten Block oder Datenende.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="549"/>
+        <location filename="../machine_comm.py" line="661"/>
+        <source>Timeout waiting for acknowledgement after write command.</source>
+        <translation>Zeitüberschreitung beim Warten auf Bestätigung nach Schreibbefehl.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="552"/>
+        <location filename="../machine_comm.py" line="664"/>
+        <source>Machine rejected the write command.</source>
+        <translation>Nähmaschine hat den Schreibbefehl abgelehnt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="555"/>
+        <location filename="../machine_comm.py" line="667"/>
+        <source>Unexpected response 0x{0} after write command.</source>
+        <translation>Unerwartete Antwort 0x{0} nach Schreibbefehl.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="570"/>
+        <source>Timeout waiting for acknowledgement after header.</source>
+        <translation>Zeitüberschreitung beim Warten auf Bestätigung nach Header.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="573"/>
+        <source>Machine rejected the header.</source>
+        <translation>Nähmaschine hat den Header abgelehnt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="576"/>
+        <source>Unexpected response 0x{0} after header.</source>
+        <translation>Unerwartete Antwort 0x{0} nach Header.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="594"/>
+        <location filename="../machine_comm.py" line="685"/>
+        <location filename="../machine_comm.py" line="1484"/>
+        <source>Timeout waiting for acknowledgement after chunk {0}.</source>
+        <translation>Zeitüberschreitung beim Warten auf Bestätigung nach Block {0}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="598"/>
+        <location filename="../machine_comm.py" line="689"/>
+        <source>Machine rejected a stitch data chunk.</source>
+        <translation>Nähmaschine hat einen Stichdatenblock abgelehnt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="601"/>
+        <location filename="../machine_comm.py" line="692"/>
+        <source>Unexpected response 0x{0} during stitch data transfer.</source>
+        <translation>Unerwartete Antwort 0x{0} bei der Stichdatenübertragung.</translation>
+    </message>
+    <!-- P-Memory decode -->
+    <message>
+        <location filename="../machine_comm.py" line="2001"/>
+        <source>P-Memory response too short.</source>
+        <translation>P-Muster-Antwort zu kurz.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2031"/>
+        <source>P-Memory payload is not valid ASCII.</source>
+        <translation>P-Muster-Nutzlast ist kein gültiges ASCII.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2034"/>
+        <source>P-Memory payload too short to read slot count.</source>
+        <translation>P-Muster-Nutzlast zu kurz, um die Steckplatzanzahl zu lesen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2127"/>
+        <source>Pattern data is not valid ASCII.</source>
+        <translation>Musterdaten sind kein gültiges ASCII.</translation>
+    </message>
+    <!-- Card index query -->
+    <message>
+        <location filename="../machine_comm.py" line="745"/>
+        <source>No response to card query command.</source>
+        <translation>Keine Antwort auf Karten-Abfragebefehl.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="750"/>
+        <source>No memory card inserted in the machine.</source>
+        <translation>Keine Speicherkarte in der Nähmaschine eingelegt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="758"/>
+        <source>Timeout reading card query response header.</source>
+        <translation>Zeitüberschreitung beim Lesen des Karten-Antwortheaders.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="764"/>
+        <location filename="../machine_comm.py" line="777"/>
+        <source>Timeout reading PayloadSize in card query response.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlastgröße in der Kartenantwort.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="771"/>
+        <source>Timeout reading payload in card query response.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlast in der Kartenantwort.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="783"/>
+        <source>Expected CTRL_ETB in card query response.</source>
+        <translation>CTRL_ETB in der Kartenantwort erwartet.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="788"/>
+        <source>Timeout reading checksum in card query response.</source>
+        <translation>Zeitüberschreitung beim Lesen der Prüfsumme in der Kartenantwort.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="795"/>
+        <source>Card query checksum mismatch: expected {0}, got {1}.</source>
+        <translation>Karten-Prüfsumme stimmt nicht überein: erwartet {0}, erhalten {1}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="806"/>
+        <source>Card query response payload too short: {0} bytes.</source>
+        <translation>Nutzlast der Kartenantwort zu kurz: {0} Bytes.</translation>
+    </message>
+    <!-- Card preview / load / delete common -->
+    <message>
+        <location filename="../machine_comm.py" line="893"/>
+        <location filename="../machine_comm.py" line="1124"/>
+        <location filename="../machine_comm.py" line="1324"/>
+        <location filename="../machine_comm.py" line="1821"/>
+        <source>Unknown pattern type: {0}</source>
+        <translation>Unbekannter Mustertyp: {0}</translation>
+    </message>
+    <!-- Card preview -->
+    <message>
+        <location filename="../machine_comm.py" line="921"/>
+        <source>No response to card preview command ({0} slot {1}).</source>
+        <translation>Keine Antwort auf Vorschau-Befehl ({0} Steckplatz {1}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="926"/>
+        <source>Machine rejected card preview request ({0} slot {1}).</source>
+        <translation>Nähmaschine hat Vorschau-Anforderung abgelehnt ({0} Steckplatz {1}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="931"/>
+        <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
+        <translation>CTRL_ACK zum Starten des ersten Blocks erwartet, 0x{0} empfangen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="937"/>
+        <source>Timeout reading unknown bytes in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen unbekannter Bytes im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="941"/>
+        <source>Timeout reading SIZE in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Größe im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="945"/>
+        <source>Timeout reading NAME_SIZE in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Namensgröße im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="950"/>
+        <source>Timeout reading NAME in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen des Namens im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="954"/>
+        <source>Timeout reading PayloadSize in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlastgröße im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="959"/>
+        <location filename="../machine_comm.py" line="1178"/>
+        <source>Timeout reading payload in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlast im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="963"/>
+        <source>Timeout reading repeated PayloadSize in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der wiederholten Nutzlastgröße im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="967"/>
+        <source>Expected CTRL_ETB in first chunk.</source>
+        <translation>CTRL_ETB im ersten Block erwartet.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="971"/>
+        <location filename="../machine_comm.py" line="1195"/>
+        <source>Timeout reading checksum in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Prüfsumme im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="989"/>
+        <location filename="../machine_comm.py" line="1211"/>
+        <source>First chunk checksum mismatch ({0} slot {1}) after {2} retries.</source>
+        <translation>Prüfsumme des ersten Blocks stimmt nicht überein ({0} Steckplatz {1}) nach {2} Versuchen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="999"/>
+        <source>Timeout waiting for next chunk or end marker.</source>
+        <translation>Zeitüberschreitung beim Warten auf nächsten Block oder Endmarkierung.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1007"/>
+        <source>Unexpected byte 0x{0} in chunk stream.</source>
+        <translation>Unerwartetes Byte 0x{0} im Blockstrom.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1013"/>
+        <source>Timeout reading PayloadSize in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlastgröße im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1018"/>
+        <location filename="../machine_comm.py" line="1240"/>
+        <source>Timeout reading payload in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Nutzlast im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1022"/>
+        <source>Timeout reading repeated PayloadSize in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der wiederholten Nutzlastgröße im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1026"/>
+        <source>Expected CTRL_ETB in chunk.</source>
+        <translation>CTRL_ETB im Block erwartet.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1030"/>
+        <location filename="../machine_comm.py" line="1255"/>
+        <source>Timeout reading checksum in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Prüfsumme im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1045"/>
+        <location filename="../machine_comm.py" line="1271"/>
+        <source>Chunk checksum mismatch ({0} slot {1}) after {2} retries.</source>
+        <translation>Block-Prüfsumme stimmt nicht überein ({0} Steckplatz {1}) nach {2} Versuchen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1051"/>
+        <source>Expected CTRL_ENQ on retransmit.</source>
+        <translation>CTRL_ENQ bei Wiederholung erwartet.</translation>
+    </message>
+    <!-- load_card_slot specific -->
+    <message>
+        <location filename="../machine_comm.py" line="1146"/>
+        <source>No response to load command ({0} slot {1}).</source>
+        <translation>Keine Antwort auf Ladebefehl ({0} Steckplatz {1}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1150"/>
+        <source>Machine rejected load command ({0} slot {1}).</source>
+        <translation>Nähmaschine hat Ladebefehl abgelehnt ({0} Steckplatz {1}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1154"/>
+        <source>Unexpected response 0x{0} to load command ({1} slot {2}).</source>
+        <translation>Unerwartete Antwort 0x{0} auf Ladebefehl ({1} Steckplatz {2}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1169"/>
+        <source>Timeout waiting for SIZE byte in first chunk.</source>
+        <translation>Zeitüberschreitung beim Warten auf Größenbyte im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1183"/>
+        <source>Timeout reading repeated SIZE in first chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der wiederholten Größe im ersten Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1189"/>
+        <source>Expected CTRL_ETB in first chunk, got 0x{0}.</source>
+        <translation>CTRL_ETB im ersten Block erwartet, 0x{0} empfangen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1221"/>
+        <source>Timeout waiting for next chunk marker.</source>
+        <translation>Zeitüberschreitung beim Warten auf nächste Blockmarkierung.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1229"/>
+        <source>Unexpected byte 0x{0} expecting CTRL_ENQ or CTRL_ETX.</source>
+        <translation>Unerwartetes Byte 0x{0}, CTRL_ENQ oder CTRL_ETX erwartet.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1235"/>
+        <source>Timeout reading SIZE in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der Größe im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1244"/>
+        <source>Timeout reading repeated SIZE in chunk.</source>
+        <translation>Zeitüberschreitung beim Lesen der wiederholten Größe im Block.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1249"/>
+        <source>Expected CTRL_ETB in chunk, got 0x{0}.</source>
+        <translation>CTRL_ETB im Block erwartet, 0x{0} empfangen.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1278"/>
+        <source>Expected CTRL_ENQ on chunk retransmit.</source>
+        <translation>CTRL_ENQ bei Block-Wiederholung erwartet.</translation>
+    </message>
+    <!-- delete_card_slot -->
+    <message>
+        <location filename="../machine_comm.py" line="1345"/>
+        <source>No response to delete command ({0} slot {1}).</source>
+        <translation>Keine Antwort auf Löschbefehl ({0} Steckplatz {1}).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1350"/>
+        <source>Machine rejected delete command ({0} slot {1}). The card may be write-protected.</source>
+        <translation>Nähmaschine hat Löschbefehl abgelehnt ({0} Steckplatz {1}). Die Karte ist möglicherweise schreibgeschützt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1355"/>
+        <source>Unexpected response 0x{0} to delete command ({1} slot {2}).</source>
+        <translation>Unerwartete Antwort 0x{0} auf Löschbefehl ({1} Steckplatz {2}).</translation>
+    </message>
+    <!-- send_card_slot -->
+    <message>
+        <location filename="../machine_comm.py" line="1425"/>
+        <source>Unsupported stitch type for card writing: {0}</source>
+        <translation>Nicht unterstützter Stichtyp für Kartenschreiben: {0}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1445"/>
+        <source>No response to card write (KN) command.</source>
+        <translation>Keine Antwort auf Karten-Schreibbefehl (KN).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1449"/>
+        <source>Machine rejected the card write command. The card may be full or write-protected.</source>
+        <translation>Nähmaschine hat den Karten-Schreibbefehl abgelehnt. Die Karte ist möglicherweise voll oder schreibgeschützt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1453"/>
+        <source>Unexpected response 0x{0} to card write command.</source>
+        <translation>Unerwartete Antwort 0x{0} auf Karten-Schreibbefehl.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1457"/>
+        <source>Incomplete acknowledgement to card write command ({0} byte(s) received, expected 3).</source>
+        <translation>Unvollständige Bestätigung des Karten-Schreibbefehls ({0} Byte(s) empfangen, 3 erwartet).</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1495"/>
+        <source>Machine rejected chunk {0} after {1} retries.</source>
+        <translation>Nähmaschine hat Block {0} nach {1} Versuchen abgelehnt.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1501"/>
+        <source>Unexpected response 0x{0} after chunk {1}.</source>
+        <translation>Unerwartete Antwort 0x{0} nach Block {1}.</translation>
+    </message>
+    <!-- encode_card_header -->
+    <message>
+        <location filename="../machine_comm.py" line="1776"/>
+        <location filename="../machine_comm.py" line="2206"/>
+        <location filename="../machine_comm.py" line="2281"/>
+        <source>Cannot encode header for an empty pattern.</source>
+        <translation>Header für ein leeres Muster kann nicht kodiert werden.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1837"/>
+        <location filename="../machine_comm.py" line="2255"/>
+        <location filename="../machine_comm.py" line="2307"/>
+        <source>Unsupported stitch type for machine encoding: {0}</source>
+        <translation>Nicht unterstützter Stichtyp für Nähmaschinenkodierung: {0}</translation>
+    </message>
+    <!-- decode -->
+    <message>
+        <location filename="../machine_comm.py" line="1548"/>
+        <source>9mm card slot payload has odd byte count ({0}) after stripping sentinels.</source>
+        <translation>Nutzlast des 9mm-Kartensteckplatzes hat ungerade Byteanzahl ({0}) nach Entfernen der Sentinel-Bytes.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="1607"/>
+        <source>MAXI card slot payload length {0} is not a multiple of 3 after stripping sentinels.</source>
+        <translation>Nutzlastlänge des MAXI-Kartensteckplatzes ({0}) ist kein Vielfaches von 3 nach Entfernen der Sentinel-Bytes.</translation>
+    </message>
+    <!-- encode_card_pattern -->
+    <message>
+        <location filename="../machine_comm.py" line="1906"/>
+        <location filename="../machine_comm.py" line="1957"/>
+        <source>The distance between consecutive stitch points is too large.
+Please insert intermediate stitches and try again.</source>
+        <translation>Der Abstand zwischen aufeinanderfolgenden Stichpunkten ist zu groß.
+Bitte fügen Sie Zwischenstiche ein und versuchen Sie es erneut.</translation>
+    </message>
+    <!-- decode_pmemory_index -->
+    <message>
+        <location filename="../machine_comm.py" line="2015"/>
+        <source>Expected CTRL_ETB at position -3, got 0x{0:02X}.</source>
+        <translation>CTRL_ETB an Position -3 erwartet, erhalten 0x{0:02X}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2029"/>
+        <source>P-Memory checksum mismatch: expected {0:02X}, got {1:02X}</source>
+        <translation>P-Memory-Prüfsumme stimmt nicht überein: erwartet {0:02X}, erhalten {1:02X}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2046"/>
+        <source>Invalid slot count encoding: {0}</source>
+        <translation>Ungültige Steckplatzzähler-Kodierung: {0}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2057"/>
+        <source>P-Memory payload length mismatch: expected {0} chars, got {1}.</source>
+        <translation>P-Memory-Nutzlastlänge stimmt nicht überein: {0} Zeichen erwartet, {1} erhalten.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2072"/>
+        <source>Invalid data for slot {0}: {1}</source>
+        <translation>Ungültige Daten für Steckplatz {0}: {1}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2091"/>
+        <source>Invalid free memory encoding: {0}</source>
+        <translation>Ungültige Freispeicher-Kodierung: {0}</translation>
+    </message>
+    <!-- decode_pmemory_pattern -->
+    <message>
+        <location filename="../machine_comm.py" line="2141"/>
+        <source>9mm pattern data length {0} is not a multiple of {1}.</source>
+        <translation>9mm-Musterdatenlänge {0} ist kein Vielfaches von {1}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2150"/>
+        <source>Invalid 9mm stitch data at offset {0}: {1}</source>
+        <translation>Ungültige 9mm-Stichdaten bei Offset {0}: {1}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2158"/>
+        <source>MAXI pattern data length {0} is not a multiple of {1}.</source>
+        <translation>MAXI-Musterdatenlänge {0} ist kein Vielfaches von {1}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2170"/>
+        <source>Invalid MAXI stitch data at offset {0}: {1}</source>
+        <translation>Ungültige MAXI-Stichdaten bei Offset {0}: {1}</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2178"/>
+        <source>Invalid sign character {0} at offset {1}.</source>
+        <translation>Ungültiges Vorzeichen {0} bei Offset {1}.</translation>
+    </message>
+    <message>
+        <location filename="../machine_comm.py" line="2184"/>
+        <source>Unknown slot type for pattern decoding: {0}</source>
+        <translation>Unbekannter Steckplatztyp für Musterdecodierung: {0}</translation>
+    </message>
+    <!-- encode_pmemory_stitch_data -->
+    <message>
+        <location filename="../machine_comm.py" line="2352"/>
+        <source>Unsupported stitch type for P-Memory encoding: {0}</source>
+        <translation>Nicht unterstützter Stichtyp für P-Memory-Kodierung: {0}</translation>
+    </message>
+    <!-- _require_open -->
+    <message>
+        <location filename="../machine_comm.py" line="2560"/>
+        <source>Serial port is not open.</source>
+        <translation>Serieller Port ist nicht geöffnet.</translation>
+    </message>
+</context>
+<context>
+    <name>FileIO</name>
+    <message>
+        <location filename="../file_io.py" line="49"/>
+        <location filename="../file_io.py" line="108"/>
+        <source>Invalid/unsupported stitch type</source>
+        <translation>Ungültiger/nicht unterstützter Stichtyp</translation>
+    </message>
+    <message>
+        <location filename="../file_io.py" line="91"/>
+        <source>File too short</source>
+        <translation>Datei zu kurz</translation>
+    </message>
+    <message>
+        <location filename="../file_io.py" line="96"/>
+        <source>Invalid file format</source>
+        <translation>Ungültiges Dateiformat</translation>
+    </message>
+    <message>
+        <location filename="../file_io.py" line="114"/>
+        <source>Unexpected end of file while reading colors</source>
+        <translation>Unerwartetes Dateiende beim Lesen der Farben</translation>
+    </message>
+    <message>
+        <location filename="../file_io.py" line="121"/>
+        <source>Unexpected end of file while reading stitch count</source>
+        <translation>Unerwartetes Dateiende beim Lesen der Stichanzahl</translation>
+    </message>
+    <message>
+        <location filename="../file_io.py" line="143"/>
+        <source>Unexpected end of file while reading stitch points</source>
+        <translation>Unerwartetes Dateiende beim Lesen der Stichpunkte</translation>
     </message>
 </context>
 </TS>
