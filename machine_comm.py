@@ -4,7 +4,13 @@ import re
 import time
 import serial
 import serial.tools.list_ports
+from PyQt5.QtCore import QCoreApplication
 from model import elem_has_coords
+
+
+def _tr(s):
+    """Translate a string in the MachineComm context."""
+    return QCoreApplication.translate("MachineComm", s)
 
 
 class MachineCommError(Exception):
@@ -242,7 +248,7 @@ class MachineComm:
 
                 if not text.startswith("Copyright"):
                     raise MachineCommError(
-                        f"Unexpected identification response: {text!r}"
+                        _tr("Unexpected identification response: {0}").format(repr(text))
                     )
 
                 canonical = None
@@ -252,7 +258,7 @@ class MachineComm:
                         break
                 if canonical is None:
                     raise MachineCommError(
-                        f"Unrecognised machine model in response: {text!r}"
+                        _tr("Unrecognised machine model in response: {0}").format(repr(text))
                     )
 
                 match = self._IDENT_PATTERN.search(text)
@@ -267,7 +273,7 @@ class MachineComm:
             self._serial.write(bytes([self.CTRL_EOT]))
             raise MachineCommError(
                 # f"No response from machine after {retries} attempt(s)."
-                f"Machine not responding. Please check connection and try again."
+                _tr("Machine not responding. Please check connection and try again.")
             )
         finally:
             self._serial.timeout = saved_timeout
@@ -330,13 +336,13 @@ class MachineComm:
             data = self._serial.read_until(expected=bytes([self.CTRL_ETB]))
             if not data or data[-1] != self.CTRL_ETB:
                 raise MachineCommError(
-                    "Timeout waiting for P-Memory response (CTRL_ETB not received)."
+                    _tr("Timeout waiting for P-Memory response (CTRL_ETB not received).")
                 )
 
             checksum_bytes = self._serial.read(2)
             if len(checksum_bytes) < 2:
                 raise MachineCommError(
-                    "Timeout waiting for P-Memory checksum bytes."
+                    _tr("Timeout waiting for P-Memory checksum bytes.")
                 )
 
             self._serial.write(bytes([self.CTRL_ACK]))
@@ -356,8 +362,8 @@ class MachineComm:
 
         Raises:
             serial.SerialException: If the port is not open.
-            MachineCommError: With message "Machine refused deletion" on CTRL_NAK,
-                or "Error during communication" on any other unexpected response.
+            MachineCommError: With message _tr("Machine refused deletion") on CTRL_NAK,
+                or _tr("Error during communication") on any other unexpected response.
         """
         self._require_open()
 
@@ -369,11 +375,11 @@ class MachineComm:
 
             response = self._serial.read(1)
             if not response:
-                raise MachineCommError("Error during communication")
+                raise MachineCommError(_tr("Error during communication"))
             if response[0] == self.CTRL_NAK:
-                raise MachineCommError("Machine refused deletion")
+                raise MachineCommError(_tr("Machine refused deletion"))
             if response[0] != self.CTRL_ACK:
-                raise MachineCommError("Error during communication")
+                raise MachineCommError(_tr("Error during communication"))
         finally:
             self._serial.timeout = saved_timeout
 
@@ -406,7 +412,7 @@ class MachineComm:
         elif slot_type == "MAXI":
             type_char = "1"
         else:
-            raise MachineCommError(f"Unknown slot type: {slot_type!r}")
+            raise MachineCommError(_tr("Unknown slot type: {0}").format(repr(slot_type)))
 
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
@@ -417,9 +423,9 @@ class MachineComm:
             # First byte: NAK means invalid request, otherwise start of first chunk
             first = self._serial.read(1)
             if not first:
-                raise MachineCommError("No response from machine.")
+                raise MachineCommError(_tr("No response from machine."))
             if first[0] == self.CTRL_NAK:
-                raise MachineCommError("Machine refused the P-Memory read request.")
+                raise MachineCommError(_tr("Machine refused the P-Memory read request."))
 
             receive_buffer = bytearray()
             # first byte already received; carry it into the first chunk
@@ -433,7 +439,7 @@ class MachineComm:
                 while True:
                     b = self._serial.read(1)
                     if not b:
-                        raise MachineCommError("Timeout waiting for chunk data.")
+                        raise MachineCommError(_tr("Timeout waiting for chunk data."))
                     if b[0] == self.CTRL_ETB:
                         break
                     chunk_payload.extend(b)
@@ -441,14 +447,14 @@ class MachineComm:
                 # Read 2 ASCII-hex checksum characters
                 cs_bytes = self._serial.read(2)
                 if len(cs_bytes) < 2:
-                    raise MachineCommError("Timeout waiting for chunk checksum.")
+                    raise MachineCommError(_tr("Timeout waiting for chunk checksum."))
 
                 # Verify checksum
                 try:
                     received_cs = int(cs_bytes.decode('ascii'), 16)
                 except (ValueError, UnicodeDecodeError) as exc:
                     raise MachineCommError(
-                        f"Invalid checksum encoding: {cs_bytes!r}"
+                        _tr("Invalid checksum encoding: {0}").format(repr(cs_bytes))
                     ) from exc
 
                 payload = bytes(chunk_payload)
@@ -456,8 +462,8 @@ class MachineComm:
                 if received_cs != expected_cs:
                     self._serial.write(bytes([self.CTRL_NAK]))
                     raise MachineCommError(
-                        f"Chunk checksum mismatch: expected {expected_cs:02X}, "
-                        f"got {received_cs:02X}"
+                        _tr("Chunk checksum mismatch: expected {0}, got {1}").format(
+                            f"{expected_cs:02X}", f"{received_cs:02X}")
                     )
 
                 receive_buffer.extend(payload)
@@ -469,7 +475,7 @@ class MachineComm:
                 # CTRL_ETX means the machine has no more data.
                 next_b = self._serial.read(1)
                 if not next_b:
-                    raise MachineCommError("Timeout waiting for next chunk or end-of-data.")
+                    raise MachineCommError(_tr("Timeout waiting for next chunk or end-of-data."))
                 if next_b[0] == self.CTRL_ETX:
                     break
                 carried = next_b  # first byte of the next chunk
@@ -546,13 +552,13 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    "Timeout waiting for acknowledgement after write command."
+                    _tr("Timeout waiting for acknowledgement after write command.")
                 )
             if resp[0] == self.CTRL_NAK:
-                raise MachineCommError("Machine rejected the write command.")
+                raise MachineCommError(_tr("Machine rejected the write command."))
             if resp[0] != self.CTRL_ENQ:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} after write command."
+                    _tr("Unexpected response 0x{0} after write command.").format(f"{resp[0]:02X}")
                 )
 
             # ── Phase 2: header ────────────────────────────────────────────
@@ -567,13 +573,13 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    "Timeout waiting for acknowledgement after header."
+                    _tr("Timeout waiting for acknowledgement after header.")
                 )
             if resp[0] == self.CTRL_NAK:
-                raise MachineCommError("Machine rejected the header.")
+                raise MachineCommError(_tr("Machine rejected the header."))
             if resp[0] != self.CTRL_ENQ:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} after header."
+                    _tr("Unexpected response 0x{0} after header.").format(f"{resp[0]:02X}")
                 )
 
             # ── Phase 3: stitch data chunks ────────────────────────────────
@@ -591,14 +597,14 @@ class MachineComm:
                 resp = self._serial.read(1)
                 if not resp:
                     raise MachineCommError(
-                        f"Timeout waiting for acknowledgement after chunk "
-                        f"{offset // chunk_size + 1}."
+                        _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
+                            offset // chunk_size + 1)
                     )
                 if resp[0] == self.CTRL_NAK:
-                    raise MachineCommError("Machine rejected a stitch data chunk.")
+                    raise MachineCommError(_tr("Machine rejected a stitch data chunk."))
                 if resp[0] != self.CTRL_ACK:
                     raise MachineCommError(
-                        f"Unexpected response 0x{resp[0]:02X} during stitch data transfer."
+                        _tr("Unexpected response 0x{0} during stitch data transfer.").format(f"{resp[0]:02X}")
                     )
                 if progress_callback is not None:
                     progress_callback(min(offset + chunk_size, total), total)
@@ -658,13 +664,13 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    "Timeout waiting for acknowledgement after write command."
+                    _tr("Timeout waiting for acknowledgement after write command.")
                 )
             if resp[0] == self.CTRL_NAK:
-                raise MachineCommError("Machine rejected the write command.")
+                raise MachineCommError(_tr("Machine rejected the write command."))
             if resp[0] != self.CTRL_ENQ:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} after write command."
+                    _tr("Unexpected response 0x{0} after write command.").format(f"{resp[0]:02X}")
                 )
 
             # ── Phase 2: stitch data chunks ────────────────────────────────
@@ -682,14 +688,14 @@ class MachineComm:
                 resp = self._serial.read(1)
                 if not resp:
                     raise MachineCommError(
-                        f"Timeout waiting for acknowledgement after chunk "
-                        f"{offset // chunk_size + 1}."
+                        _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
+                            offset // chunk_size + 1)
                     )
                 if resp[0] == self.CTRL_NAK:
-                    raise MachineCommError("Machine rejected a stitch data chunk.")
+                    raise MachineCommError(_tr("Machine rejected a stitch data chunk."))
                 if resp[0] != self.CTRL_ACK:
                     raise MachineCommError(
-                        f"Unexpected response 0x{resp[0]:02X} during stitch data transfer."
+                        _tr("Unexpected response 0x{0} during stitch data transfer.").format(f"{resp[0]:02X}")
                     )
                 if progress_callback is not None:
                     progress_callback(min(offset + chunk_size, total), total)
@@ -742,12 +748,12 @@ class MachineComm:
             # First byte tells us whether a card is present
             first = self._serial.read(1)
             if not first:
-                raise MachineCommError("No response to card query command.")
+                raise MachineCommError(_tr("No response to card query command."))
 
             if first[0] == self.CTRL_NAK:
                 # Second byte is CTRL_BS; read and discard it
                 self._serial.read(1)
-                raise MachineCommError("No memory card inserted in the machine.")
+                raise MachineCommError(_tr("No memory card inserted in the machine."))
 
             # Valid response: buf[0] should be 0x06
             buf = bytearray([first[0]])
@@ -755,45 +761,45 @@ class MachineComm:
             # bytes 1-4: 0x00 0x00 CardNo[0] CardNo[1]
             rest_header = self._serial.read(4)
             if len(rest_header) < 4:
-                raise MachineCommError("Timeout reading card query response header.")
+                raise MachineCommError(_tr("Timeout reading card query response header."))
             buf.extend(rest_header)
 
             # byte 5: PayloadSize
             ps_raw = self._serial.read(1)
             if not ps_raw:
-                raise MachineCommError("Timeout reading PayloadSize in card query response.")
+                raise MachineCommError(_tr("Timeout reading PayloadSize in card query response."))
             payload_size = ps_raw[0]
             buf.extend(ps_raw)
 
             # bytes 6 … 6+payload_size-1: payload
             payload = self._serial.read(payload_size)
             if len(payload) < payload_size:
-                raise MachineCommError("Timeout reading payload in card query response.")
+                raise MachineCommError(_tr("Timeout reading payload in card query response."))
             buf.extend(payload)
 
             # PayloadSize
             ps2_raw = self._serial.read(1)
             if not ps2_raw:
-                raise MachineCommError("Timeout reading PayloadSize in card query response.")
+                raise MachineCommError(_tr("Timeout reading PayloadSize in card query response."))
             buf.extend(ps2_raw)
 
             # CTRL_ETB
             etb = self._serial.read(1)
             if not etb or etb[0] != self.CTRL_ETB:
-                raise MachineCommError("Expected CTRL_ETB in card query response.")
+                raise MachineCommError(_tr("Expected CTRL_ETB in card query response."))
 
             # 2 ASCII-hex checksum characters
             cs_raw = self._serial.read(2)
             if len(cs_raw) < 2:
-                raise MachineCommError("Timeout reading checksum in card query response.")
+                raise MachineCommError(_tr("Timeout reading checksum in card query response."))
 
             received_cs = int(cs_raw.decode('ascii'), 16)
 
             expected_cs = self.checksum(bytes(buf[1:]))
             if received_cs != expected_cs:
                 raise MachineCommError(
-                    f"Card query checksum mismatch: expected {expected_cs:02X}, "
-                    f"got {received_cs:02X}."
+                    _tr("Card query checksum mismatch: expected {0}, got {1}.").format(
+                        f"{expected_cs:02X}", f"{received_cs:02X}")
                 )
 
             # Parse fields from buf
@@ -803,7 +809,7 @@ class MachineComm:
             #          [15..23]=0x00*9 [24]=PayloadSize(repeat)
             if len(buf) < 21:
                 raise MachineCommError(
-                    f"Card query response payload too short: {len(buf)} bytes."
+                    _tr("Card query response payload too short: {0} bytes.").format(len(buf))
                 )
 
             card_no_bytes = bytes(buf[3:5])
@@ -890,7 +896,7 @@ class MachineComm:
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
-            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+            raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(pattern_type)))
 
         type_byte = type_byte_map[pattern_type]
         bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
@@ -918,57 +924,57 @@ class MachineComm:
                 fb = self._serial.read(1)
                 if not fb:
                     raise MachineCommError(
-                        f"No response to card preview command "
-                        f"({pattern_type} slot {slot_index})."
+                        _tr("No response to card preview command ({0} slot {1}).").format(
+                            pattern_type, slot_index)
                     )
                 if fb[0] == self.CTRL_NAK:
                     raise MachineCommError(
-                        f"Machine rejected card preview request "
-                        f"({pattern_type} slot {slot_index})."
+                        _tr("Machine rejected card preview request ({0} slot {1}).").format(
+                            pattern_type, slot_index)
                     )
                 if fb[0] != self.CTRL_ACK:
                     raise MachineCommError(
-                        f"Expected CTRL_ACK to start first chunk, "
-                        f"got 0x{fb[0]:02X}."
+                        _tr("Expected CTRL_ACK to start first chunk, got 0x{0}.").format(
+                            f"{fb[0]:02X}")
                     )
 
                 unknown4 = self._serial.read(4)
                 if len(unknown4) < 4:
-                    raise MachineCommError("Timeout reading unknown bytes in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading unknown bytes in first chunk."))
 
                 size_bytes = self._serial.read(2)
                 if len(size_bytes) < 2:
-                    raise MachineCommError("Timeout reading SIZE in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading SIZE in first chunk."))
 
                 name_size_raw = self._serial.read(1)
                 if not name_size_raw:
-                    raise MachineCommError("Timeout reading NAME_SIZE in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading NAME_SIZE in first chunk."))
                 name_size = name_size_raw[0]
 
                 name_raw = self._serial.read(name_size) if name_size > 0 else b''
                 if len(name_raw) < name_size:
-                    raise MachineCommError("Timeout reading NAME in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading NAME in first chunk."))
 
                 ps_raw = self._serial.read(1)
                 if not ps_raw:
-                    raise MachineCommError("Timeout reading PayloadSize in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading PayloadSize in first chunk."))
                 ps = ps_raw[0]
 
                 chunk_payload = self._serial.read(ps)
                 if len(chunk_payload) < ps:
-                    raise MachineCommError("Timeout reading payload in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading payload in first chunk."))
 
                 ps_repeat_raw = self._serial.read(1)
                 if not ps_repeat_raw:
-                    raise MachineCommError("Timeout reading repeated PayloadSize in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading repeated PayloadSize in first chunk."))
 
                 etb_raw = self._serial.read(1)
                 if not etb_raw or etb_raw[0] != self.CTRL_ETB:
-                    raise MachineCommError("Expected CTRL_ETB in first chunk.")
+                    raise MachineCommError(_tr("Expected CTRL_ETB in first chunk."))
 
                 cs_raw = self._serial.read(2)
                 if len(cs_raw) < 2:
-                    raise MachineCommError("Timeout reading checksum in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading checksum in first chunk."))
 
                 cs_data = (unknown4 + size_bytes + name_size_raw
                            + name_raw + ps_raw + chunk_payload + ps_repeat_raw)
@@ -986,8 +992,8 @@ class MachineComm:
                     self._serial.write(bytes([self.CTRL_NAK]))
                     if attempt == max_retries:
                         raise MachineCommError(
-                            f"First chunk checksum mismatch "
-                            f"({pattern_type} slot {slot_index}) after {max_retries} retries."
+                            _tr("First chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
+                                pattern_type, slot_index, max_retries)
                         )
                     # Machine retransmits starting with CTRL_ACK; loop retries
 
@@ -996,7 +1002,7 @@ class MachineComm:
                 nb = self._serial.read(1)
                 if not nb:
                     raise MachineCommError(
-                        "Timeout waiting for next chunk or end marker."
+                        _tr("Timeout waiting for next chunk or end marker.")
                     )
 
                 if nb[0] == self.CTRL_ETX:
@@ -1004,30 +1010,30 @@ class MachineComm:
 
                 if nb[0] != self.CTRL_ENQ:
                     raise MachineCommError(
-                        f"Unexpected byte 0x{nb[0]:02X} in chunk stream."
+                        _tr("Unexpected byte 0x{0} in chunk stream.").format(f"{nb[0]:02X}")
                     )
 
                 for attempt in range(max_retries + 1):
                     ps_raw = self._serial.read(1)
                     if not ps_raw:
-                        raise MachineCommError("Timeout reading PayloadSize in chunk.")
+                        raise MachineCommError(_tr("Timeout reading PayloadSize in chunk."))
                     ps = ps_raw[0]
 
                     chunk_payload = self._serial.read(ps)
                     if len(chunk_payload) < ps:
-                        raise MachineCommError("Timeout reading payload in chunk.")
+                        raise MachineCommError(_tr("Timeout reading payload in chunk."))
 
                     ps_repeat_raw = self._serial.read(1)
                     if not ps_repeat_raw:
-                        raise MachineCommError("Timeout reading repeated PayloadSize in chunk.")
+                        raise MachineCommError(_tr("Timeout reading repeated PayloadSize in chunk."))
 
                     etb_raw = self._serial.read(1)
                     if not etb_raw or etb_raw[0] != self.CTRL_ETB:
-                        raise MachineCommError("Expected CTRL_ETB in chunk.")
+                        raise MachineCommError(_tr("Expected CTRL_ETB in chunk."))
 
                     cs_raw = self._serial.read(2)
                     if len(cs_raw) < 2:
-                        raise MachineCommError("Timeout reading checksum in chunk.")
+                        raise MachineCommError(_tr("Timeout reading checksum in chunk."))
 
                     cs_data = nb + ps_raw + chunk_payload + ps_repeat_raw
                     received_cs = int(cs_raw.decode('ascii'), 16)
@@ -1042,13 +1048,13 @@ class MachineComm:
                         self._serial.write(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
-                                f"Chunk checksum mismatch ({pattern_type} slot {slot_index}) "
-                                f"after {max_retries} retries."
+                                _tr("Chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
+                                    pattern_type, slot_index, max_retries)
                             )
                         # Machine retransmits CTRL_ENQ; re-read it before inner loop retry
                         enq_retry = self._serial.read(1)
                         if not enq_retry or enq_retry[0] != self.CTRL_ENQ:
-                            raise MachineCommError("Expected CTRL_ENQ on retransmit.")
+                            raise MachineCommError(_tr("Expected CTRL_ENQ on retransmit."))
 
             return {
                 'name':         name,
@@ -1121,7 +1127,7 @@ class MachineComm:
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
-            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+            raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(pattern_type)))
 
         type_byte = type_byte_map[pattern_type]
         bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
@@ -1143,16 +1149,16 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    f"No response to load command ({pattern_type} slot {slot_index})."
+                    _tr("No response to load command ({0} slot {1}).").format(pattern_type, slot_index)
                 )
             if resp[0] == self.CTRL_NAK:
                 raise MachineCommError(
-                    f"Machine rejected load command ({pattern_type} slot {slot_index})."
+                    _tr("Machine rejected load command ({0} slot {1}).").format(pattern_type, slot_index)
                 )
             if resp[0] != self.CTRL_ACK:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} to load command "
-                    f"({pattern_type} slot {slot_index})."
+                    _tr("Unexpected response 0x{0} to load command ({1} slot {2}).").format(
+                        f"{resp[0]:02X}", pattern_type, slot_index)
                 )
 
             all_data = bytearray()
@@ -1166,7 +1172,7 @@ class MachineComm:
                     b = self._serial.read(1)
                     if not b:
                         raise MachineCommError(
-                            "Timeout waiting for SIZE byte in first chunk."
+                            _tr("Timeout waiting for SIZE byte in first chunk.")
                         )
                     if b[0] != 0x00:
                         size_byte = b[0]
@@ -1175,24 +1181,24 @@ class MachineComm:
                 ps = size_byte
                 chunk_payload = self._serial.read(ps)
                 if len(chunk_payload) < ps:
-                    raise MachineCommError("Timeout reading payload in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading payload in first chunk."))
 
                 ps_repeat_raw = self._serial.read(1)
                 if not ps_repeat_raw:
                     raise MachineCommError(
-                        "Timeout reading repeated SIZE in first chunk."
+                        _tr("Timeout reading repeated SIZE in first chunk.")
                     )
 
                 etb_raw = self._serial.read(1)
                 if not etb_raw or etb_raw[0] != self.CTRL_ETB:
                     raise MachineCommError(
-                        f"Expected CTRL_ETB in first chunk, got "
-                        f"0x{etb_raw[0] if etb_raw else 0:02X}."
+                        _tr("Expected CTRL_ETB in first chunk, got 0x{0}.").format(
+                            f"{etb_raw[0] if etb_raw else 0:02X}")
                     )
 
                 cs_raw = self._serial.read(2)
                 if len(cs_raw) < 2:
-                    raise MachineCommError("Timeout reading checksum in first chunk.")
+                    raise MachineCommError(_tr("Timeout reading checksum in first chunk."))
 
                 cs_data = bytes([size_byte]) + chunk_payload + ps_repeat_raw
                 received_cs = int(cs_raw.decode('ascii'), 16)
@@ -1208,8 +1214,8 @@ class MachineComm:
                     self._serial.write(bytes([self.CTRL_NAK]))
                     if attempt == max_retries:
                         raise MachineCommError(
-                            f"First chunk checksum mismatch ({pattern_type} slot {slot_index}) "
-                            f"after {max_retries} retries."
+                            _tr("First chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
+                                pattern_type, slot_index, max_retries)
                         )
                     # Machine will retransmit; loop to try again
 
@@ -1218,7 +1224,7 @@ class MachineComm:
                 nb = self._serial.read(1)
                 if not nb:
                     raise MachineCommError(
-                        "Timeout waiting for next chunk marker."
+                        _tr("Timeout waiting for next chunk marker.")
                     )
 
                 if nb[0] == self.CTRL_ETX:
@@ -1226,33 +1232,33 @@ class MachineComm:
 
                 if nb[0] != self.CTRL_ENQ:
                     raise MachineCommError(
-                        f"Unexpected byte 0x{nb[0]:02X} expecting CTRL_ENQ or CTRL_ETX."
+                        _tr("Unexpected byte 0x{0} expecting CTRL_ENQ or CTRL_ETX.").format(f"{nb[0]:02X}")
                     )
 
                 for attempt in range(max_retries + 1):
                     ps_raw = self._serial.read(1)
                     if not ps_raw:
-                        raise MachineCommError("Timeout reading SIZE in chunk.")
+                        raise MachineCommError(_tr("Timeout reading SIZE in chunk."))
                     ps = ps_raw[0]
 
                     chunk_payload = self._serial.read(ps)
                     if len(chunk_payload) < ps:
-                        raise MachineCommError("Timeout reading payload in chunk.")
+                        raise MachineCommError(_tr("Timeout reading payload in chunk."))
 
                     ps_repeat_raw = self._serial.read(1)
                     if not ps_repeat_raw:
-                        raise MachineCommError("Timeout reading repeated SIZE in chunk.")
+                        raise MachineCommError(_tr("Timeout reading repeated SIZE in chunk."))
 
                     etb_raw = self._serial.read(1)
                     if not etb_raw or etb_raw[0] != self.CTRL_ETB:
                         raise MachineCommError(
-                            f"Expected CTRL_ETB in chunk, got "
-                            f"0x{etb_raw[0] if etb_raw else 0:02X}."
+                            _tr("Expected CTRL_ETB in chunk, got 0x{0}.").format(
+                                f"{etb_raw[0] if etb_raw else 0:02X}")
                         )
 
                     cs_raw = self._serial.read(2)
                     if len(cs_raw) < 2:
-                        raise MachineCommError("Timeout reading checksum in chunk.")
+                        raise MachineCommError(_tr("Timeout reading checksum in chunk."))
 
                     cs_data = nb + ps_raw + chunk_payload + ps_repeat_raw
                     received_cs = int(cs_raw.decode('ascii'), 16)
@@ -1268,14 +1274,14 @@ class MachineComm:
                         self._serial.write(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
-                                f"Chunk checksum mismatch ({pattern_type} slot {slot_index}) "
-                                f"after {max_retries} retries."
+                                _tr("Chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
+                                    pattern_type, slot_index, max_retries)
                             )
                         # Machine retransmits starting with CTRL_ENQ; re-read it
                         enq_retry = self._serial.read(1)
                         if not enq_retry or enq_retry[0] != self.CTRL_ENQ:
                             raise MachineCommError(
-                                "Expected CTRL_ENQ on chunk retransmit."
+                                _tr("Expected CTRL_ENQ on chunk retransmit.")
                             )
 
             return bytes(all_data)
@@ -1321,7 +1327,7 @@ class MachineComm:
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
-            raise MachineCommError(f"Unknown pattern type: {pattern_type!r}")
+            raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(pattern_type)))
 
         type_byte = type_byte_map[pattern_type]
         bank_byte = 0xD0 if pattern_type == 'MAXI' else 0xC0
@@ -1342,19 +1348,18 @@ class MachineComm:
             resp = self._serial.read(1)
             if not resp:
                 raise MachineCommError(
-                    f"No response to delete command "
-                    f"({pattern_type} slot {slot_index:#04x})."
+                    _tr("No response to delete command ({0} slot {1}).").format(
+                        pattern_type, f"{slot_index:#04x}")
                 )
             if resp[0] == self.CTRL_NAK:
                 raise MachineCommError(
-                    f"Machine rejected delete command "
-                    f"({pattern_type} slot {slot_index:#04x}). "
-                    "The card may be write-protected."
+                    _tr("Machine rejected delete command ({0} slot {1}). The card may be write-protected.").format(
+                        pattern_type, f"{slot_index:#04x}")
                 )
             if resp[0] != self.CTRL_ACK:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} to delete command "
-                    f"({pattern_type} slot {slot_index:#04x})."
+                    _tr("Unexpected response 0x{0} to delete command ({1} slot {2}).").format(
+                        f"{resp[0]:02X}", pattern_type, f"{slot_index:#04x}")
                 )
         finally:
             self._serial.timeout = saved_timeout
@@ -1423,7 +1428,7 @@ class MachineComm:
         elif stitch_type == 'MAXI':
             stitch_data, final_points = MachineComm.encode_card_pattern_maxi(pattern)
         else:
-            raise MachineCommError(f"Unsupported stitch type for card writing: {stitch_type!r}")
+            raise MachineCommError(_tr("Unsupported stitch type for card writing: {0}").format(repr(stitch_type)))
         
         header = self.encode_card_header(pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes, points=final_points)
 
@@ -1443,21 +1448,20 @@ class MachineComm:
             resp = self._serial.read(3)
             if not resp:
                 raise MachineCommError(
-                    "No response to card write (KN) command."
+                    _tr("No response to card write (KN) command.")
                 )
             if resp[0] == self.CTRL_NAK:
                 raise MachineCommError(
-                    "Machine rejected the card write command. "
-                    "The card may be full or write-protected."
+                    _tr("Machine rejected the card write command. The card may be full or write-protected.")
                 )
             if resp[0] != self.CTRL_ACK:
                 raise MachineCommError(
-                    f"Unexpected response 0x{resp[0]:02X} to card write command."
+                    _tr("Unexpected response 0x{0} to card write command.").format(f"{resp[0]:02X}")
                 )
             if len(resp) < 3:
                 raise MachineCommError(
-                    "Incomplete acknowledgement to card write command "
-                    f"({len(resp)} byte(s) received, expected 3)."
+                    _tr("Incomplete acknowledgement to card write command ({0} byte(s) received, expected 3).").format(
+                        len(resp))
                 )
             assigned_slot = resp[2]
 
@@ -1483,8 +1487,8 @@ class MachineComm:
                     ack = self._serial.read(1)
                     if not ack:
                         raise MachineCommError(
-                            f"Timeout waiting for acknowledgement after chunk "
-                            f"{offset // chunk_size + 1}."
+                            _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
+                                offset // chunk_size + 1)
                         )
                     if ack[0] == self.CTRL_ACK:
                         done += size_byte
@@ -1494,14 +1498,14 @@ class MachineComm:
                     if ack[0] == self.CTRL_NAK:
                         if attempt == max_retries:
                             raise MachineCommError(
-                                f"Machine rejected chunk {offset // chunk_size + 1} "
-                                f"after {max_retries} retries."
+                                _tr("Machine rejected chunk {0} after {1} retries.").format(
+                                    offset // chunk_size + 1, max_retries)
                             )
                         # Retry the same chunk
                         continue
                     raise MachineCommError(
-                        f"Unexpected response 0x{ack[0]:02X} after chunk "
-                        f"{offset // chunk_size + 1}."
+                        _tr("Unexpected response 0x{0} after chunk {1}.").format(
+                            f"{ack[0]:02X}", offset // chunk_size + 1)
                     )
             # After the final chunk, send CTRL_ETX to indicate completion
             self._serial.write(bytes([self.CTRL_ETX]))
@@ -1547,8 +1551,8 @@ class MachineComm:
 
         if len(data) % 2 != 0:
             raise MachineCommError(
-                f"9mm card slot payload has odd byte count ({len(data)}) "
-                "after stripping sentinels."
+                _tr("9mm card slot payload has odd byte count ({0}) after stripping sentinels.").format(
+                    len(data))
             )
 
         points = []
@@ -1606,8 +1610,8 @@ class MachineComm:
 
         if len(data) % 3 != 0:
             raise MachineCommError(
-                f"MAXI card slot payload length {len(data)} is not a multiple of 3 "
-                "after stripping sentinels."
+                _tr("MAXI card slot payload length {0} is not a multiple of 3 after stripping sentinels.").format(
+                    len(data))
             )
 
         points = []
@@ -1775,7 +1779,7 @@ class MachineComm:
         if points is None:
             points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
-            raise MachineCommError("Cannot encode header for an empty pattern.")
+            raise MachineCommError(_tr("Cannot encode header for an empty pattern."))
         
         stitch_type = pattern.stitch_type
 
@@ -1820,7 +1824,7 @@ class MachineComm:
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if stitch_type not in type_byte_map:
-            raise MachineCommError(f"Unknown pattern type: {stitch_type!r}")
+            raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(stitch_type)))
 
         type_byte = type_byte_map[stitch_type]
         # bank_byte = 0xD0 if stitch_type == 'MAXI' else 0xC0
@@ -1836,7 +1840,7 @@ class MachineComm:
             y_min_to_bound = 0x36 - min(ys_norm_27)
         else:
             raise MachineCommError(
-                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
+                _tr("Unsupported stitch type for machine encoding: {0}").format(repr(pattern.stitch_type))
             )
 
         return (
@@ -1905,8 +1909,8 @@ class MachineComm:
             dx = x_prev - x
             if not (-90 < dx < 90):
                 raise MachineCommError(
-                    f"The distance between consecutive stitch points is too large.\n"
-                    "Please insert intermediate stitches and try again."
+                    _tr("The distance between consecutive stitch points is too large.\n"
+                    "Please insert intermediate stitches and try again.")
                 )
             encoded.append(dx + 0x5B)
             encoded.append(y & 0xFF)
@@ -1956,8 +1960,8 @@ class MachineComm:
             dx = x_prev - x
             if not (-90 < dx < 90):
                 raise MachineCommError(
-                    f"The distance between consecutive stitch points is too large.\n"
-                    "Please insert intermediate stitches and try again."
+                    _tr("The distance between consecutive stitch points is too large.\n"
+                    "Please insert intermediate stitches and try again.")
                 )
             encoded.append((delta + 0xC6) & 0xFF)
             encoded.append((dx    + 0x5B) & 0xFF)
@@ -2000,7 +2004,7 @@ class MachineComm:
             MachineCommError: If the checksum is wrong or the payload is malformed.
         """
         if len(raw_bytes) < 3:
-            raise MachineCommError("P-Memory response too short.")
+            raise MachineCommError(_tr("P-Memory response too short."))
 
         checksum_ascii = raw_bytes[-2:]
         etb_byte = raw_bytes[-3]
@@ -2008,7 +2012,7 @@ class MachineComm:
 
         if etb_byte != MachineComm.CTRL_ETB:
             raise MachineCommError(
-                f"Expected CTRL_ETB at position -3, got 0x{etb_byte:02X}."
+                _tr("Expected CTRL_ETB at position -3, got 0x{0:02X}.").format(etb_byte)
             )
 
         # Verify checksum
@@ -2016,30 +2020,30 @@ class MachineComm:
             received_checksum = int(checksum_ascii.decode('ascii'), 16)
         except (ValueError, UnicodeDecodeError) as exc:
             raise MachineCommError(
-                f"Invalid checksum encoding: {checksum_ascii!r}"
+                _tr("Invalid checksum encoding: {0}").format(repr(checksum_ascii))
             ) from exc
 
         expected_checksum = MachineComm.checksum(payload)
         if received_checksum != expected_checksum:
             raise MachineCommError(
-                f"P-Memory checksum mismatch: expected {expected_checksum:02X}, "
-                f"got {received_checksum:02X}"
+                _tr("P-Memory checksum mismatch: expected {0:02X}, got {1:02X}").format(
+                    expected_checksum, received_checksum)
             )
 
         # Decode payload as ASCII
         try:
             text = payload.decode('ascii')
         except UnicodeDecodeError as exc:
-            raise MachineCommError("P-Memory payload is not valid ASCII.") from exc
+            raise MachineCommError(_tr("P-Memory payload is not valid ASCII.")) from exc
 
         if len(text) < 2:
-            raise MachineCommError("P-Memory payload too short to read slot count.")
+            raise MachineCommError(_tr("P-Memory payload too short to read slot count."))
 
         try:
             num_slots = int(text[0:2], 16)
         except ValueError as exc:
             raise MachineCommError(
-                f"Invalid slot count encoding: {text[0:2]!r}"
+                _tr("Invalid slot count encoding: {0}").format(repr(text[0:2]))
             ) from exc
 
         if "1475" in machine_model:
@@ -2050,8 +2054,8 @@ class MachineComm:
         expected_len = 2 + num_slots * bytes_per_slot + 4
         if len(text) != expected_len:
             raise MachineCommError(
-                f"P-Memory payload length mismatch: expected {expected_len} chars, "
-                f"got {len(text)}."
+                _tr("P-Memory payload length mismatch: expected {0} chars, got {1}.").format(
+                    expected_len, len(text))
             )
 
         slots = []
@@ -2065,7 +2069,7 @@ class MachineComm:
                 # slot_text[6:14] - purpose unknown, ignored; 1475CD has 4 extra chars here compared to other models
             except ValueError as exc:
                 raise MachineCommError(
-                    f"Invalid data for slot {i + 1}: {slot_text!r}"
+                    _tr("Invalid data for slot {0}: {1}").format(i + 1, repr(slot_text))
                 ) from exc
 
             if size == 0:
@@ -2084,7 +2088,7 @@ class MachineComm:
             free_memory = int(text[offset:offset + 4], 16)
         except ValueError as exc:
             raise MachineCommError(
-                f"Invalid free memory encoding: {text[offset:offset + 4]!r}"
+                _tr("Invalid free memory encoding: {0}").format(repr(text[offset:offset + 4]))
             ) from exc
 
         return {
@@ -2126,7 +2130,7 @@ class MachineComm:
         try:
             text = data.decode('ascii')
         except UnicodeDecodeError as exc:
-            raise MachineCommError("Pattern data is not valid ASCII.") from exc
+            raise MachineCommError(_tr("Pattern data is not valid ASCII.")) from exc
 
         points = []
 
@@ -2134,7 +2138,7 @@ class MachineComm:
             step = 5
             if len(text) % step != 0:
                 raise MachineCommError(
-                    f"9mm pattern data length {len(text)} is not a multiple of {step}."
+                    _tr("9mm pattern data length {0} is not a multiple of {1}.").format(len(text), step)
                 )
             for i in range(0, len(text), step):
                 group = text[i:i + step]
@@ -2143,7 +2147,7 @@ class MachineComm:
                     y = int(group[3:5], 10)
                 except ValueError as exc:
                     raise MachineCommError(
-                        f"Invalid 9mm stitch data at offset {i}: {group!r}"
+                        _tr("Invalid 9mm stitch data at offset {0}: {1}").format(i, repr(group))
                     ) from exc
                 points.append((x, y))
 
@@ -2151,7 +2155,7 @@ class MachineComm:
             step = 7
             if len(text) % step != 0:
                 raise MachineCommError(
-                    f"MAXI pattern data length {len(text)} is not a multiple of {step}."
+                    _tr("MAXI pattern data length {0} is not a multiple of {1}.").format(len(text), step)
                 )
             maxi_transport = 0
             for i in range(0, len(text), step):
@@ -2163,7 +2167,7 @@ class MachineComm:
                     transport_delta = int(group[6], 10)
                 except (ValueError, IndexError) as exc:
                     raise MachineCommError(
-                        f"Invalid MAXI stitch data at offset {i}: {group!r}"
+                        _tr("Invalid MAXI stitch data at offset {0}: {1}").format(i, repr(group))
                     ) from exc
                 if sign == '+':
                     maxi_transport += transport_delta
@@ -2171,13 +2175,13 @@ class MachineComm:
                     maxi_transport -= transport_delta
                 else:
                     raise MachineCommError(
-                        f"Invalid sign character {sign!r} at offset {i}."
+                        _tr("Invalid sign character {0} at offset {1}.").format(repr(sign), i)
                     )
                 points.append((x, y + maxi_transport))
 
         else:
             raise MachineCommError(
-                f"Unknown slot type for pattern decoding: {slot_type!r}"
+                _tr("Unknown slot type for pattern decoding: {0}").format(repr(slot_type))
             )
 
         return points
@@ -2205,7 +2209,7 @@ class MachineComm:
         if points is None:
             points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
-            raise MachineCommError("Cannot encode header for an empty pattern.")
+            raise MachineCommError(_tr("Cannot encode header for an empty pattern."))
         xs = [x for x, y in points]
         ys = [y for x, y in points]
         dxs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
@@ -2254,7 +2258,7 @@ class MachineComm:
             ).encode('ascii')
         else:
             raise MachineCommError(
-                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
+                _tr("Unsupported stitch type for machine encoding: {0}").format(repr(pattern.stitch_type))
             )
 
     @staticmethod
@@ -2280,7 +2284,7 @@ class MachineComm:
         if points is None:
             points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
-            raise MachineCommError("Cannot encode header for an empty pattern.")
+            raise MachineCommError(_tr("Cannot encode header for an empty pattern."))
         xs = [x for x, y in points]
         ys = [y for x, y in points]
         dxs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
@@ -2306,7 +2310,7 @@ class MachineComm:
             ).encode('ascii')
         else:
             raise MachineCommError(
-                f"Unsupported stitch type for machine encoding: {pattern.stitch_type!r}"
+                _tr("Unsupported stitch type for machine encoding: {0}").format(repr(pattern.stitch_type))
             )
         
     @staticmethod
@@ -2345,7 +2349,7 @@ class MachineComm:
             return encoded, translated_xy
         else:
             raise MachineCommError(
-                f"Unsupported stitch type for P-Memory encoding: {pattern.stitch_type!r}"
+                _tr("Unsupported stitch type for P-Memory encoding: {0}").format(repr(pattern.stitch_type))
             )
 
     # ── Pattern translations ──
@@ -2553,4 +2557,4 @@ class MachineComm:
 
     def _require_open(self):
         if not self.is_open:
-            raise serial.SerialException("Serial port is not open.")
+            raise serial.SerialException(_tr("Serial port is not open."))
