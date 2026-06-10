@@ -1363,6 +1363,10 @@
         <translation>Mustername</translation>
     </message>
     <message>
+        <source>Please enter a valid name (1-8 characters).</source>
+        <translation>Bitte geben Sie einen gültigen Namen ein (1-8 Zeichen).</translation>
+    </message>
+    <message>
         <source>OK</source>
         <translation>OK</translation>
     </message>
