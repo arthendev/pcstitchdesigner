@@ -2,6 +2,8 @@
 
 import re
 import time
+import os
+from datetime import datetime
 import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
@@ -15,6 +17,97 @@ def _tr(s):
 
 class MachineCommError(Exception):
     """Raised when communication with the machine fails or gives an unexpected response."""
+
+
+class _CommLogger:
+    """Buffered direction-aware communication logger.
+
+    Accumulates bytes sent in one direction and flushes a timestamped line
+    whenever the direction changes or the logger is closed.
+    """
+
+    def __init__(self, log_dir):
+        self._file = None
+        self._log_dir = log_dir
+        self._current_direction = None  # 'send' or 'receive'
+        self._buffer = bytearray()
+
+    def _ensure_file(self):
+        if self._file is None:
+            os.makedirs(self._log_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"log_{timestamp}.txt"
+            self._file = open(os.path.join(self._log_dir, filename), "w", encoding="utf-8")
+
+    def _flush(self):
+        if self._buffer and self._current_direction is not None:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            arrow = "->" if self._current_direction == "send" else "<-"
+            hex_bytes = " ".join(f"{b:02X}" for b in self._buffer)
+            self._file.write(f"[{ts}] {arrow} {hex_bytes}\n")
+            self._file.flush()
+            self._buffer.clear()
+
+    def log_send(self, data):
+        self._ensure_file()
+        if self._current_direction == "receive":
+            self._flush()
+        self._current_direction = "send"
+        self._buffer.extend(data)
+
+    def log_receive(self, data):
+        self._ensure_file()
+        if self._current_direction == "send":
+            self._flush()
+        self._current_direction = "receive"
+        self._buffer.extend(data)
+
+    def log_info(self, message):
+        """Write a high-level info line, flushing any pending data first."""
+        self._ensure_file()
+        self._flush()
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        self._file.write(f"[{ts}] ## {message}\n")
+        self._file.flush()
+
+    def close(self):
+        if self._file is not None:
+            self._flush()
+            self._file.close()
+            self._file = None
+
+
+class _LoggedSerial:
+    """Wraps a ``serial.Serial`` to transparently log all reads and writes."""
+
+    def __init__(self, serial_port, logger):
+        self._serial = serial_port
+        self._logger = logger
+
+    def write(self, data):
+        self._logger.log_send(bytes(data))
+        return self._serial.write(data)
+
+    def read(self, size=1):
+        data = self._serial.read(size)
+        if data:
+            self._logger.log_receive(bytes(data))
+        return data
+
+    def read_until(self, *args, **kwargs):
+        data = self._serial.read_until(*args, **kwargs)
+        if data:
+            self._logger.log_receive(bytes(data))
+        return data
+
+    def __getattr__(self, name):
+        return getattr(self._serial, name)
+
+    def __setattr__(self, name, value):
+        if name in ("_serial", "_logger"):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._serial, name, value)
 
 
 class MachineComm:
@@ -40,6 +133,41 @@ class MachineComm:
 
     def __init__(self):
         self._serial = None
+        self._logger = None
+        self._log_enabled = False
+        self._log_dir = None
+
+    # Class-level reference for static methods that need to log errors.
+    _active_logger = None
+
+    def enable_logging(self, log_dir):
+        """Enable communication logging.
+
+        Log files are created in *log_dir* on the first write/read after
+        :meth:`open`.  Call before opening the serial port.
+
+        Args:
+            log_dir (str): Directory where log files will be written.
+        """
+        self._log_enabled = True
+        self._log_dir = log_dir
+
+    def disable_logging(self):
+        """Disable communication logging and close any open log file."""
+        self._log_enabled = False
+        if self._logger is not None:
+            self._logger.close()
+            self._logger = None
+        self._log_dir = None
+
+    def _log_info(self, message):
+        """Write a high-level debug message to the log, if logging is active."""
+        if self._logger is not None:
+            self._logger.log_info(message)
+
+    def _log_error(self, message):
+        """Write an error message to the log, if logging is active."""
+        self._log_info(f"ERROR: {message}")
 
     # ── Port enumeration ──
 
@@ -89,11 +217,20 @@ class MachineComm:
             timeout=timeout,
         )
 
+        if self._log_enabled and self._log_dir:
+            self._logger = _CommLogger(self._log_dir)
+            self._serial = _LoggedSerial(self._serial, self._logger)
+            MachineComm._active_logger = self._logger
+
     def close(self):
         """Close the serial connection if open."""
+        if self._logger is not None:
+            self._logger.close()
+            self._logger = None
         if self._serial and self._serial.is_open:
             self._serial.close()
         self._serial = None
+        MachineComm._active_logger = None
 
     @property
     def is_open(self):
@@ -224,6 +361,8 @@ class MachineComm:
         """
         self._require_open()
 
+        self._log_info(f"query_machine(retries={retries}, timeout={timeout})")
+
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
 
@@ -247,6 +386,7 @@ class MachineComm:
                 text = raw[:-1].decode('ascii', errors='replace').strip()
 
                 if not text.startswith("Copyright"):
+                    self._log_error(f"Unexpected identification response: {text!r}")
                     raise MachineCommError(
                         _tr("Unexpected identification response: {0}").format(repr(text))
                     )
@@ -257,6 +397,7 @@ class MachineComm:
                         canonical = name
                         break
                 if canonical is None:
+                    self._log_error(f"Unrecognised machine model in response: {text!r}")
                     raise MachineCommError(
                         _tr("Unrecognised machine model in response: {0}").format(repr(text))
                     )
@@ -271,6 +412,7 @@ class MachineComm:
 
             # No response after all retries — signal the machine to abort
             self._serial.write(bytes([self.CTRL_EOT]))
+            self._log_error("Machine not responding after all retries")
             raise MachineCommError(
                 # f"No response from machine after {retries} attempt(s)."
                 _tr("Machine not responding. Please check connection and try again.")
@@ -327,6 +469,8 @@ class MachineComm:
         """
         self._require_open()
 
+        self._log_info("query_pmemory_index()")
+
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
@@ -367,6 +511,8 @@ class MachineComm:
         """
         self._require_open()
 
+        self._log_info(f"delete_pmemory_slot(slot_index={slot_index})")
+
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
@@ -406,6 +552,10 @@ class MachineComm:
             MachineCommError: On NAK, checksum error, or communication timeout.
         """
         self._require_open()
+
+        self._log_info(
+            f"load_pmemory_slot(slot_index={slot_index}, slot_type={slot_type}, total_size={total_size})"
+        )
 
         if slot_type == "9mm":
             type_char = "0"
@@ -488,6 +638,8 @@ class MachineComm:
         """Dispatch to the appropriate send method based on machine_model.
         """
 
+        self._log_info(f"send_pmemory_slot(slot_index={slot_index})")
+
         if "1475" in machine_model:
             self.send_pmemory_slot_1475cd(slot_index, pattern,
                                           chunk_size=chunk_size, timeout=timeout,
@@ -543,6 +695,9 @@ class MachineComm:
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii')
             cs = self.checksum(cmd_payload)
+
+            self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write command")
+
             self._serial.write(
                 cmd_payload
                 + bytes([self.CTRL_ETB])
@@ -564,6 +719,9 @@ class MachineComm:
             # ── Phase 2: header ────────────────────────────────────────────
             header = self.encode_pmemory_header_75xx(pattern, final_points)
             cs = self.checksum(header)
+
+            self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write header")
+
             self._serial.write(
                 header
                 + bytes([self.CTRL_ETB])
@@ -588,6 +746,11 @@ class MachineComm:
                 chunk = stitch_data[offset:offset + chunk_size]
                 cs = self.checksum(chunk)
                 is_last_chunk = (offset + chunk_size) >= total
+
+                self._log_info(
+                    f"send_pmemory_slot(slot_index={slot_index}) - write chunk {offset // chunk_size + 1}"
+                )
+
                 self._serial.write(
                     chunk
                     + bytes([self.CTRL_ETB])
@@ -655,6 +818,9 @@ class MachineComm:
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii') + header
             cs = self.checksum(cmd_payload)
+
+            self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write command")
+
             self._serial.write(
                 cmd_payload
                 + bytes([self.CTRL_ETB])
@@ -679,6 +845,11 @@ class MachineComm:
                 chunk = stitch_data[offset:offset + chunk_size]
                 cs = self.checksum(chunk)
                 is_last_chunk = (offset + chunk_size) >= total
+
+                self._log_info(
+                    f"send_pmemory_slot(slot_index={slot_index}) - write chunk {offset // chunk_size + 1}"
+                )
+
                 self._serial.write(
                     chunk
                     + bytes([self.CTRL_ETB])
@@ -738,6 +909,8 @@ class MachineComm:
                 the response is malformed.
         """
         self._require_open()
+
+        self._log_info("query_card_index()")
 
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
@@ -893,6 +1066,11 @@ class MachineComm:
                 after all retries.
         """
         self._require_open()
+
+        card_id = ''.join(f'{b:02X}' for b in card_no_bytes)
+        self._log_info(
+            f"query_card_preview(card_no={card_id}, slot_index={slot_index}, pattern_type={pattern_type})"
+        )
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
@@ -1125,6 +1303,11 @@ class MachineComm:
         """
         self._require_open()
 
+        card_id = ''.join(f'{b:02X}' for b in card_no_bytes)
+        self._log_info(
+            f"load_card_slot(card_no={card_id}, slot_index={slot_index}, pattern_type={pattern_type}, total_size={total_size})"
+        )
+
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
             raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(pattern_type)))
@@ -1325,6 +1508,11 @@ class MachineComm:
         """
         self._require_open()
 
+        card_id = ''.join(f'{b:02X}' for b in card_no_bytes)
+        self._log_info(
+            f"delete_card_slot(card_no={card_id}, slot_index={slot_index}, pattern_type={pattern_type})"
+        )
+
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if pattern_type not in type_byte_map:
             raise MachineCommError(_tr("Unknown pattern type: {0}").format(repr(pattern_type)))
@@ -1413,6 +1601,9 @@ class MachineComm:
                 unexpected response.
         """
         self._require_open()
+
+        card_id = ''.join(f'{b:02X}' for b in card_no_bytes)
+        self._log_info(f"send_card_slot(card_no={card_id}, filename={filename!r})")
 
         stitch_type = pattern.stitch_type
 

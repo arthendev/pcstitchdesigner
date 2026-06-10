@@ -438,6 +438,7 @@ class CardMemoryDialog(QDialog):
                 progress_callback=_load_progress,
             )
         except (MachineCommError, Exception) as exc:
+            self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             QMessageBox.critical(
@@ -466,6 +467,7 @@ class CardMemoryDialog(QDialog):
                 )
                 return
         except MachineCommError as exc:
+            self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             QMessageBox.critical(
@@ -530,6 +532,7 @@ class CardMemoryDialog(QDialog):
                 self._card_info['card_no_bytes'], card_slot, ptype
             )
         except (MachineCommError, Exception) as exc:
+            self._comm._log_error(str(exc))
             QMessageBox.critical(
                 self,
                 self.tr("Delete Failed"),
@@ -544,6 +547,7 @@ class CardMemoryDialog(QDialog):
         try:
             new_card_info = self._comm.query_card_index()
         except (MachineCommError, Exception) as exc:
+            self._comm._log_error(str(exc))
             QMessageBox.critical(
                 self,
                 self.tr("Memory Card"),
@@ -609,6 +613,7 @@ class CardMemoryDialog(QDialog):
             try:
                 self._reload_previews(new_card_info)
             except (MachineCommError, Exception) as exc:
+                self._comm._log_error(str(exc))
                 QMessageBox.critical(
                     self,
                     self.tr("Memory Card"),

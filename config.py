@@ -53,6 +53,8 @@ class Config:
             "last_update_check": "",
             # Language preference
             "language": "system",
+            # Extended preferences
+            "log_communication": False,
         }
 
         # Try to load existing config
@@ -215,3 +217,13 @@ class Config:
     def set_last_update_check(self, timestamp_str):
         """Store the ISO-format timestamp of the last update check."""
         self._data["last_update_check"] = timestamp_str
+
+    def get_extended_preferences(self):
+        """Return extended preference values as a dict."""
+        return {
+            "log_communication": self._data.get("log_communication", False),
+        }
+
+    def set_extended_preferences(self, log_communication):
+        """Persist extended preferences."""
+        self._data["log_communication"] = bool(log_communication)

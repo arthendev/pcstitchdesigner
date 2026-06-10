@@ -455,6 +455,40 @@ class DisplayTab(QWidget):
         }
 
 
+# ── Extended tab ──────────────────────────────────────────────────────────────
+
+class ExtendedTab(QWidget):
+    def __init__(self, prefs: dict, parent=None):
+        super().__init__(parent)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(10)
+
+        group = QGroupBox(self.tr("Developer"))
+        layout = QVBoxLayout(group)
+        layout.setSpacing(8)
+
+        self._log_comm_cb = QCheckBox(self.tr("Log communication"))
+        self._log_comm_cb.setToolTip(
+            self.tr(
+                "Creates log files in /logs/ directory, which can be used "
+                "by app developer to debug communication. "
+                "This has no use for regular user."
+            )
+        )
+        self._log_comm_cb.setChecked(bool(prefs.get("log_communication", False)))
+        layout.addWidget(self._log_comm_cb)
+
+        outer.addWidget(group)
+        outer.addStretch()
+
+    def values(self) -> dict:
+        return {
+            "log_communication": self._log_comm_cb.isChecked(),
+        }
+
+
 # ── Preferences dialog ────────────────────────────────────────────────────────
 
 class PreferencesDialog(QDialog):
@@ -476,8 +510,10 @@ class PreferencesDialog(QDialog):
             config.get_general_preferences(),
         )
         self._display_tab = DisplayTab(config.get_display_preferences())
+        self._extended_tab = ExtendedTab(config.get_extended_preferences())
         self._tabs.addTab(self._general_tab, self.tr("General"))
         self._tabs.addTab(self._display_tab, self.tr("Display"))
+        self._tabs.addTab(self._extended_tab, self.tr("Extended"))
         layout.addWidget(self._tabs)
 
         # OK / Cancel
@@ -514,6 +550,10 @@ class PreferencesDialog(QDialog):
             embroidery_grid_color=d["embroidery_grid_color"],
             embroidery_show_stitch_points=d["embroidery_show_stitch_points"],
             embroidery_show_grid=d["embroidery_show_grid"],
+        )
+        e = self._extended_tab.values()
+        self._config.set_extended_preferences(
+            log_communication=e["log_communication"],
         )
         self._config.save()
         if old_language != new_language:

@@ -1708,15 +1708,25 @@ class MainWindow(QMainWindow):
             else MachineComm.DEFAULT_BAUDRATE
         )
 
+        # Configure communication logging
+        ext_prefs = self._config.get_extended_preferences()
+        if ext_prefs.get("log_communication", False):
+            log_dir = os.path.join(os.path.dirname(__file__), "logs")
+            self._machine_comm.enable_logging(log_dir)
+        else:
+            self._machine_comm.disable_logging()
+
         try:
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_error(self.tr("Could not open port \"{0}\":").format(port) + "\n" + str(exc))
             return None
 
         try:
             info = self._machine_comm.query_machine()
         except (MachineCommError, Exception) as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.close()
             self._machine_error(self.tr("No communication with the machine:") + "\n" + str(exc))
             return None
@@ -1910,6 +1920,7 @@ class MainWindow(QMainWindow):
         try:
             raw = self._machine_comm.query_pmemory_index()
         except (MachineCommError, Exception) as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"), 
@@ -1922,6 +1933,7 @@ class MainWindow(QMainWindow):
         try:
             pmem_info = MachineComm.decode_pmemory_index(raw, machine_model)
         except Exception as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
@@ -1984,10 +1996,12 @@ class MainWindow(QMainWindow):
         try:
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
@@ -2010,6 +2024,7 @@ class MainWindow(QMainWindow):
                 card_info, action, self._machine_comm, parent=self
             )
         except (MachineCommError, Exception) as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
@@ -2117,10 +2132,12 @@ class MainWindow(QMainWindow):
         try:
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
+            self._machine_comm._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
@@ -2151,11 +2168,13 @@ class MainWindow(QMainWindow):
                 progress_callback=_send_progress,
             )
         except MachineCommError as exc:
+            self._machine_comm._log_error(str(exc))
             progress_dlg.close()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
+            self._machine_comm._log_error(str(exc))
             progress_dlg.close()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
