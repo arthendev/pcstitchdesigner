@@ -983,7 +983,7 @@ class MachineComm:
                 expected_cs = self.checksum(cs_data)
 
                 if received_cs == expected_cs:
-                    name = name_raw.rstrip(b'\x00').decode('ascii', errors='replace')
+                    name = name_raw.rstrip(b'\x00').decode('latin-1', errors='replace')
                     size = int.from_bytes(size_bytes, 'big')
                     all_payload.extend(chunk_payload)
                     self._serial.write(bytes([self.CTRL_ACK]))
@@ -1417,7 +1417,7 @@ class MachineComm:
         stitch_type = pattern.stitch_type
 
         # Null-terminated, max 9 bytes (8 chars + '\0')
-        filename_bytes = filename[:8].encode('ascii', errors='replace') + b'\x00'
+        filename_bytes = filename[:8].encode('latin-1', errors='replace') + b'\x00'
 
         # ── Build preview image and encode pattern data (before connecting) ──
         preview_bytes = self.encode_card_preview(pattern)
