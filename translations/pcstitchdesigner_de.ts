@@ -1618,6 +1618,25 @@
         <source>Please restart the application to apply the language change.</source>
         <translation>Bitte starten Sie die Anwendung neu, um die Sprachänderung zu übernehmen.</translation>
     </message>
+    <message>
+        <source>Extended</source>
+        <translation>Erweitert</translation>
+    </message>
+</context>
+<context>
+    <name>ExtendedTab</name>
+    <message>
+        <source>Developer</source>
+        <translation>Entwickler</translation>
+    </message>
+    <message>
+        <source>Log communication</source>
+        <translation>Kommunikation protokollieren</translation>
+    </message>
+    <message>
+        <source>Creates log files in /logs/ directory, which can be used by app developer to debug communication. This has no use for regular user.</source>
+        <translation>Erstellt Protokolldateien im /logs/-Verzeichnis, die vom App-Entwickler zur Fehlerbehebung bei der Kommunikation verwendet werden können. Dies hat keinen Nutzen für normale Benutzer.</translation>
+    </message>
 </context>
 <context>
     <name>_UpdateWorker</name>
