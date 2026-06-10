@@ -2050,8 +2050,8 @@ class MainWindow(QMainWindow):
         edit.setMaxLength(8)
         edit.setPlaceholderText(self.tr("Pattern name"))
         layout.addWidget(edit)
-        # Allow only alphanumeric characters, spaces, underscores, hyphens, and tildes, since the machine may not support others
-        regex = QRegExp("[A-Za-z0-9 _\\-~]{0,8}")
+        # Allow alphanumeric, spaces, and special characters supported by the machine
+        regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,8}")
         edit.setValidator(QRegExpValidator(regex, edit))
         
         btn_row = QHBoxLayout()
@@ -2070,10 +2070,16 @@ class MainWindow(QMainWindow):
         cancel_btn.clicked.connect(dlg.reject)
         dlg.adjustSize()
 
-        if dlg.exec_() != QDialog.Accepted:
-            return None
-        name = edit.text().strip()
-        return name[:8] if name else None
+        while True:
+            if dlg.exec_() != QDialog.Accepted:
+                return None
+            name = edit.text().strip()
+            if name:
+                return name[:8]
+            QMessageBox.warning(
+                self, self.tr("Pattern Name"),
+                self.tr("Please enter a valid name (1-8 characters)."),
+            )
 
     def _machine_send_card(self):
         if not any(elem_has_coords(e) for e in self._pattern.elements):
@@ -2160,6 +2166,10 @@ class MainWindow(QMainWindow):
 
         progress_dlg.setValue(100)
         progress_dlg.close()
+
+        # Invalidate the CardMemoryDialog cache — the card has changed
+        CardMemoryDialog._cached_card_info = None
+        CardMemoryDialog._cached_card_previews = None
 
         # ── Verify by re-querying the card index ──────────────────────────
         try:
