@@ -177,6 +177,10 @@
         <source>Failed to reload previews from the machine:</source>
         <translation>Vorschaubilder konnten nicht von der Nähmaschine neu geladen werden:</translation>
     </message>
+    <message>
+        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
+        <translation>Das Laden von Stickmustern von der Speicherkarte wird noch nicht unterstützt.</translation>
+    </message>
 </context>
 <context>
     <name>ColorButton</name>
@@ -770,6 +774,22 @@
     <message>
         <source>Serial port is not open.</source>
         <translation>Serieller Port ist nicht geöffnet.</translation>
+    </message>
+    <message>
+        <source>9mm card slot payload does not start with expected 0x80 sentinel.</source>
+        <translation>Nutzlast des 9mm-Kartensteckplatzes beginnt nicht mit dem erwarteten 0x80 Marker.</translation>
+    </message>
+    <message>
+        <source>9mm card slot payload missing expected 0x8A sentinel at position -5.</source>
+        <translation>Nutzlast des 9mm-Kartensteckplatzes hat keinen 0x8A Marker an Position -5.</translation>
+    </message>
+    <message>
+        <source>MAXI card slot payload does not start with expected 0x80 sentinel.</source>
+        <translation>Nutzlast des MAXI-Kartensteckplatzes beginnt nicht mit dem erwarteten 0x80 Marker.</translation>
+    </message>
+    <message>
+        <source>MAXI card slot payload missing expected 0x8A sentinel at position -6.</source>
+        <translation>Nutzlast des MAXI-Kartensteckplatzes hat keinen 0x8A Marker an Position -6.</translation>
     </message>
 </context>
 <context>
