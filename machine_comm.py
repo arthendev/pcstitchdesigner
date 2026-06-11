@@ -1586,7 +1586,7 @@ class MachineComm:
         Args:
             card_no_bytes (bytes): Raw 2-byte card number from query_card().
             pattern: StitchPattern instance used to derive KN header parameters.
-            filename (str): Filename (max 8 characters).
+            filename (str): Filename (max 32 characters).
             timeout (float): Per-read timeout in seconds.  Default: 1.0.
             max_retries (int): Maximum number of retries for each chunk.  Default: 3.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable.
@@ -1606,8 +1606,10 @@ class MachineComm:
 
         stitch_type = pattern.stitch_type
 
-        # Null-terminated, max 9 bytes (8 chars + '\0')
-        filename_bytes = filename[:8].encode('latin-1', errors='replace') + b'\x00'
+        # Null-terminated, max 33 bytes (32 chars + '\0')
+        # PCD supported max. 8 chars, but the machine seems to accept more
+        # Here we truncate to 32 chars which should be enough for most use cases
+        filename_bytes = filename[:32].encode('latin-1', errors='replace') + b'\x00'
 
         # ── Build preview image and encode pattern data (before connecting) ──
         preview_bytes = self.encode_card_preview(pattern)

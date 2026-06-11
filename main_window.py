@@ -2045,10 +2045,10 @@ class MainWindow(QMainWindow):
         self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
     def _ask_card_filename(self):
-        """Show a dialog asking the user for a card pattern filename (max 8 chars).
+        """Show a dialog asking the user for a card pattern filename
 
         Returns:
-            str | None: Entered filename (1–8 chars), or None if cancelled.
+            str | None: Entered filename (1–32 chars), or None if cancelled.
         """
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Pattern Name"))
@@ -2058,15 +2058,15 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 12)
         layout.setSpacing(8)
 
-        lbl = QLabel(self.tr("Enter a name for this pattern (max 8 characters):"))
+        lbl = QLabel(self.tr("Enter a name for this pattern (max 32 characters):"))
         layout.addWidget(lbl)
 
         edit = QLineEdit()
-        edit.setMaxLength(8)
+        edit.setMaxLength(32)
         edit.setPlaceholderText(self.tr("Pattern name"))
         layout.addWidget(edit)
         # Allow alphanumeric, spaces, and special characters supported by the machine
-        regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,8}")
+        regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}")
         edit.setValidator(QRegExpValidator(regex, edit))
         
         btn_row = QHBoxLayout()
@@ -2090,10 +2090,10 @@ class MainWindow(QMainWindow):
                 return None
             name = edit.text().strip()
             if name:
-                return name[:8]
+                return name[:32]
             QMessageBox.warning(
                 self, self.tr("Pattern Name"),
-                self.tr("Please enter a valid name (1-8 characters)."),
+                self.tr("Please enter a valid name (1-32 characters)."),
             )
 
     def _machine_send_card(self):
@@ -2119,7 +2119,7 @@ class MainWindow(QMainWindow):
 
         # ── Determine filename ────────────────────────────────────────────
         if self._file_path:
-            filename = os.path.splitext(os.path.basename(self._file_path))[0][:8]
+            filename = os.path.splitext(os.path.basename(self._file_path))[0][:32]
         else:
             filename = self._ask_card_filename()
             if filename is None:
