@@ -1665,14 +1665,22 @@ class MachineComm:
                 size_byte = len(chunk)
                 cs_input  = bytes([size_byte]) + chunk + bytes([size_byte])
                 cs_hex    = f"{self.checksum(cs_input):02X}".encode('ascii')
-                frame = (
-                    bytes([self.CTRL_ENQ, size_byte]) +
-                    chunk +
-                    bytes([size_byte, self.CTRL_ETB]) +
-                    cs_hex
-                )
 
                 for attempt in range(max_retries + 1):
+                    if offset == 0 and attempt == 0:
+                        frame = (
+                            bytes([size_byte]) +
+                            chunk +
+                            bytes([size_byte, self.CTRL_ETB]) +
+                            cs_hex
+                        )
+                    else:
+                        frame = (
+                            bytes([self.CTRL_ENQ, size_byte]) +
+                            chunk +
+                            bytes([size_byte, self.CTRL_ETB]) +
+                            cs_hex
+                        )
                     self._serial.write(frame)
                     ack = self._serial.read(1)
                     if not ack:
