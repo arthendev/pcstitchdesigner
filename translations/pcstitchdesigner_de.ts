@@ -1375,16 +1375,16 @@
         <translation>Mustername</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 8 characters):</source>
-        <translation>Einen Namen für dieses Muster eingeben (max. 8 Zeichen):</translation>
+        <source>Enter a name for this pattern (max 32 characters):</source>
+        <translation>Einen Namen für dieses Muster eingeben (max. 32 Zeichen):</translation>
     </message>
     <message>
         <source>Pattern name</source>
         <translation>Mustername</translation>
     </message>
     <message>
-        <source>Please enter a valid name (1-8 characters).</source>
-        <translation>Bitte geben Sie einen gültigen Namen ein (1-8 Zeichen).</translation>
+        <source>Please enter a valid name (1-32 characters).</source>
+        <translation>Bitte geben Sie einen gültigen Namen ein (1-32 Zeichen).</translation>
     </message>
     <message>
         <source>OK</source>
