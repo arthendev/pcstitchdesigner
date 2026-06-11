@@ -646,6 +646,11 @@ class CardMemoryDialog(QDialog):
                     item.setData(Qt.UserRole, ptype_patterns[idx])
 
             self._previews = new_patterns
+            # Keep the class-level cache in sync so that the next
+            # CardMemoryDialog opening can reuse the previews without
+            # re-reading them from the machine.
+            CardMemoryDialog._cached_card_info = new_card_info
+            CardMemoryDialog._cached_card_previews = new_patterns
         else:
             # ── 6. Slow path: reload all previews from the machine ────────
             try:
