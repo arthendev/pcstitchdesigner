@@ -1265,9 +1265,9 @@ class MachineComm:
         The machine confirms with CTRL_ACK (or CTRL_NAK = rejected).
 
         *First chunk* (after CTRL_ACK):
-            ``<zero bytes…> + SIZE + <SIZE payload bytes> + SIZE + CTRL_ETB + <2 hex checksum>``
+            ``<4 unknown bytes> + SIZE + <SIZE payload bytes> + SIZE + CTRL_ETB + <2 hex checksum>``
 
-            The leading zero bytes are discarded; SIZE is the first non-zero
+            The first 4 bytes are discarded; SIZE is the fifth
             byte and denotes the payload length that follows.
             Checksum covers ``SIZE + payload + SIZE``.
 
@@ -1347,19 +1347,19 @@ class MachineComm:
             all_data = bytearray()
 
             # ── First chunk ──────────────────────────────────────────────
-            # Skip leading zero bytes to find SIZE byte
             for attempt in range(max_retries + 1):
-                # Drain leading zero bytes; the first non-zero byte is SIZE
-                size_byte = None
-                while True:
-                    b = self._serial.read(1)
-                    if not b:
-                        raise MachineCommError(
-                            _tr("Timeout waiting for SIZE byte in first chunk.")
-                        )
-                    if b[0] != 0x00:
-                        size_byte = b[0]
-                        break
+                # Skip first 4 bytes of padding, present on the first attempt;
+                # retransmissions after CTRL_NAK omit them.
+                if attempt == 0:
+                    padding = self._serial.read(4)
+                else:
+                    padding = b''
+                b = self._serial.read(1)
+                if not b:
+                    raise MachineCommError(
+                        _tr("Timeout waiting for SIZE byte in first chunk.")
+                    )
+                size_byte = b[0]
 
                 ps = size_byte
                 chunk_payload = self._serial.read(ps)
@@ -1383,7 +1383,7 @@ class MachineComm:
                 if len(cs_raw) < 2:
                     raise MachineCommError(_tr("Timeout reading checksum in first chunk."))
 
-                cs_data = bytes([size_byte]) + chunk_payload + ps_repeat_raw
+                cs_data = padding + bytes([size_byte]) + chunk_payload + ps_repeat_raw
                 received_cs = int(cs_raw.decode('ascii'), 16)
                 expected_cs = self.checksum(cs_data)
 
@@ -1711,12 +1711,14 @@ class MachineComm:
         """Decode raw bytes from a 9mm memory card slot into stitch coordinates.
 
         Format:
-          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Leading sentinel byte (0x80) is discarded.
+          - Last four bytes are discarded (they appear to be garbage or a footer).
+          - The trailing sentinel byte (0x8A) is discarded.
           - Remaining bytes are pairs ``(dx_byte, y_byte)``:
               - ``dx = dx_byte - 0x5B``  (signed differential x)
               - ``x(n) = x(n-1) - dx``   (running accumulator, starts at 0)
               - ``y``  is absolute.
-          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
+              +
           - If any x-coordinate is negative after decoding, all x values are
             shifted so that ``min(x) == 0``.
 
@@ -1732,13 +1734,24 @@ class MachineComm:
         """
         data = bytearray(raw_bytes)
 
-        # Strip optional leading sentinel
-        if data and data[0] in (0x80, 0x8A):
-            data = data[1:]
+        # Leading sentinel must be 0x80
+        if not data or data[0] != 0x80:
+            raise MachineCommError(
+                _tr("9mm card slot payload does not start with expected 0x80 sentinel.")
+            )
+        data = data[1:]
 
-        # Strip optional trailing sentinel
-        if data and data[-1] in (0x80, 0x8A):
-            data = data[:-1]
+        # The 5th byte from the end must be 0x8A (end-of-pattern marker);
+        # drop it and the 4 trailing footer/padding (?) bytes.
+        if len(data) < 5 or data[-5] != 0x8A:
+            raise MachineCommError(
+                _tr("9mm card slot payload missing expected 0x8A sentinel at position -5.")
+            )
+        data = data[:-5]
+
+        # # Strip trailing sentinel
+        # if data and data[-1] in (0x80, 0x8A):
+        #     data = data[:-1]
 
         if len(data) % 2 != 0:
             raise MachineCommError(
@@ -1767,13 +1780,14 @@ class MachineComm:
         """Decode raw bytes from a MAXI card pattern into stitch coordinates.
 
         Format:
-          - Optional leading sentinel byte (0x80 or 0x8A) is skipped.
+          - Leading sentinel byte (0x80) is discarded.
+          - Last five bytes are discarded (they appear to be garbage or a footer).
+          - The trailing sentinel byte (0x8A) is discarded.
           - Remaining bytes are triplets ``(dt_byte, dx_byte, y_byte)``:
               - ``dy_acc += dt_byte - 0xC6``  (accumulates side-transport offset)
               - ``dx = dx_byte - 0x5B``       (signed differential x)
               - ``x(n) = x(n-1) - dx``        (running accumulator, starts at 0)
               - ``y = y_byte + dy_acc``        (absolute base + accumulated offset)
-          - Optional trailing sentinel byte (0x80 or 0x8A) is skipped.
           - If any x-coordinate is negative, all x values are shifted so
             that ``min(x) == 0``.
           - If any y-coordinate is negative, all y values are shifted so
@@ -1791,13 +1805,20 @@ class MachineComm:
         """
         data = bytearray(raw_bytes)
 
-        # Strip optional leading sentinel
-        if data and data[0] in (0x80, 0x8A):
-            data = data[1:]
+        # Leading sentinel must be 0x80
+        if not data or data[0] != 0x80:
+            raise MachineCommError(
+                _tr("MAXI card slot payload does not start with expected 0x80 sentinel.")
+            )
+        data = data[1:]
 
-        # Strip optional trailing sentinel
-        if data and data[-1] in (0x80, 0x8A):
-            data = data[:-1]
+        # The 6th byte from the end must be 0x8A (end-of-pattern marker);
+        # drop it and the 5 trailing footer/padding (?) bytes.
+        if len(data) < 6 or data[-6] != 0x8A:
+            raise MachineCommError(
+                _tr("MAXI card slot payload missing expected 0x8A sentinel at position -6.")
+            )
+        data = data[:-6]
 
         if len(data) % 3 != 0:
             raise MachineCommError(
