@@ -155,6 +155,9 @@ class PMemoryDialog(QDialog):
         self.loaded_points = None
         self.loaded_slot_type = None
 
+        # Guard to prevent closing the dialog while a transfer is in progress
+        self._loading = False
+
         # Pre-compute the actual byte count that will be sent to the machine.
         # encode_machine_stitch_data accounts for auto-stitches and any MAXI
         # intermediate stitches that _translate_maxi_points may insert.
@@ -263,9 +266,9 @@ class PMemoryDialog(QDialog):
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         btn_row.addWidget(self._progress_bar, 1)
 
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.clicked.connect(self._on_close)
-        btn_row.addWidget(close_btn)
+        self._close_btn = QPushButton(self.tr("Close"))
+        self._close_btn.clicked.connect(self._on_close)
+        btn_row.addWidget(self._close_btn)
         outer.addLayout(btn_row)
 
     # ── Slot helpers ─────────────────────────────────────────────────────────
@@ -328,6 +331,9 @@ class PMemoryDialog(QDialog):
             return
         slot_size = slot_info.get('size', 0)
 
+        self._loading = True
+        self._close_btn.setEnabled(False)
+        self._action_btn.setEnabled(False)
         self._preview_btn.setEnabled(False)
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet("")
@@ -346,21 +352,31 @@ class PMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
+            self._action_btn.setEnabled(True)
             self._preview_btn.setEnabled(True)
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
 
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+        self._action_btn.setEnabled(True)
         self._preview_btn.setEnabled(True)
 
         try:
             points = MachineComm.decode_pmemory_pattern(raw_data, slot_type)
         except Exception as exc:
             self._comm._log_error(str(exc))
+            self._loading = False
+            self._close_btn.setEnabled(True)
+            self._action_btn.setEnabled(True)
             QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to decode pattern:") + "\n" + str(exc))
             return
 
+        self._loading = False
+        self._close_btn.setEnabled(True)
+        self._action_btn.setEnabled(True)
         _PatternPreviewDialog(points, slot_type, slot_index, parent=self).exec_()
 
     def _on_write(self):
@@ -427,7 +443,10 @@ class PMemoryDialog(QDialog):
             )
             return
 
+        self._loading = True
+        self._close_btn.setEnabled(False)
         self._action_btn.setEnabled(False)
+        self._preview_btn.setEnabled(False)
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet("")
 
@@ -444,6 +463,9 @@ class PMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
+            self._preview_btn.setEnabled(True)
             self._end_transmission()
             self.reject()
             QMessageBox.critical(
@@ -453,6 +475,9 @@ class PMemoryDialog(QDialog):
             )
             return
 
+        self._loading = False
+        self._close_btn.setEnabled(True)
+        self._preview_btn.setEnabled(True)
         self._end_transmission()
         self.accept()
 
@@ -508,7 +533,10 @@ class PMemoryDialog(QDialog):
 
         slot_size = self._pmem_info['slots'][slot_index].get('size', 0)
 
+        self._loading = True
+        self._close_btn.setEnabled(False)
         self._action_btn.setEnabled(False)
+        self._preview_btn.setEnabled(False)
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet("")
 
@@ -526,7 +554,10 @@ class PMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
             self._action_btn.setEnabled(True)
+            self._preview_btn.setEnabled(True)
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
 
@@ -536,6 +567,9 @@ class PMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
+            self._preview_btn.setEnabled(True)
             self._end_transmission()
             self.reject()
             QMessageBox.critical(
@@ -544,12 +578,17 @@ class PMemoryDialog(QDialog):
             )
             return
 
+        self._loading = False
+        self._close_btn.setEnabled(True)
+        self._preview_btn.setEnabled(True)
         self.loaded_points = points
         self.loaded_slot_type = slot_type
         self._end_transmission()
         self.accept()
 
     def _on_close(self):
+        if self._loading:
+            return
         self._end_transmission()
         self.reject()
 
@@ -565,5 +604,8 @@ class PMemoryDialog(QDialog):
     # ── Window close button (×) ──────────────────────────────────────────────
 
     def closeEvent(self, event):
+        if self._loading:
+            event.ignore()
+            return
         self._end_transmission()
         super().closeEvent(event)
