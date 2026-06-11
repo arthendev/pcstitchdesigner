@@ -90,6 +90,9 @@ class CardMemoryDialog(QDialog):
         self.loaded_slot_type = None
         self.loaded_name = None
 
+        # Guard to prevent closing the dialog while a pattern is being loaded
+        self._loading = False
+
         # Obtain previews — from cache when possible, otherwise load from machine
         self._previews = self._get_previews(card_info)
 
@@ -205,12 +208,18 @@ class CardMemoryDialog(QDialog):
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
         btn_row.addWidget(self._progress_bar, 1)
 
-        close_btn = QPushButton(self.tr("Close"))
-        close_btn.setMinimumWidth(80)
-        close_btn.clicked.connect(self._on_close)
-        btn_row.addWidget(close_btn)
+        self._close_btn = QPushButton(self.tr("Close"))
+        self._close_btn.setMinimumWidth(80)
+        self._close_btn.clicked.connect(self._on_close)
+        btn_row.addWidget(self._close_btn)
 
         outer.addLayout(btn_row)
+
+        # ── Select first non-empty tab ───────────────────────────────────
+        for idx, ptype in enumerate(("9mm", "MAXI", "Embroidery")):
+            if any(p['pattern_type'] == ptype for p in self._previews):
+                self._tabs.setCurrentIndex(idx)
+                break
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -385,6 +394,10 @@ class CardMemoryDialog(QDialog):
             self._name_label.setText(self.tr("Name: {0}").format(p['name'] or '—'))
             self._size_label.setText(self.tr("Size: {0} bytes").format(p['size']))
             self._action_btn.setEnabled(True)
+            # Disable Load for Embroidery patterns (not yet supported)
+            # is_embr_load = (self._action == self.ACTION_LOAD
+            #                 and p.get('pattern_type') == 'Embroidery')
+            # self._action_btn.setEnabled(not is_embr_load)
         else:
             self._name_label.setText(self.tr("Name: —"))
             self._size_label.setText(self.tr("Size: —"))
@@ -392,6 +405,15 @@ class CardMemoryDialog(QDialog):
 
     def _on_item_double_clicked(self, _item):
         """Trigger the action on double-click when the button is enabled."""
+        p = self._selected_pattern()
+        if p is not None and self._action == self.ACTION_LOAD \
+                and p.get('pattern_type') == 'Embroidery':
+            QMessageBox.information(
+                self,
+                self.tr("Not Yet Implemented"),
+                self.tr("Loading Embroidery patterns from memory card is not yet supported."),
+            )
+            return
         if self._action_btn.isEnabled():
             self._action_btn.click()
 
@@ -399,7 +421,13 @@ class CardMemoryDialog(QDialog):
 
     def _on_action(self):
         p = self._selected_pattern()
-        if p is None:
+        if p is not None and self._action == self.ACTION_LOAD \
+                and p.get('pattern_type') == 'Embroidery':
+            QMessageBox.information(
+                self,
+                self.tr("Not Yet Implemented"),
+                self.tr("Loading Embroidery patterns from memory card is not yet supported."),
+            )
             return
 
         if self._action in (self.ACTION_LOAD, self.ACTION_INSERT):
@@ -420,6 +448,8 @@ class CardMemoryDialog(QDialog):
         offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
         card_slot = pattern['slot'] + self._card_info.get(offs_map.get(ptype, ''), 0)
 
+        self._loading = True
+        self._close_btn.setEnabled(False)
         self._action_btn.setEnabled(False)
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet("")
@@ -441,6 +471,8 @@ class CardMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
             QMessageBox.critical(
                 self,
                 self.tr("Load Failed"),
@@ -460,6 +492,8 @@ class CardMemoryDialog(QDialog):
                 self._progress_bar.setValue(0)
                 self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
                 self._action_btn.setEnabled(True)
+                self._loading = False
+                self._close_btn.setEnabled(True)
                 QMessageBox.information(
                     self,
                     self.tr("Not Yet Implemented"),
@@ -470,6 +504,8 @@ class CardMemoryDialog(QDialog):
             self._comm._log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+            self._loading = False
+            self._close_btn.setEnabled(True)
             QMessageBox.critical(
                 self,
                 self.tr("Decode Failed"),
@@ -482,6 +518,8 @@ class CardMemoryDialog(QDialog):
 
         self._progress_bar.setValue(0)
         self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
+        self._loading = False
+        self._close_btn.setEnabled(True)
         self.loaded_points    = points
         self.loaded_slot_type = ptype
         self.loaded_name      = pattern['name']
@@ -629,6 +667,8 @@ class CardMemoryDialog(QDialog):
         self._on_selection_changed()
 
     def _on_close(self):
+        if self._loading:
+            return
         self._end_transmission()
         self.reject()
 
@@ -644,6 +684,9 @@ class CardMemoryDialog(QDialog):
     # ── Window close button (×) ──────────────────────────────────────────────
 
     def closeEvent(self, event):
+        if self._loading:
+            event.ignore()
+            return
         self._end_transmission()
         super().closeEvent(event)
 
