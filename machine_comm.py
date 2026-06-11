@@ -143,14 +143,17 @@ class MachineComm:
     def enable_logging(self, log_dir):
         """Enable communication logging.
 
-        Log files are created in *log_dir* on the first write/read after
-        :meth:`open`.  Call before opening the serial port.
+        One log file is created per application run.  The file is created
+        lazily on the first write/read after :meth:`open`.  Call before
+        opening the serial port.
 
         Args:
             log_dir (str): Directory where log files will be written.
         """
         self._log_enabled = True
         self._log_dir = log_dir
+        if self._logger is None:
+            self._logger = _CommLogger(log_dir)
 
     def disable_logging(self):
         """Disable communication logging and close any open log file."""
@@ -218,15 +221,11 @@ class MachineComm:
         )
 
         if self._log_enabled and self._log_dir:
-            self._logger = _CommLogger(self._log_dir)
             self._serial = _LoggedSerial(self._serial, self._logger)
             MachineComm._active_logger = self._logger
 
     def close(self):
         """Close the serial connection if open."""
-        if self._logger is not None:
-            self._logger.close()
-            self._logger = None
         if self._serial and self._serial.is_open:
             self._serial.close()
         self._serial = None
