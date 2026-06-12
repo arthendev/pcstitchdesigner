@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
     QLineEdit, QProgressDialog, QApplication,
 )
-from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer
+from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator
 from PyQt5.QtGui import QDesktopServices
 
@@ -2443,9 +2443,20 @@ class MainWindow(QMainWindow):
         msg_box.layout().addWidget(label, 0, 0)
         msg_box.exec_()
 
+    def _resolve_ui_language(self):
+        """Return the effective UI language as an ISO 639-1 code (e.g. 'de', 'en')."""
+        lang_pref = self._config.get_general_preferences().get("language", "system")
+        if lang_pref == "system":
+            for ui_lang in QLocale.system().uiLanguages():
+                # ui_lang is typically 'de-DE', 'de', 'en-US', etc.
+                code = ui_lang.split("-")[0]
+                return code
+            return "en"
+        return lang_pref
+
     def _help_check_for_updates(self):
         """Check GitHub releases API and show update status."""
-        run_check_for_updates(self, APP_VERSION)
+        run_check_for_updates(self, APP_VERSION, self._resolve_ui_language())
 
     def _auto_check_for_updates(self):
         """Silently check for updates at startup based on the configured frequency."""
@@ -2474,7 +2485,7 @@ class MainWindow(QMainWindow):
 
         self._config.set_last_update_check(now.isoformat())
         self._config.save()
-        run_silent_check_for_updates(self, APP_VERSION)
+        run_silent_check_for_updates(self, APP_VERSION, self._resolve_ui_language())
 
     def _help_get_releases(self):
         """Open GitHub releases page in default web browser."""

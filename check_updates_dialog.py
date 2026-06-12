@@ -1,6 +1,7 @@
 """Check for Updates dialog - fetches GitHub releases and compares versions."""
 
 import json
+import re
 import urllib.request
 import urllib.error
 
@@ -26,8 +27,42 @@ def _parse_version(tag: str):
         return None
 
 
-def _build_changelog_html(releases: list, current_ver: tuple) -> str:
-    """Return HTML summarising all releases newer than current_ver."""
+def _extract_language_content(body: str, lang: str) -> str:
+    """Extract the portion of a release body that corresponds to *lang*.
+
+    Markers look like ``<!-- lang="de" -->`` … ``<!-- /lang="de" -->``.
+    If the body has no such markers the full body is returned unchanged.
+    When *lang* is not found the function falls back to English (``en``).
+    If neither is present, the full body is returned.
+    """
+    if not body:
+        return body
+
+    pat = re.compile(
+        r'<!--\s*lang="([^"]+)"\s*-->(.*?)<!--\s*/lang="\1"\s*-->',
+        re.DOTALL,
+    )
+    matches = pat.findall(body)
+
+    if not matches:
+        return body  # No language markers at all
+
+    sections = {lc: content.strip() for lc, content in matches}
+
+    if lang and lang in sections:
+        return sections[lang]
+    if "en" in sections:
+        return sections["en"]
+    return body
+
+
+def _build_changelog_html(releases: list, current_ver: tuple, lang: str = "") -> str:
+    """Return HTML summarising all releases newer than current_ver.
+
+    When *lang* is supplied the release body is filtered via
+    ``_extract_language_content`` so that only the relevant
+    language section is displayed.
+    """
     sections = []
     for release in releases:
         tag = release.get("tag_name", "")
@@ -37,7 +72,7 @@ def _build_changelog_html(releases: list, current_ver: tuple) -> str:
         if release.get("draft"):
             continue
         name = release.get("name") or tag
-        body = (release.get("body") or "").strip()
+        body = _extract_language_content((release.get("body") or "").strip(), lang)
         section = [f"<h3>{name}</h3>"]
         if body:
             # Basic markdown → HTML conversion for GitHub release notes.
@@ -169,8 +204,12 @@ def _tr(text):
     return QCoreApplication.translate("check_updates_dialog", text)
 
 
-def run_check_for_updates(parent, current_version: str):
-    """Run the full update-check workflow (blocking call from UI thread)."""
+def run_check_for_updates(parent, current_version: str, language: str = ""):
+    """Run the full update-check workflow (blocking call from UI thread).
+
+    *language* is an ISO 639-1 code (e.g. ``"de"``, ``"en"``) used to
+    select the matching section from the multilingual release body.
+    """
     current_ver = _parse_version(current_version)
 
     checking_dlg = _CheckingDialog(parent)
@@ -220,7 +259,7 @@ def run_check_for_updates(parent, current_version: str):
         ).exec_()
     else:
         newest_str = ".".join(str(n) for n in newest_ver)
-        changelog_html = _build_changelog_html(releases, current_ver)
+        changelog_html = _build_changelog_html(releases, current_ver, "fr")
         _ResultDialog(
             _tr("New Version Available"),
             _tr("A new version is available! (latest: {0})").format(newest_str),
@@ -229,7 +268,7 @@ def run_check_for_updates(parent, current_version: str):
         ).exec_()
 
 
-def run_silent_check_for_updates(parent, current_version: str):
+def run_silent_check_for_updates(parent, current_version: str, language: str = ""):
     """Run the update check silently (no progress dialog).
 
     Only shows a result dialog when a newer version is available.
@@ -269,7 +308,7 @@ def run_silent_check_for_updates(parent, current_version: str):
 
     if newest_ver is not None and newest_ver > current_ver:
         newest_str = ".".join(str(n) for n in newest_ver)
-        changelog_html = _build_changelog_html(releases, current_ver)
+        changelog_html = _build_changelog_html(releases, current_ver, language)
         _ResultDialog(
             _tr("New Version Available"),
             _tr("A new version is available! (latest: {0})").format(newest_str),
