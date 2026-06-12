@@ -118,8 +118,8 @@
         <translation>Größe: {0} Bytes</translation>
     </message>
     <message>
-        <source>Loading card previews…</source>
-        <translation>Vorschaubilder werden geladen…</translation>
+        <source>Loading card index and preview images…</source>
+        <translation>Speicherkartenverzeichnis und Vorschaubilder werden geladen…</translation>
     </message>
     <message>
         <source>Load Failed</source>

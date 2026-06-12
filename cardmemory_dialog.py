@@ -263,7 +263,7 @@ class CardMemoryDialog(QDialog):
         }
 
         preview_progress = QProgressDialog(
-            self.tr("Loading card previews…"),
+            self.tr("Loading card index and preview images…"),
             None,  # no cancel button
             0, n_total,
             self,
@@ -325,7 +325,7 @@ class CardMemoryDialog(QDialog):
         total_patterns = sum(card_info.get(count_map[pt], 0) for pt in count_map)
 
         preview_progress = QProgressDialog(
-            self.tr("Loading card previews…"),
+            self.tr("Loading card index and preview images…"),
             None,  # no cancel button
             0, total_patterns,
             self,
