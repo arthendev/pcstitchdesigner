@@ -1646,16 +1646,28 @@
 <context>
     <name>ExtendedTab</name>
     <message>
-        <source>Developer</source>
-        <translation>Entwickler</translation>
+        <source>Memory Card</source>
+        <translation>Speicherkarte</translation>
+    </message>
+    <message>
+        <source>Always ask for filename</source>
+        <translation>Immer nach Dateinamen fragen</translation>
+    </message>
+    <message>
+        <source>User is always asked to provide a filename when uploading a stitch pattern to a memory card.</source>
+        <translation>Der Benutzer wird beim Hochladen eines Stickmusters auf eine Speicherkarte immer nach einem Dateinamen gefragt.</translation>
+    </message>
+    <message>
+        <source>Developer options</source>
+        <translation>Entwickleroptionen</translation>
     </message>
     <message>
         <source>Log communication</source>
         <translation>Kommunikation protokollieren</translation>
     </message>
     <message>
-        <source>Creates log files in /logs/ directory, which can be used by app developer to debug communication. This has no use for regular user.</source>
-        <translation>Erstellt Protokolldateien im /logs/-Verzeichnis, die vom App-Entwickler zur Fehlerbehebung bei der Kommunikation verwendet werden können. Dies hat keinen Nutzen für normale Benutzer.</translation>
+        <source>Creates log files in /logs/ directory, which can be used by app developer to debug machine communication. This has no use for regular user.</source>
+        <translation>Erstellt Protokolldateien im /logs/-Verzeichnis, die vom App-Entwickler zur Fehlerbehebung bei der Kommunikation mit der Nähmaschine verwendet werden können. Dies hat keinen Nutzen für normale Benutzer.</translation>
     </message>
 </context>
 <context>
