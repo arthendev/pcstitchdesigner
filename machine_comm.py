@@ -2106,7 +2106,7 @@ class MachineComm:
 
         Raises:
             MachineCommError: If any differential-x value is outside the open
-                interval ``(-90, 90)``, i.e. ``|dx| >= 90``.  The error message
+                interval ``(-37, 37)``, i.e. ``|dx| >= 37``.  The error message
                 names the offending stitch and advises inserting intermediate
                 stitches.
         """
@@ -2128,7 +2128,7 @@ class MachineComm:
         x_prev = translated_xy[0][0]
         for i, (x, y) in enumerate(translated_xy):
             dx = x_prev - x
-            if not (-90 < dx < 90):
+            if not (-37 < dx < 37): # dx byte is not allowed to be 0x80 or above
                 raise MachineCommError(
                     _tr("The distance between consecutive stitch points is too large.")
                     + "\n" +
@@ -2167,8 +2167,8 @@ class MachineComm:
 
         Raises:
             MachineCommError: If any differential-x value is outside the open
-                interval ``(-90, 90)``.  The error message names the offending
-                stitch and advises inserting intermediate stitches.
+                interval ``(-37, 37)``, i.e. ``|dx| >= 37``.  The error message
+                names the offending stitch and advises inserting intermediate stitches.
         """
         raw_elems = [e for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not raw_elems:
@@ -2180,7 +2180,7 @@ class MachineComm:
         x_prev = translated_xyt[0][0]  # x of the first stitch
         for i, (x, stored_y, delta) in enumerate(translated_xyt):
             dx = x_prev - x
-            if not (-90 < dx < 90):
+            if not (-37 < dx < 37): # dx byte is not allowed to be 0x80 or above
                 raise MachineCommError(
                     _tr("The distance between consecutive stitch points is too large.")
                     + "\n" +
