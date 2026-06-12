@@ -465,7 +465,27 @@ class ExtendedTab(QWidget):
         outer.setContentsMargins(12, 12, 12, 12)
         outer.setSpacing(10)
 
-        group = QGroupBox(self.tr("Developer"))
+        # ── Memory Card ───────────────────────────────────────────────────
+        card_group = QGroupBox(self.tr("Memory Card"))
+        card_layout = QVBoxLayout(card_group)
+        card_layout.setSpacing(8)
+
+        self._card_always_ask_cb = QCheckBox(self.tr("Always ask for filename"))
+        self._card_always_ask_cb.setToolTip(
+            self.tr(
+                "User is always asked to provide a filename when uploading "
+                "a stitch pattern to a memory card."
+            )
+        )
+        self._card_always_ask_cb.setChecked(
+            bool(prefs.get("card_always_ask_filename", False))
+        )
+        card_layout.addWidget(self._card_always_ask_cb)
+
+        outer.addWidget(card_group)
+
+        # ── Developer options ─────────────────────────────────────────────
+        group = QGroupBox(self.tr("Developer options"))
         layout = QVBoxLayout(group)
         layout.setSpacing(8)
 
@@ -473,7 +493,7 @@ class ExtendedTab(QWidget):
         self._log_comm_cb.setToolTip(
             self.tr(
                 "Creates log files in /logs/ directory, which can be used "
-                "by app developer to debug communication. "
+                "by app developer to debug machine communication. "
                 "This has no use for regular user."
             )
         )
@@ -486,6 +506,7 @@ class ExtendedTab(QWidget):
     def values(self) -> dict:
         return {
             "log_communication": self._log_comm_cb.isChecked(),
+            "card_always_ask_filename": self._card_always_ask_cb.isChecked(),
         }
 
 
@@ -554,6 +575,7 @@ class PreferencesDialog(QDialog):
         e = self._extended_tab.values()
         self._config.set_extended_preferences(
             log_communication=e["log_communication"],
+            card_always_ask_filename=e["card_always_ask_filename"],
         )
         self._config.save()
         if old_language != new_language:

@@ -2044,8 +2044,11 @@ class MainWindow(QMainWindow):
     def _machine_load_card(self):
         self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
-    def _ask_card_filename(self):
-        """Show a dialog asking the user for a card pattern filename
+    def _ask_card_filename(self, default_text=""):
+        """Show a dialog asking the user for a card pattern filename.
+
+        Args:
+            default_text: Optional text to prefill the input field.
 
         Returns:
             str | None: Entered filename (1–32 chars), or None if cancelled.
@@ -2064,6 +2067,9 @@ class MainWindow(QMainWindow):
         edit = QLineEdit()
         edit.setMaxLength(32)
         edit.setPlaceholderText(self.tr("Pattern name"))
+        # Prefill with latin-1 safe version of the default text
+        if default_text:
+            edit.setText(default_text[:32])
         layout.addWidget(edit)
         # Allow alphanumeric, spaces, and special characters supported by the machine
         regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}")
@@ -2118,8 +2124,33 @@ class MainWindow(QMainWindow):
             return
 
         # ── Determine filename ────────────────────────────────────────────
-        if self._file_path:
+        ext_prefs = self._config.get_extended_preferences()
+        always_ask = ext_prefs.get("card_always_ask_filename", False)
+
+        if always_ask:
+            # Build a default name from the file path or the pattern name
+            # stored on the card, if the document has a name.
+            default_name = ""
+            raw = ""
+            if self._file_path:
+                raw = os.path.splitext(os.path.basename(self._file_path))[0][:32]
+            elif self._machine_pattern_name:
+                raw = self._machine_pattern_name[:32]
+            if raw:
+                # Encode as latin-1 and decode back to show a preview of how the
+                # name will look on the machine (characters not representable in
+                # latin-1 are replaced with '?' by the encode step).
+                try:
+                    default_name = raw.encode("latin-1", errors="replace").decode("latin-1")
+                except Exception:
+                    default_name = raw
+            filename = self._ask_card_filename(default_name)
+            if filename is None:
+                return  # user cancelled
+        elif self._file_path:
             filename = os.path.splitext(os.path.basename(self._file_path))[0][:32]
+        elif self._machine_pattern_name:
+            filename = self._machine_pattern_name[:32]
         else:
             filename = self._ask_card_filename()
             if filename is None:

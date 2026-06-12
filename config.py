@@ -55,6 +55,7 @@ class Config:
             "language": "system",
             # Extended preferences
             "log_communication": False,
+            "card_always_ask_filename": False,
         }
 
         # Try to load existing config
@@ -222,8 +223,10 @@ class Config:
         """Return extended preference values as a dict."""
         return {
             "log_communication": self._data.get("log_communication", False),
+            "card_always_ask_filename": self._data.get("card_always_ask_filename", False),
         }
 
-    def set_extended_preferences(self, log_communication):
+    def set_extended_preferences(self, log_communication, card_always_ask_filename=False):
         """Persist extended preferences."""
         self._data["log_communication"] = bool(log_communication)
+        self._data["card_always_ask_filename"] = bool(card_always_ask_filename)
