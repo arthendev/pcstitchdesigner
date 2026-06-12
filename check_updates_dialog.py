@@ -259,7 +259,7 @@ def run_check_for_updates(parent, current_version: str, language: str = ""):
         ).exec_()
     else:
         newest_str = ".".join(str(n) for n in newest_ver)
-        changelog_html = _build_changelog_html(releases, current_ver, "fr")
+        changelog_html = _build_changelog_html(releases, current_ver, language)
         _ResultDialog(
             _tr("New Version Available"),
             _tr("A new version is available! (latest: {0})").format(newest_str),
