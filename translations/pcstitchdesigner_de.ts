@@ -864,7 +864,7 @@
     </message>
     <message>
         <source>&amp;Invert Selected</source>
-        <translation>Auswahl &amp;umkehren</translation>
+        <translation>&amp;Umkehren</translation>
     </message>
     <message>
         <source>Mirror &amp;Vertically</source>
