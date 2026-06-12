@@ -360,7 +360,7 @@ class MachineComm:
         """
         self._require_open()
 
-        self._log_info(f"query_machine(retries={retries}, timeout={timeout})")
+        self._log_info("query_machine()")
 
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
