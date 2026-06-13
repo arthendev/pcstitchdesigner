@@ -923,9 +923,25 @@ class MachineComm:
                 raise MachineCommError(_tr("No response to card query command."))
 
             if first[0] == self.CTRL_NAK:
-                # Second byte is CTRL_BS; read and discard it
-                self._serial.read(1)
-                raise MachineCommError(_tr("No memory card inserted in the machine."))
+                # Read the second byte to determine the reason for NAK
+                second = self._serial.read(1)
+                if not second:
+                    raise MachineCommError(_tr("No response to card query command."))
+                if second[0] == 0x08:
+                    # 0x08 — no memory card inserted
+                    raise MachineCommError(_tr("No memory card inserted in the machine."))
+                elif second[0] == 0x00:
+                    # 0x00 — card is copyright protected ("read-only stitch card")
+                    raise MachineCommError(
+                        _tr("The card is copyright protected. "
+                            "It is not allowed to read or modify the content of this card.")
+                    )
+                else:
+                    # Unknown second byte — treat as an unexpected response
+                    raise MachineCommError(
+                        _tr("Unexpected response to card query: NAK followed by 0x{0}.").format(
+                            f"{second[0]:02X}")
+                    )
 
             # Valid response: buf[0] should be 0x06
             buf = bytearray([first[0]])
