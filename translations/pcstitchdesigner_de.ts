@@ -791,6 +791,14 @@
         <source>MAXI card slot payload missing expected 0x8A sentinel at position -6.</source>
         <translation>Nutzlast des MAXI-Kartensteckplatzes hat keinen 0x8A Marker an Position -6.</translation>
     </message>
+    <message>
+        <source>The card is copyright protected. It is not allowed to read or modify the content of this card.</source>
+        <translation>Die Speicherkarte ist kopiergeschützt. Der Inhalt dieser Karte darf nicht gelesen oder verändert werden.</translation>
+    </message>
+    <message>
+        <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
+        <translation>Unerwartete Antwort auf Kartenabfrage: NAK gefolgt von 0x{0}.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
