@@ -1,6 +1,7 @@
 """Main application window with menus, toolbar, status bar, and canvas."""
 
 import os
+import sys
 
 from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
@@ -1711,7 +1712,8 @@ class MainWindow(QMainWindow):
         # Configure communication logging
         ext_prefs = self._config.get_extended_preferences()
         if ext_prefs.get("log_communication", False):
-            log_dir = os.path.join(os.path.dirname(__file__), "logs")
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+            log_dir = os.path.join(base_dir, "logs")
             self._machine_comm.enable_logging(log_dir)
         else:
             self._machine_comm.disable_logging()
