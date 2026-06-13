@@ -796,6 +796,10 @@
         <translation>Die Speicherkarte ist kopiergeschützt. Der Inhalt dieser Karte darf nicht gelesen oder verändert werden.</translation>
     </message>
     <message>
+        <source>The memory card is write-protected. Please switch the write-protection off (slide write-protect tab on the card) and try again.</source>
+        <translation>Die Speicherkarte ist schreibgeschützt. Bitte deaktivieren Sie den Schreibschutz (Schieberegler am Kartenrand) und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Unerwartete Antwort auf Kartenabfrage: NAK gefolgt von 0x{0}.</translation>
     </message>
