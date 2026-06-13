@@ -927,6 +927,11 @@ class MachineComm:
                 second = self._serial.read(1)
                 if not second:
                     raise MachineCommError(_tr("No response to card query command."))
+                if second[0] == 0x04:
+                    # 0x04 — card is write-protected (write-protect tab on the card is set)
+                    raise MachineCommError(
+                        _tr("The memory card is write-protected. "
+                            "Please switch the write-protection off (slide write-protect tab on the card) and try again."))
                 if second[0] == 0x08:
                     # 0x08 — no memory card inserted
                     raise MachineCommError(_tr("No memory card inserted in the machine."))
