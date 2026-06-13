@@ -17,7 +17,7 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
   - *.PCD (9 mm stitches)
   - *.PCQ (MAXI stitches)
 - Transfer stitch patterns to and from supported sewing machines
-  - PFAFF Creative 7570
+  - PFAFF Creative 7570 (both internal memory and memory cards are supported)
   - PFAFF Creative 7550
   - PFAFF Creative 1475 CD (not tested yet or real hardware)
 - Compatibility with modern 64-bit operating systems
@@ -39,13 +39,10 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 The following features are planned for future releases:
 
 - Creation and transfer of stitch sequences ("M-Designs")
-- Creative Card Support
-  - Reading and writing from/to writable Creative Cards
 - Embroidery Design Support
   - Loading embroidery design files (already done)
   - Transferring embroidery designs to and from the sewing machine
   - Support for PFAFF Creative 7560
-- Support for the original serial interface cable
 
 ## Donations
 
