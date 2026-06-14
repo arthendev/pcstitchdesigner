@@ -31,6 +31,14 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
   - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
 
+## Download
+
+You can get a Windows executable or source files under the [Releases](https://github.com/arthendev/pcstitchdesigner/releases) section.
+
+On Windows: just unpack and run the executable.
+
+On Linux or macOs: download and unpack the sources and run pc_designer.py with your local Python instance. Check [wiki/Installation](https://github.com/arthendev/pcstitchdesigner/wiki/Installation) for details.
+
 ## User Manual
 
 [Online Documentation](https://github.com/arthendev/pcstitchdesigner/wiki) is available
