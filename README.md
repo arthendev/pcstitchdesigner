@@ -37,7 +37,7 @@ You can get a Windows executable or source files under the [Releases](https://gi
 
 On Windows: just unpack and run the executable.
 
-On Linux or macOs: download and unpack the sources and run pc_designer.py with your local Python instance. Check [wiki/Installation](https://github.com/arthendev/pcstitchdesigner/wiki/Installation) for details.
+On Linux or macOS: download and unpack the sources and run pc_designer.py with your local Python instance. Check [wiki/Installation](https://github.com/arthendev/pcstitchdesigner/wiki/Installation) for details.
 
 ## User Manual
 
