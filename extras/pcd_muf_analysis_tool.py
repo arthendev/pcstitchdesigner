@@ -30,8 +30,9 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QDialog, QDialogButtonBox, QTextEdit, QSplitter, QGroupBox,
     QFormLayout, QMessageBox, QCheckBox, QScrollArea, QToolTip,
+    QLayout,
 )
-from PyQt5.QtCore import Qt, QRectF, QPointF
+from PyQt5.QtCore import Qt, QRectF, QPointF, QSizeF
 from PyQt5.QtGui import QFont, QColor, QPainter, QPen, QPainterPath, QBrush, QPixmap
 
 
@@ -197,10 +198,16 @@ def parse_files(para_path: str, koor_path: str) -> list[dict]:
         b4, b5, b6 = chunk[PARA_OFFSET_BYTE_IDX:PARA_OFFSET_BYTE_IDX + 3]
         para_offset = b4 | (b5 << 8) | (b6 << 16)
 
+        # Extract bytes 1-2 of para_raw individually
+        para_scale_1 = chunk[1]
+        para_scale_2 = chunk[2]
+
         entry: dict = {
             'index': idx,
             'para_raw': list(chunk),
             'para_offset': para_offset,
+            'para_scale_1': para_scale_1,
+            'para_scale_2': para_scale_2,
             'pattern_y0': 0,
             'pattern_yn': 0,
             'pattern_length': 0,
@@ -227,6 +234,8 @@ def parse_files(para_path: str, koor_path: str) -> list[dict]:
                 entry['pattern_yn'] = first['pattern_yn']
                 entry['pattern_length'] = first['pattern_length']
                 entry['pattern_dxdy'] = first['pattern_dxdy']
+            entry['span_x'], entry['span_y'], entry['stitch_type'] = \
+                compute_span_and_type(entry['pattern_dxdy'], entry['pattern_y0'])
 
         elif para_offset + 4 <= koor_len:
             sp = _decode_one(para_offset)
@@ -235,9 +244,42 @@ def parse_files(para_path: str, koor_path: str) -> list[dict]:
             entry['pattern_length'] = sp['pattern_length']
             entry['pattern_dxdy'] = sp['pattern_dxdy']
 
+        entry['span_x'], entry['span_y'], entry['stitch_type'] = \
+            compute_span_and_type(entry['pattern_dxdy'], entry['pattern_y0'])
+
         patterns.append(entry)
 
     return patterns
+
+
+def compute_span_and_type(dxdy_bytes: list[int], pattern_y0: int):
+    """Return (span_x, span_y, stitch_type) from dx/dy data."""
+    if not dxdy_bytes:
+        return 0, 0, "MAXI"
+    signed = [b if b < 128 else b - 256 for b in dxdy_bytes]
+    x, y = 0.0, float(pattern_y0)
+    xs, ys = [x], [y]
+    for i in range(0, len(signed) - 1, 2):
+        dx_s, dy_s = signed[i], signed[i + 1]
+        dx_u = dx_s if dx_s >= 0 else dx_s + 256
+        dy_u = dy_s if dy_s >= 0 else dy_s + 256
+        if (dx_u, dy_u) in _SKIP_PAIRS:
+            continue
+        x += dx_s
+        y += dy_s
+        xs.append(x)
+        ys.append(y)
+    span_x = int(max(xs) - min(xs))
+    span_y = int(max(ys) - min(ys))
+    
+    if span_x <= 198 and span_y <= 54:
+        stitch_type = "9mm"
+    elif span_y <= 54:
+        stitch_type = "9mm+"
+    else:
+        stitch_type = "MAXI"
+        
+    return span_x, span_y, stitch_type
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -414,7 +456,11 @@ class PatternDetailDialog(QDialog):
             f"<b>Offset:</b> {e['para_offset']} (0x{e['para_offset']:06X}) &nbsp;&nbsp;"
             f"<b>Length:</b> {e['pattern_length']} &nbsp;&nbsp;"
             f"<b>Y0:</b> 0x{e['pattern_y0']:02X} &nbsp;&nbsp;"
-            f"<b>YN:</b> 0x{e['pattern_yn']:02X}"
+            f"<b>YN:</b> 0x{e['pattern_yn']:02X} &nbsp;&nbsp;"
+            f"<b>Scale:</b> 0x{e.get('para_scale_1', 0):02X} 0x{e.get('para_scale_2', 0):02X} &nbsp;&nbsp;"
+            f"<b>Span X:</b> {e.get('span_x', 0)} &nbsp;&nbsp;"
+            f"<b>Span Y:</b> {e.get('span_y', 0)} &nbsp;&nbsp;"
+            f"<b>Type:</b> {e.get('stitch_type', 'MAXI')}"
         )
 
     def _build_ui(self):
@@ -497,12 +543,13 @@ class PatternDetailDialog(QDialog):
             lines.append(f"  {offset:04X}  {hex_part:<48s}  {ascii_part}")
         lines.append("")
 
-        lines.append(f"▸ para_offset  = {e['para_offset']}  (0x{e['para_offset']:06X})")
+        lines.append(f"▸ para_offset  = {e['para_offset']}  (0x{e['para_offset']:06X})  [para_raw bytes 4-6, LE]")
+        lines.append(f"▸ para_scale_1 = {e.get('para_scale_1', 0)}  (0x{e.get('para_scale_1', 0):02X})  [para_raw byte 1]")
+        lines.append(f"▸ para_scale_2 = {e.get('para_scale_2', 0)}  (0x{e.get('para_scale_2', 0):02X})  [para_raw byte 2]")
         lines.append("")
 
         lines.append(f"▸ pattern_y0   = {e['pattern_y0']}  (0x{e['pattern_y0']:02X})")
         lines.append(f"▸ pattern_yn   = {e['pattern_yn']}  (0x{e['pattern_yn']:02X})")
-        lines.append("")
 
         lines.append(f"▸ pattern_length = {e['pattern_length']}  (0x{e['pattern_length']:04X})")
         lines.append("")
@@ -679,6 +726,368 @@ class RefTableDetailDialog(QDialog):
     def _update_sub_buttons(self):
         self._btn_prev.setEnabled(self._current_sub > 0)
         self._btn_next.setEnabled(self._current_sub < len(self._sublist) - 1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FlowLayout – wraps child widgets automatically (Qt example pattern)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class FlowLayout(QLayout):
+    """A layout that arranges children left-to-right, wrapping to next row."""
+
+    def __init__(self, parent=None, margin=0, spacing=-1):
+        super().__init__(parent)
+        self._items: list = []
+        self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientations(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return int(self._do_layout(QRectF(0, 0, width, 0), True))
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do_layout(QRectF(rect), False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSizeF()
+        for item in self._items:
+            ms = item.minimumSize()
+            size = size.expandedTo(QSizeF(ms.width(), ms.height()))
+        margins = self.contentsMargins()
+        size += QSizeF(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size.toSize()
+
+    def _do_layout(self, rect: QRectF, test_only: bool) -> float:
+        margins = self.contentsMargins()
+        left = rect.left() + margins.left()
+        top = rect.top() + margins.top()
+        right = rect.right() - margins.right()
+        available = rect.width() - margins.left() - margins.right()
+
+        x = left
+        y = top
+        line_height = 0
+
+        for item in self._items:
+            size = item.sizeHint()
+            # Wrap to next line if it doesn't fit
+            if x + size.width() > right and line_height > 0:
+                x = left
+                y += line_height + self.spacing()
+                line_height = 0
+            if not test_only:
+                sz = size
+                item.setGeometry(QRectF(QPointF(x, y),
+                                        QSizeF(sz.width(), sz.height())).toRect())
+            x += size.width() + self.spacing()
+            line_height = max(line_height, size.height())
+
+        return float(y + line_height - rect.top() + margins.bottom())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Byte stats dialog – statistics over first 32 bytes of para_raw
+# ═══════════════════════════════════════════════════════════════════════════
+
+BYTE_STATS_COUNT = 32  # how many bytes of para_raw to analyse
+
+
+class ByteValueDetailDialog(QDialog):
+    """Shows all pattern indices + previews for a given byte offset & value."""
+
+    def __init__(self, byte_offset: int, value: int, patterns_info: list[dict],
+                 bilder_data: bytes, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Byte {byte_offset} = 0x{value:02X} — Patterns")
+        self.resize(750, 550)
+        self.setMinimumSize(500, 350)
+        self._byte_offset = byte_offset
+        self._value = value
+        self._patterns_info = patterns_info
+        self._bilder_data = bilder_data
+        self._build_ui()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+
+        lbl = QLabel(
+            f"<b>Byte offset {self._byte_offset}</b> = "
+            f"<b>0x{self._value:02X}</b> ({self._value})  —  "
+            f"{len(self._patterns_info)} pattern(s)"
+        )
+        lbl.setStyleSheet("padding: 6px; background: #eef; font-size: 13px;")
+        layout.addWidget(lbl)
+
+        table = QTableWidget(len(self._patterns_info), 3)
+        table.setHorizontalHeaderLabels(["Pattern Index", "Preview", "Thumbnail"])
+        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.setAlternatingRowColors(True)
+        table.verticalHeader().setVisible(False)
+        table.verticalHeader().setDefaultSectionSize(52)
+
+        hdr = table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(2, QHeaderView.Stretch)
+        table.setFont(QFont("Consolas", 10))
+
+        for row, pi in enumerate(self._patterns_info):
+            idx_item = QTableWidgetItem(str(pi['index']))
+            idx_item.setTextAlignment(Qt.AlignCenter)
+            table.setItem(row, 0, idx_item)
+
+            # BILDER preview
+            bl = QLabel()
+            if self._bilder_data:
+                istart = pi['index'] * BILDER_BYTES_PER_IMAGE
+                iend = istart + BILDER_BYTES_PER_IMAGE
+                if iend <= len(self._bilder_data):
+                    qi = bilder_to_image(self._bilder_data[istart:iend])
+                    bl.setPixmap(QPixmap.fromImage(qi))
+            bl.setAlignment(Qt.AlignCenter)
+            table.setCellWidget(row, 1, bl)
+
+            # Thumbnail
+            tl = QLabel()
+            thumb = render_thumbnail(pi.get('pattern_dxdy', []),
+                                     pi.get('pattern_y0', 0))
+            tl.setPixmap(thumb)
+            tl.setAlignment(Qt.AlignCenter)
+            table.setCellWidget(row, 2, tl)
+
+        layout.addWidget(table)
+
+        btn_close = QPushButton("Close")
+        btn_close.clicked.connect(self.reject)
+        ctrl = QHBoxLayout()
+        ctrl.addStretch()
+        ctrl.addWidget(btn_close)
+        layout.addLayout(ctrl)
+
+
+class ByteStatsDialog(QDialog):
+    """Statistics over the first 32 bytes of para_raw across all main patterns."""
+
+    def __init__(self, patterns: list[dict], bilder_data: bytes, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Byte Stats — para_raw (first 32 bytes)")
+        self.resize(820, 680)
+        self.setMinimumSize(600, 400)
+        self._patterns = patterns
+        self._bilder_data = bilder_data
+        self._stats = self._compute_stats()
+        self._build_ui()
+
+    def _compute_stats(self) -> list[dict]:
+        """For each byte offset 0..31, collect {value: [pattern_indices]}."""
+        stats: list[dict] = []
+        for off in range(BYTE_STATS_COUNT):
+            val_to_indices: dict[int, list[int]] = {}
+            for p in self._patterns:
+                raw = p.get('para_raw', [])
+                if off < len(raw):
+                    v = raw[off]
+                    val_to_indices.setdefault(v, []).append(p['index'])
+            # Re-sort by value for consistent display
+            stats.append(dict(sorted(val_to_indices.items())))
+        return stats
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+
+        lbl = QLabel(
+            f"<b>First {BYTE_STATS_COUNT} bytes of para_raw</b> across "
+            f"{len(self._patterns)} main patterns.  "
+            f"Click a row to see detail per value."
+        )
+        lbl.setStyleSheet("padding: 6px; background: #eef;")
+        lbl.setWordWrap(True)
+        layout.addWidget(lbl)
+
+        self._table = QTableWidget(BYTE_STATS_COUNT, 2)
+        self._table.setHorizontalHeaderLabels(["Byte Offset", "Values (count)"])
+        self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.setAlternatingRowColors(True)
+        self._table.verticalHeader().setVisible(False)
+        self._table.cellDoubleClicked.connect(self._on_row_double_clicked)
+
+        hdr = self._table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.Stretch)
+        self._table.setFont(QFont("Consolas", 10))
+
+        for off, val_map in enumerate(self._stats):
+            # Column 0 – byte offset
+            off_item = QTableWidgetItem(str(off))
+            off_item.setTextAlignment(Qt.AlignCenter)
+            self._table.setItem(off, 0, off_item)
+
+            # Column 1 – value list with counts, sorted by value
+            parts = []
+            for v in sorted(val_map.keys()):
+                count = len(val_map[v])
+                parts.append(f"{v:02X} ({count})")
+            val_item = QTableWidgetItem("  ".join(parts))
+            self._table.setItem(off, 1, val_item)
+
+        layout.addWidget(self._table)
+
+        btn_close = QPushButton("Close")
+        btn_close.clicked.connect(self.reject)
+        ctrl = QHBoxLayout()
+        ctrl.addStretch()
+        ctrl.addWidget(btn_close)
+        layout.addLayout(ctrl)
+
+    def _on_row_double_clicked(self, row: int, _col: int):
+        """Open detail dialog for the clicked byte offset."""
+        if 0 <= row < len(self._stats):
+            val_map = self._stats[row]
+            # Build a flat list of (value, pattern_info) for all values
+            # We'll show the detail in a scrollable dialog
+            dlg = ByteOffsetDetailDialog(
+                row, val_map, self._patterns, self._bilder_data, self)
+            dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+            dlg.show()
+
+
+class ByteOffsetDetailDialog(QDialog):
+    """Shows all values for a given byte offset, each with its pattern list."""
+
+    def __init__(self, byte_offset: int, val_map: dict,
+                 patterns: list[dict], bilder_data: bytes, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Byte {byte_offset} — All Values Detail")
+        self.resize(800, 700)
+        self.setMinimumSize(600, 400)
+        self._byte_offset = byte_offset
+        self._val_map = val_map
+        self._patterns = patterns
+        self._bilder_data = bilder_data
+        self._build_ui()
+
+    def _make_cell(self, pi: int) -> QWidget:
+        """Create one clickable preview cell (48x48 image + index below)."""
+        btn = QPushButton()
+        btn.setFixedSize(52, 66)
+        btn.setFlat(True)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet(
+            "QPushButton { border: none; padding: 0; }"
+            "QPushButton:hover { background: #d0d0ff; }"
+        )
+        btn.clicked.connect(lambda _checked, idx=pi: self._on_cell_clicked(idx))
+
+        btn_layout = QVBoxLayout(btn)
+        btn_layout.setSpacing(0)
+        btn_layout.setContentsMargins(2, 2, 2, 2)
+
+        bl = QLabel()
+        bl.setFixedSize(48, 48)
+        bl.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        if self._bilder_data:
+            istart = pi * BILDER_BYTES_PER_IMAGE
+            iend = istart + BILDER_BYTES_PER_IMAGE
+            if iend <= len(self._bilder_data):
+                qi = bilder_to_image(self._bilder_data[istart:iend])
+                bl.setPixmap(QPixmap.fromImage(qi))
+        bl.setAlignment(Qt.AlignCenter)
+        btn_layout.addWidget(bl, alignment=Qt.AlignCenter)
+
+        idx_lbl = QLabel(str(pi))
+        idx_lbl.setAlignment(Qt.AlignCenter)
+        idx_lbl.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        idx_lbl.setStyleSheet("font-size: 9px; color: #555;")
+        btn_layout.addWidget(idx_lbl)
+        return btn
+
+    def _on_cell_clicked(self, pi: int):
+        """Open the PatternDetailDialog for the clicked pattern index."""
+        p = self._patterns[pi]
+        if p.get('is_ref_table'):
+            dlg = RefTableDetailDialog(p, self)
+        else:
+            dlg = PatternDetailDialog(self._patterns, pi, self)
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+        dlg.show()
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+
+        lbl = QLabel(
+            f"<b>Byte offset {self._byte_offset}</b> — "
+            f"{len(self._val_map)} unique value(s) across "
+            f"{len(self._patterns)} patterns"
+        )
+        lbl.setStyleSheet("padding: 6px; background: #eef; font-size: 13px;")
+        lbl.setWordWrap(True)
+        layout.addWidget(lbl)
+
+        # Scroll area with sections per value
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setSpacing(6)
+        container_layout.setContentsMargins(4, 4, 4, 4)
+
+        for v in sorted(self._val_map.keys()):
+            indices = self._val_map[v]
+
+            val_lbl = QLabel(
+                f"<b>0x{v:02X}</b> ({v:3d})  —  {len(indices)} pattern(s)"
+            )
+            val_lbl.setStyleSheet(
+                "padding: 3px 8px; background: #dde; font-size: 12px;"
+            )
+            container_layout.addWidget(val_lbl)
+
+            # Flow layout – wraps cells automatically
+            flow = FlowLayout(margin=0, spacing=2)
+            for pi in indices:
+                flow.addWidget(self._make_cell(pi))
+            container_layout.addLayout(flow)
+
+        container_layout.addStretch()
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        btn_close = QPushButton("Close")
+        btn_close.clicked.connect(self.reject)
+        ctrl = QHBoxLayout()
+        ctrl.addStretch()
+        ctrl.addWidget(btn_close)
+        layout.addLayout(ctrl)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -977,6 +1386,11 @@ class StitchPatternTool(QMainWindow):
         self._hex_btn.clicked.connect(self._open_hex_browser)
         action_row.addWidget(self._hex_btn)
 
+        self._stats_btn = QPushButton("📊  Byte stats")
+        self._stats_btn.setEnabled(False)
+        self._stats_btn.clicked.connect(self._open_byte_stats)
+        action_row.addWidget(self._stats_btn)
+
         action_row.addStretch()
         root.addLayout(action_row)
 
@@ -986,8 +1400,8 @@ class StitchPatternTool(QMainWindow):
         root.addWidget(self._info_label)
 
         # ── Table ──
-        self._table = QTableWidget(0, 6)
-        self._table.setHorizontalHeaderLabels(["Index", "Offset (hex)", "Length", "Y0 YN", "Preview", "Pattern"])
+        self._table = QTableWidget(0, 8)
+        self._table.setHorizontalHeaderLabels(["Index", "Offset (hex)", "Length", "Y0 YN", "Scale", "Type", "Preview", "Pattern"])
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -1004,7 +1418,9 @@ class StitchPatternTool(QMainWindow):
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(7, QHeaderView.Stretch)
 
         self._table.setFont(QFont("Consolas", 10))
         root.addWidget(self._table, stretch=1)
@@ -1086,6 +1502,7 @@ class StitchPatternTool(QMainWindow):
         self._populate_table()
         self._save_btn.setEnabled(True)
         self._hex_btn.setEnabled(True)
+        self._stats_btn.setEnabled(True)
         self._info_label.setText(
             f"Parsed {len(self._patterns)} patterns  —  "
             f"Double-click a row for details."
@@ -1129,6 +1546,17 @@ class StitchPatternTool(QMainWindow):
             y0_item.setTextAlignment(Qt.AlignCenter)
             self._table.setItem(i, 3, y0_item)
 
+            # Scale – bytes 1-2 from para_raw, shown separately
+            scale_text = f"{p.get('para_scale_1', 0):02X} {p.get('para_scale_2', 0):02X}"
+            scale_item = QTableWidgetItem(scale_text)
+            scale_item.setTextAlignment(Qt.AlignCenter)
+            self._table.setItem(i, 4, scale_item)
+
+            # Stitch Type
+            type_item = QTableWidgetItem(p.get('stitch_type', 'MAXI'))
+            type_item.setTextAlignment(Qt.AlignCenter)
+            self._table.setItem(i, 5, type_item)
+
             # BILDER preview image
             bilder_label = QLabel()
             if self._bilder_data:
@@ -1139,14 +1567,14 @@ class StitchPatternTool(QMainWindow):
                     pm = QPixmap.fromImage(qi)
                     bilder_label.setPixmap(pm)
             bilder_label.setAlignment(Qt.AlignCenter)
-            self._table.setCellWidget(i, 4, bilder_label)
+            self._table.setCellWidget(i, 6, bilder_label)
 
             # Thumbnail preview (pattern line)
             thumb = render_thumbnail(p['pattern_dxdy'], p['pattern_y0'])
             thumb_label = QLabel()
             thumb_label.setPixmap(thumb)
             thumb_label.setAlignment(Qt.AlignCenter)
-            self._table.setCellWidget(i, 5, thumb_label)
+            self._table.setCellWidget(i, 7, thumb_label)
 
     def _on_cell_double_clicked(self, row: int, _col: int):
         """Open detail dialog for the double-clicked pattern."""
@@ -1156,7 +1584,8 @@ class StitchPatternTool(QMainWindow):
                 dlg = RefTableDetailDialog(p, self)
             else:
                 dlg = PatternDetailDialog(self._patterns, row, self)
-            dlg.exec_()
+            dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+            dlg.show()
 
     def _on_save_json(self):
         """Save parsed patterns to a JSON file, with dxdy as signed ints."""
@@ -1192,12 +1621,21 @@ class StitchPatternTool(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Save Error", str(e))
 
+    def _open_byte_stats(self):
+        """Open the byte statistics dialog for para_raw."""
+        if not self._patterns:
+            return
+        dlg = ByteStatsDialog(self._patterns, self._bilder_data, self)
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+        dlg.show()
+
     def _open_hex_browser(self):
         """Open the hex file browser for PCDKOOR3.MUF."""
         if not self._koor_data or not self._patterns:
             return
         browser = HexFileBrowser(self._koor_data, self._patterns, self)
-        browser.exec_()
+        browser.setAttribute(Qt.WA_DeleteOnClose, True)
+        browser.show()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
