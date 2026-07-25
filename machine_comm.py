@@ -780,13 +780,13 @@ class MachineComm:
             ``PN<xx><yy><zzzz><hhhhhhhh>`` + CTRL_ETB + 2-hex checksum + CTRL_ETX
             where xx = slot index (hex), yy = stitch-type byte (00 = 9mm, 01 = MAXI),
             zzzz = expected machine-side storage size (hex), hhhhhhhh = additional header info (hex).
-        Phase 2 - Stitch data (split into chunk_size-byte chunks):
-            chunk + CTRL_ETB + 2-hex checksum
-            last chunk has CTRL_ETX appended after the checksum.
-            CTRL_EOT is sent after the last chunk to signal end of transmission.
+        Phase 2 - Stitch data (single frame, not chunked):
+            stitch_data + CTRL_ETB + 2-hex checksum + CTRL_ETX.
+            The write is split into ≤100-byte pieces solely for progress reporting;
+            the machine sees the full frame as one transmission.
 
-        The machine must reply with CTRL_ENQ after write command, 
-        and CTRL_ACK after every chunk.
+        The machine must reply with CTRL_ENQ after write command,
+        and CTRL_ACK after the stitch data frame.
 
         Args:
             slot_index (int): 0-based slot number to write to.
@@ -838,37 +838,40 @@ class MachineComm:
                     _tr("Unexpected response 0x{0} after write command.").format(f"{resp[0]:02X}")
                 )
 
-            # ── Phase 2: stitch data chunks ────────────────────────────────
+            # ── Phase 2: stitch data (single frame, no chunking) ──────────
+            # The 1475 CD expects the entire stitch data in one frame
+            # terminated by CTRL_ETB + checksum + CTRL_ETX.
+            # Split _serial.write into ≤100-byte writes solely for progress reporting.
+            data_cs = self.checksum(stitch_data)
+            frame = stitch_data + bytes([self.CTRL_ETB]) + f"{data_cs:02X}".encode('ascii') + bytes([self.CTRL_ETX])
             total = len(stitch_data)
-            for offset in range(0, total, chunk_size):
-                chunk = stitch_data[offset:offset + chunk_size]
-                cs = self.checksum(chunk)
-                is_last_chunk = (offset + chunk_size) >= total
 
-                self._log_info(
-                    f"send_pmemory_slot(slot_index={slot_index}) - write chunk {offset // chunk_size + 1}"
-                )
+            self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write stitch data")
 
-                self._serial.write(
-                    chunk
-                    + bytes([self.CTRL_ETB])
-                    + f"{cs:02X}".encode('ascii')
-                    + (bytes([self.CTRL_ETX]) if is_last_chunk else b'')
-                )
-                resp = self._serial.read(1)
-                if not resp:
-                    raise MachineCommError(
-                        _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
-                            offset // chunk_size + 1)
-                    )
-                if resp[0] == self.CTRL_NAK:
-                    raise MachineCommError(_tr("Machine rejected a stitch data chunk."))
-                if resp[0] != self.CTRL_ACK:
-                    raise MachineCommError(
-                        _tr("Unexpected response 0x{0} during stitch data transfer.").format(f"{resp[0]:02X}")
-                    )
+            for offset in range(0, len(frame), 100):
+                piece = frame[offset:offset + 100]
+                time.sleep(0.01)  # slight delay to avoid overwhelming the machine
+                self._serial.write(piece)
                 if progress_callback is not None:
-                    progress_callback(min(offset + chunk_size, total), total)
+                    # Progress based on stitch_data bytes written so far
+                    done = min(offset, total)
+                    progress_callback(done, total)
+
+            # Final progress: all stitch_data has been sent
+            if progress_callback is not None:
+                progress_callback(total, total)
+
+            resp = self._serial.read(1)
+            if not resp:
+                raise MachineCommError(
+                    _tr("Timeout waiting for acknowledgement after stitch data.")
+                )
+            if resp[0] == self.CTRL_NAK:
+                raise MachineCommError(_tr("Machine rejected the stitch data."))
+            if resp[0] != self.CTRL_ACK:
+                raise MachineCommError(
+                    _tr("Unexpected response 0x{0} after stitch data.").format(f"{resp[0]:02X}")
+                )
         finally:
             self._serial.timeout = saved_timeout
 
@@ -2335,9 +2338,13 @@ class MachineComm:
                 _tr("Invalid free memory encoding: {0}").format(repr(text[offset:offset + 4]))
             ) from exc
 
+        # Original SW shows 1 byte less than machine reports on 75xx models, reason unknown.
+        # The 1475 CD does not need this adjustment.
+        adjusted_free = free_memory if "1475" in machine_model else free_memory - 1
+
         return {
             'num_slots': num_slots,
-            'free_memory': free_memory-1, # Original SW shows 1 byte less than machine reports, reason unknown
+            'free_memory': adjusted_free,
             'slots': slots,
         }
 
