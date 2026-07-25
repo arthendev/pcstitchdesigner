@@ -470,7 +470,7 @@ class PMemoryDialog(QDialog):
             self.reject()
             QMessageBox.critical(
                 self.parent(),
-                "Error",
+                self.tr("Error"),
                 str(exc),
             )
             return
