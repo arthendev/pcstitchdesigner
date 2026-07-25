@@ -46,6 +46,13 @@ class MainWindow(QMainWindow):
         # Machine communication
         self._machine_comm = MachineComm()
 
+        # Enable logging at startup if the preference is set, so file
+        # operations are logged even when no machine connection is open.
+        if self._config.get("log_communication", False):
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+            log_dir = os.path.join(base_dir, "logs")
+            self._machine_comm.enable_logging(log_dir)
+
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of (x, y) tuples copied from selection
@@ -1100,6 +1107,7 @@ class MainWindow(QMainWindow):
     def _file_new(self):
         if not self._confirm_discard():
             return
+        self._machine_comm._log_info("New file created")
         self._pattern.clear()
         self._canvas.set_selected_point(None)
         self._file_path = None
@@ -1157,6 +1165,7 @@ class MainWindow(QMainWindow):
 
     def _open_file(self, path):
         """Open a file and add it to recent files list."""
+        self._machine_comm._log_info(f"File opened: {path}")
         try:
             pattern = file_io.load_pattern(path)
         except Exception as e:
@@ -1244,6 +1253,7 @@ class MainWindow(QMainWindow):
 
     def _file_save(self):
         if self._file_path:
+            self._machine_comm._log_info(f"File saved: {self._file_path}")
             try:
                 file_io.save_pattern(self._file_path, self._pattern)
             except Exception as e:
