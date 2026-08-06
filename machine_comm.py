@@ -329,6 +329,7 @@ class MachineComm:
         ("7560",   "PFAFF Creative 7560"),
         ("7550 CD","PFAFF Creative 7550"),
         ("1475 CD","PFAFF Creative 1475 CD"),
+        ("1475A",  "PFAFF Creative 1475 CD"),
     ]
 
     def query_machine(self, retries=15, retry_delay=0.05, timeout=1.0):
