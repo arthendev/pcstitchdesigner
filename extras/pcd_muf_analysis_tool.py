@@ -22,6 +22,7 @@ Format:
 import sys
 import os
 import json
+import struct
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -44,6 +45,37 @@ THUMB_W, THUMB_H = 210, 48
 
 # Coordinate pairs to skip when drawing (unsigned byte values)
 _SKIP_PAIRS = {(0x00, 0x48), (0x00, 0x42)}
+
+# ── Alphabet character maps for sub-pattern export ──
+# First 90 sub-patterns → "script" (uppercase + symbols + lowercase)
+_SCRIPT_CHARS = list(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÅÆØŒ"
+    ".,_-?!0123456789"
+    "abcdefghijklmnopqrstuvwxyzäöüåæøœß"
+    "éè`^\"°~"
+)
+# Next 3×49 sub-patterns → "block", "outline", "cursive"
+_BLOCK_CHARS = list("ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜÅÆØŒ.,_-?!0123456789")
+
+# Descriptive words for special characters used in filenames
+_FILENAME_SAFE = {
+    '?': 'question_mark',
+    '!': 'exclamation_mark',
+    '.': 'dot',
+    ',': 'comma',
+    '"': 'quotation_mark',
+    '\u00b0': 'degree',   # °
+    '~': 'tilde',
+    '`': 'backtick',
+    '^': 'caret',
+    '_': 'underscore',
+    '-': 'dash',
+}
+
+
+def _safe_char(ch: str) -> str:
+    """Return a filename-safe version of *ch*."""
+    return _FILENAME_SAFE.get(ch, ch)
 
 
 def render_thumbnail(dxdy_bytes: list[int], pattern_y0: int) -> QPixmap:
@@ -1290,6 +1322,81 @@ class HexFileBrowser(QDialog):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# PCD/PCQ binary export (simplified from file_io.save_pattern)
+# ═══════════════════════════════════════════════════════════════════════════
+
+HEADER_FMT = '<BBH'       # magic(1) + stitch_type(1) + color_count(2) = 4 bytes
+POINT_FMT = '<B3sB3sB'    # c0(1) + x(3 LE) + c1(1) + y(3 LE) + control(1) = 9 bytes
+
+
+def save_pattern_binary(path, points, stitch_type):
+    """Save absolute (x,y) integer points as a PCD/PCQ binary file.
+
+    Args:
+        path: output file path.
+        points: list of (x, y) integer tuples in stitch coordinates.
+        stitch_type: "9mm" (→ .pcd) or "MAXI" (→ .pcq).
+    """
+    if stitch_type == "9mm":
+        stitch_type_byte = 0x00
+    elif stitch_type in ("MAXI", "9mm+"):
+        stitch_type_byte = 0x01
+    else:
+        raise ValueError(f"Unsupported stitch type: {stitch_type}")
+
+    with open(path, 'wb') as f:
+        # Header: magic, stitch_type, color_count (always 0 — no palette)
+        f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, 0))
+        # No colors written (color_count == 0)
+        # Element record count
+        f.write(struct.pack('<H', len(points)))
+        # Element records — all ELEM_STITCH (control_byte 0x00)
+        for x, y in points:
+            x_int, y_int = int(x), int(y)
+            # Coordinates are integers, so fractional c0/c1 are zero
+            f.write(struct.pack(POINT_FMT,
+                                0, x_int.to_bytes(3, 'little'),
+                                0, y_int.to_bytes(3, 'little'),
+                                0x00))
+
+
+def _compute_absolute_points(dxdy_bytes, pattern_y0):
+    """Convert signed dx/dy bytes into a list of absolute (x, y) integer points.
+
+    Starts from (0, pattern_y0).  Skips the same coordinate pairs that the
+    renderer skips (0x00/0x48 and 0x00/0x42 — colour-change sentinels).
+    """
+    if not dxdy_bytes:
+        return []
+    signed = [b if b < 128 else b - 256 for b in dxdy_bytes]
+    x, y = 0.0, float(pattern_y0)
+    points = [(x, y)]
+    for i in range(0, len(signed) - 1, 2):
+        dx_s, dy_s = signed[i], signed[i + 1]
+        # Convert back to unsigned for skip-pair check
+        dx_u = dx_s if dx_s >= 0 else dx_s + 256
+        dy_u = dy_s if dy_s >= 0 else dy_s + 256
+        if (dx_u, dy_u) in _SKIP_PAIRS:
+            continue
+        x += dx_s
+        y += dy_s
+        points.append((x, y))
+    return points
+
+
+def _translate_points(points):
+    """Translate x so min(x)==0.  If any y is negative, shift so min(y)==0."""
+    if not points:
+        return []
+    min_x = min(p[0] for p in points)
+    points = [(x - min_x, y) for x, y in points]
+    min_y = min(p[1] for p in points)
+    if min_y < 0:
+        points = [(x, y - min_y) for x, y in points]
+    return points
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Main window
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1391,6 +1498,14 @@ class StitchPatternTool(QMainWindow):
         self._stats_btn.clicked.connect(self._open_byte_stats)
         action_row.addWidget(self._stats_btn)
 
+        self._export_btn = QPushButton("💾  Export All to PCD/PCQ")
+        self._export_btn.setEnabled(False)
+        self._export_btn.clicked.connect(self._on_export_pcd_pcq)
+        self._export_btn.setStyleSheet(
+            "QPushButton { font-weight: bold; padding: 8px 24px; }"
+        )
+        action_row.addWidget(self._export_btn)
+
         action_row.addStretch()
         root.addLayout(action_row)
 
@@ -1453,6 +1568,28 @@ class StitchPatternTool(QMainWindow):
 
     # ── Slots ─────────────────────────────────────────────────────────
 
+    def _auto_set_sibling_muf_files(self, chosen_path):
+        """When one MUF file is selected, auto-detect the other two in the same directory."""
+        parent_dir = Path(chosen_path).parent
+
+        para = parent_dir / "PCDPARA3.MUF"
+        koor = parent_dir / "PCDKOOR3.MUF"
+        bilder = parent_dir / "BILDER.MUF"
+
+        if not self._para_path and para.is_file():
+            self._para_path = str(para)
+            self._para_label.setText(str(para))
+
+        if not self._koor_path and koor.is_file():
+            self._koor_path = str(koor)
+            self._koor_label.setText(str(koor))
+
+        if not self._bilder_path and bilder.is_file():
+            self._bilder_path = str(bilder)
+            self._bilder_label.setText(str(bilder))
+
+        self._update_parse_button()
+
     def _browse_para(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Index File (PCDPARA3.MUF)", "",
@@ -1461,7 +1598,7 @@ class StitchPatternTool(QMainWindow):
         if path:
             self._para_path = path
             self._para_label.setText(path)
-            self._update_parse_button()
+            self._auto_set_sibling_muf_files(path)
 
     def _browse_koor(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -1471,7 +1608,7 @@ class StitchPatternTool(QMainWindow):
         if path:
             self._koor_path = path
             self._koor_label.setText(path)
-            self._update_parse_button()
+            self._auto_set_sibling_muf_files(path)
 
     def _browse_bilder(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -1481,6 +1618,7 @@ class StitchPatternTool(QMainWindow):
         if path:
             self._bilder_path = path
             self._bilder_label.setText(path)
+            self._auto_set_sibling_muf_files(path)
 
     def _update_parse_button(self):
         self._parse_btn.setEnabled(bool(self._para_path) and bool(self._koor_path))
@@ -1503,6 +1641,7 @@ class StitchPatternTool(QMainWindow):
         self._save_btn.setEnabled(True)
         self._hex_btn.setEnabled(True)
         self._stats_btn.setEnabled(True)
+        self._export_btn.setEnabled(True)
         self._info_label.setText(
             f"Parsed {len(self._patterns)} patterns  —  "
             f"Double-click a row for details."
@@ -1620,6 +1759,102 @@ class StitchPatternTool(QMainWindow):
             QMessageBox.information(self, "Saved", f"JSON written to:\n{path}")
         except Exception as e:
             QMessageBox.critical(self, "Save Error", str(e))
+
+    # ── Sub-pattern indices that contain alphabets (reference tables) ──
+    # All five (197-201) reference the same subpattern list, so we export
+    # only once, splitting them by logical meaning.
+    _SUB_PATTERN_INDICES = {197, 198, 199, 200, 201}
+
+    def _on_export_pcd_pcq(self):
+        """Export all stitch patterns as individual PCD (9mm) or PCQ (MAXI) files.
+
+        Shows a directory picker; the user chooses an output folder.
+        Regular patterns → Nxxx.pcd / Nxxx.pcq in the root.
+        Sub-patterns from the first ref-table entry (197–201) are split into
+        four subdirectories: script (90 chars), block/outline/cursive (49 chars each).
+        """
+        out_dir = QFileDialog.getExistingDirectory(
+            self, "Select Output Directory for PCD/PCQ Export"
+        )
+        if not out_dir:
+            return
+
+        exported = 0
+        errors = []
+
+        # ── Find the first ref-table entry among 197-201 (all share same data) ──
+        ref_entry = None
+        for p in self._patterns:
+            if p.get('is_ref_table') and p['index'] in self._SUB_PATTERN_INDICES:
+                ref_entry = p
+                break
+
+        # ── Regular patterns (skip ref-table entries and already-exported sub data) ──
+        for p in self._patterns:
+            idx = p['index']
+            if p.get('is_ref_table'):
+                continue  # handled below
+            try:
+                points = _compute_absolute_points(
+                    p['pattern_dxdy'], p['pattern_y0'])
+                if not points:
+                    continue
+                points = _translate_points(points)
+                stype = p.get('stitch_type', 'MAXI')
+                ext = 'pcd' if stype == '9mm' else 'pcq'  # 9mm+ → pcq
+                fname = f"N{idx:03d}.{ext}"
+                fpath = os.path.join(out_dir, fname)
+                save_pattern_binary(fpath, points, stype)
+                exported += 1
+            except Exception as exc:
+                errors.append(f"  Pattern #{idx}: {exc}")
+
+        # ── Sub-patterns: split the single sublist into four logical groups ──
+        if ref_entry and ref_entry.get('sublist'):
+            sub_all = ref_entry['sublist']
+            groups = [
+                ("script",   sub_all[0:90],        _SCRIPT_CHARS),
+                ("block",    sub_all[90:139],       _BLOCK_CHARS),
+                ("outline",  sub_all[139:188],      _BLOCK_CHARS),
+                ("cursive",  sub_all[188:237],      _BLOCK_CHARS),
+            ]
+            for group_name, subs, char_list in groups:
+                sub_dir = os.path.join(out_dir, group_name)
+                os.makedirs(sub_dir, exist_ok=True)
+                for i, sp in enumerate(subs):
+                    try:
+                        points = _compute_absolute_points(
+                            sp['pattern_dxdy'], sp['pattern_y0'])
+                        if not points:
+                            continue
+                        points = _translate_points(points)
+                        _, _, stype = compute_span_and_type(
+                            sp['pattern_dxdy'], sp['pattern_y0'])
+                        ext = 'pcd' if stype == '9mm' else 'pcq'  # 9mm+ → pcq
+                        ch = _safe_char(char_list[i]) if i < len(char_list) else str(i)
+                        fname = f"{group_name}_{i:03d}_{ch}.{ext}"
+                        fpath = os.path.join(sub_dir, fname)
+                        save_pattern_binary(fpath, points, stype)
+                        exported += 1
+                    except Exception as exc:
+                        errors.append(
+                            f"  {group_name}[{i}]: {exc}")
+
+        if errors:
+            QMessageBox.warning(
+                self, "Export completed with errors",
+                f"Exported {exported} file(s) to:\n{out_dir}\n\n"
+                f"Errors ({len(errors)}):\n" + "\n".join(errors[:20])
+            )
+        else:
+            QMessageBox.information(
+                self, "Export complete",
+                f"Successfully exported {exported} file(s) to:\n{out_dir}"
+            )
+        self.status_bar.showMessage(
+            f"Exported {exported} pattern(s) to {out_dir}" +
+            (f" ({len(errors)} errors)" if errors else "")
+        )
 
     def _open_byte_stats(self):
         """Open the byte statistics dialog for para_raw."""
