@@ -12,14 +12,14 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 
 ## Available Features
 
-- Creating custom stitch patterns ("P-Designs", both 9mm and MAXI-stiches)
+- Creating custom stitch patterns ("P-Designs", both 9mm and MAXI-stitches)
 - Import and export from/to stitch file formats:
   - *.PCD (9 mm stitches)
   - *.PCQ (MAXI stitches)
 - Transfer stitch patterns to and from supported sewing machines
   - PFAFF Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
   - PFAFF Creative 7550
-  - PFAFF Creative 1475 CD (not tested yet or real hardware)
+  - PFAFF Creative 1475 CD (limited to 9mm patterns only)
 - Compatibility with modern 64-bit operating systems
 - App interface is available in English and German
 
@@ -27,6 +27,7 @@ It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software
 
 - Compatible sewing machine
   - PFAFF Creative 7570, 7550 or 1475 CD
+  - machines identifying as 1475**A** are not yet supported
 - Interface cable
   - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
@@ -52,6 +53,7 @@ The following features are planned for future releases:
   - Loading embroidery design files (already done)
   - Transferring embroidery designs to and from the sewing machine
   - Support for PFAFF Creative 7560
+- Rework of keyboard shortcuts
 
 ## Donations
 
