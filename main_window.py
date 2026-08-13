@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
             base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
             log_dir = os.path.join(base_dir, "logs")
             self._machine_comm.enable_logging(log_dir)
+            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} starting")
 
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
