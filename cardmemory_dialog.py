@@ -35,7 +35,7 @@ class CardMemoryDialog(QDialog):
 
     Args:
         card_info (dict): Card information as returned by
-            :meth:`MachineComm.query_card_index`::
+            `MachineComm.query_card_index`::
 
                 {
                     'card_no':   int,
@@ -45,7 +45,7 @@ class CardMemoryDialog(QDialog):
                 }
 
         patterns (list[dict]): Preview data for each pattern, as returned by
-            :meth:`MachineComm.query_card_preview`::
+            `MachineComm.query_card_preview`::
 
                 {
                     'name':         str,
@@ -240,7 +240,7 @@ class CardMemoryDialog(QDialog):
         Checks the class-level cache keyed by card number and per-type
         counts.  On a cache miss, loads all preview images from the machine
         (slow) and caches the result.  Exceptions from
-        :meth:`MachineComm.query_card_preview` propagate to the caller.
+        `MachineComm.query_card_preview` propagate to the caller.
         """
         n_total = (card_info['n_9mm'] + card_info['n_maxi'] + card_info['n_embr'])
         if n_total == 0:
@@ -438,15 +438,15 @@ class CardMemoryDialog(QDialog):
     def _do_load(self, pattern):
         """Load stitch data from a memory card slot.
 
-        Computes the absolute card slot from the pattern's slot index and the
-        type-specific offset stored in ``self._card_info``, then calls
-        :meth:`MachineComm.load_card_slot`.  On success the raw payload is
+        Uses the absolute card slot stored in the pattern dict — the
+        ``'slot'`` value returned by `MachineComm.query_card_preview`
+        already includes the type offset — then calls
+        `MachineComm.load_card_slot`.  On success the raw payload is
         stored in ``self.loaded_points`` / ``self.loaded_slot_type`` and the
         dialog is accepted so the caller can retrieve the data.
         """
-        ptype    = pattern['pattern_type']
-        offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
-        card_slot = pattern['slot'] + self._card_info.get(offs_map.get(ptype, ''), 0)
+        ptype = pattern['pattern_type']
+        card_slot = pattern['slot']
 
         self._loading = True
         self._close_btn.setEnabled(False)
@@ -532,7 +532,7 @@ class CardMemoryDialog(QDialog):
         Workflow:
 
         1. Ask the user to confirm.
-        2. Send KL command via :meth:`MachineComm.delete_card_slot`.
+        2. Send KL command via `MachineComm.delete_card_slot`.
         3. On CTRL_NAK / error → show error message, close dialog.
         4. On CTRL_ACK → re-query card index.
         5. If counts match expectations (card_no same, deleted type count -1,
@@ -559,15 +559,13 @@ class CardMemoryDialog(QDialog):
         slot_byte = pattern['slot']
 
         # ── 2. Send KL delete command ────────────────────────────────────
-        # Use the card-type offset from the card index to compute the
-        # physical slot on the card (slots are reported relative to the
-        # type's offset in the index).  This ensures we delete the correct
-        # absolute slot on the machine.
-        offs_map = {'9mm': 'offs_9mm', 'MAXI': 'offs_maxi', 'Embroidery': 'offs_embr'}
-        card_slot = slot_byte + old_card_info.get(offs_map.get(ptype, ''), 0)
+        # ``pattern['slot']`` is the absolute slot as returned by
+        # query_card_preview() — the type offset is already included, so it
+        # must be passed through unchanged (adding it again would address the
+        # wrong physical slot).
         try:
             self._comm.delete_card_slot(
-                self._card_info['card_no_bytes'], card_slot, ptype
+                self._card_info['card_no_bytes'], slot_byte, ptype
             )
         except (MachineCommError, Exception) as exc:
             self._comm._log_error(str(exc))
@@ -708,7 +706,7 @@ class CardMemoryDialog(QDialog):
 
         Args:
             preview_hex (str): Hex-encoded payload from
-                :meth:`MachineComm.query_card_preview`.
+                `MachineComm.query_card_preview`.
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
             is_embroidery (bool): True when the pattern is an Embroidery type.
 
