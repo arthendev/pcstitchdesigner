@@ -2574,6 +2574,11 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._confirm_discard():
+            # Close the serial port and flush/close the communication log
+            # (disable_logging -> _CommLogger.close) so buffered bytes are
+            # written to disk and the log file is not left open on shutdown.
+            self._machine_comm.close()
+            self._machine_comm.disable_logging()
             # Save configuration before closing
             self._config.save()
             event.accept()
