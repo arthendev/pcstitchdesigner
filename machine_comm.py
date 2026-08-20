@@ -20,17 +20,14 @@ class MachineCommError(Exception):
 
 
 class _CommLogger:
-    """Buffered direction-aware communication logger.
+    """Direction-aware communication logger.
 
-    Accumulates bytes sent in one direction and flushes a timestamped line
-    whenever the direction changes or the logger is closed.
+    Writes a timestamped line immediately for every logged transfer or message.
     """
 
     def __init__(self, log_dir):
         self._file = None
         self._log_dir = log_dir
-        self._current_direction = None  # 'send' or 'receive'
-        self._buffer = bytearray()
 
     def _ensure_file(self):
         if self._file is None:
@@ -39,40 +36,29 @@ class _CommLogger:
             filename = f"log_{timestamp}.txt"
             self._file = open(os.path.join(self._log_dir, filename), "w", encoding="utf-8")
 
-    def _flush(self):
-        if self._buffer and self._current_direction is not None:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            arrow = "->" if self._current_direction == "send" else "<-"
-            hex_bytes = " ".join(f"{b:02X}" for b in self._buffer)
-            self._file.write(f"[{ts}] {arrow} {hex_bytes}\n")
-            self._file.flush()
-            self._buffer.clear()
+    def _write_transfer(self, arrow, data):
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        hex_bytes = " ".join(f"{b:02X}" for b in data)
+        self._file.write(f"[{ts}] {arrow} {hex_bytes}\n")
+        self._file.flush()
 
     def log_send(self, data):
         self._ensure_file()
-        if self._current_direction == "receive":
-            self._flush()
-        self._current_direction = "send"
-        self._buffer.extend(data)
+        self._write_transfer("->", data)
 
     def log_receive(self, data):
         self._ensure_file()
-        if self._current_direction == "send":
-            self._flush()
-        self._current_direction = "receive"
-        self._buffer.extend(data)
+        self._write_transfer("<-", data)
 
     def log_info(self, message):
-        """Write a high-level info line, flushing any pending data first."""
+        """Write a high-level info line."""
         self._ensure_file()
-        self._flush()
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         self._file.write(f"[{ts}] ## {message}\n")
         self._file.flush()
 
     def close(self):
         if self._file is not None:
-            self._flush()
             self._file.close()
             self._file = None
 
@@ -80,13 +66,24 @@ class _CommLogger:
 class _LoggedSerial:
     """Wraps a ``serial.Serial`` to transparently log all reads and writes."""
 
-    def __init__(self, serial_port, logger):
+    def __init__(self, serial_port, logger, byte_delay=None):
         self._serial = serial_port
         self._logger = logger
+        self._byte_delay = byte_delay
+
+    def set_byte_delay(self, byte_delay):
+        """Update the inter-byte delay (seconds, or None) applied on write."""
+        self._byte_delay = byte_delay
 
     def write(self, data):
-        self._logger.log_send(bytes(data))
-        return self._serial.write(data)
+        data = bytes(data)
+        self._logger.log_send(data)  # log the whole transfer as one entry
+        if self._byte_delay is None:
+            return self._serial.write(data)
+        for i, byte in enumerate(data):
+            self._serial.write(bytes([byte]))
+            if i < len(data) - 1:
+                time.sleep(self._byte_delay)
 
     def read(self, size=1):
         data = self._serial.read(size)
@@ -104,7 +101,7 @@ class _LoggedSerial:
         return getattr(self._serial, name)
 
     def __setattr__(self, name, value):
-        if name in ("_serial", "_logger"):
+        if name in ("_serial", "_logger", "_byte_delay"):
             object.__setattr__(self, name, value)
         else:
             setattr(self._serial, name, value)
@@ -136,6 +133,9 @@ class MachineComm:
         self._logger = None
         self._log_enabled = False
         self._log_dir = None
+        self._byte_delay = None  # seconds between bytes, or None for no delay
+        self._command_delay = None  # seconds between commands, or None for no delay
+        self._machine_model = ""  # configured machine model name
 
     # Class-level reference for static methods that need to log errors.
     _active_logger = None
@@ -221,7 +221,10 @@ class MachineComm:
         )
 
         if self._log_enabled and self._log_dir:
-            self._serial = _LoggedSerial(self._serial, self._logger)
+            self._serial = _LoggedSerial(
+                self._serial, self._logger,
+                self._byte_delay if self._is_1475() else None,
+            )
             MachineComm._active_logger = self._logger
 
     def close(self):
@@ -241,6 +244,11 @@ class MachineComm:
     def send(self, data):
         """Send a raw byte array to the machine.
 
+        Applies the configured inter-byte delay for 1475 machines. When
+        logging is active the wrapped serial logs the transfer as a single
+        entry and applies the delay itself; otherwise the delay is applied
+        here.
+
         Args:
             data (bytes | bytearray): Data to transmit.
 
@@ -248,7 +256,58 @@ class MachineComm:
             serial.SerialException: If the port is not open or a write error occurs.
         """
         self._require_open()
-        self._serial.write(data)
+        self._apply_command_delay()
+        if isinstance(self._serial, _LoggedSerial):
+            # _LoggedSerial.write logs the full transfer once and applies the delay.
+            self._serial.write(data)
+            return
+        if not self._is_1475() or self._byte_delay is None:
+            self._serial.write(data)
+            return
+        data = bytes(data)
+        for i, byte in enumerate(data):
+            self._serial.write(bytes([byte]))
+            if i < len(data) - 1:
+                time.sleep(self._byte_delay)
+
+    def set_byte_delay(self, delay_ms):
+        """Configure the inter-byte transmission delay.
+
+        Args:
+            delay_ms (float | None): Delay between consecutive bytes in
+                milliseconds, or None to disable the delay.
+        """
+        self._log_info(f"set_byte_delay(delay_ms={delay_ms})")
+        self._byte_delay = (delay_ms / 1000.0) if delay_ms is not None else None
+        if isinstance(self._serial, _LoggedSerial):
+            self._serial.set_byte_delay(self._byte_delay if self._is_1475() else None)
+
+    def set_command_delay(self, delay_ms):
+        """Configure the inter-command transmission delay.
+
+        Args:
+            delay_ms (float | None): Delay before each command in milliseconds,
+                or None to disable the delay.
+        """
+        self._log_info(f"set_command_delay(delay_ms={delay_ms})")
+        self._command_delay = (delay_ms / 1000.0) if delay_ms is not None else None
+
+    def set_machine_model(self, model):
+        """Record which machine model is currently in use.
+
+        Args:
+            model (str): Machine model name from configuration.
+        """
+        self._machine_model = model or ""
+
+    def _is_1475(self):
+        """Return True if the machine in use is a PFAFF Creative 1475 CD."""
+        return "1475" in self._machine_model
+
+    def _apply_command_delay(self):
+        """Sleep for the configured inter-command delay, if enabled for 1475 machines."""
+        if self._is_1475() and self._command_delay is not None:
+            time.sleep(self._command_delay)
 
     def read(self, size=None):
         """Read bytes from the receive buffer.
@@ -369,7 +428,7 @@ class MachineComm:
         try:
             self.flush()
             for attempt in range(retries):
-                self._serial.write(bytes([self.CTRL_BEL]))
+                self.send(bytes([self.CTRL_BEL]))
 
                 # Check how many bytes are available to read after the response delay
                 time.sleep(retry_delay)  # Wait briefly for the machine to respond
@@ -411,7 +470,7 @@ class MachineComm:
                 }
 
             # No response after all retries — signal the machine to abort
-            self._serial.write(bytes([self.CTRL_EOT]))
+            self.send(bytes([self.CTRL_EOT]))
             self._log_error("Machine not responding after all retries")
             raise MachineCommError(
                 # f"No response from machine after {retries} attempt(s)."
@@ -443,7 +502,7 @@ class MachineComm:
         """Send CTRL_EOT to signal end of session and close the serial port."""
         if self._serial and self._serial.is_open:
             try:
-                self._serial.write(bytes([self.CTRL_EOT]))
+                self.send(bytes([self.CTRL_EOT]))
             except Exception:
                 pass
         self.close()
@@ -475,7 +534,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(b"PI" + bytes([self.CTRL_ETX]))
+            self.send(b"PI" + bytes([self.CTRL_ETX]))
 
             data = self._serial.read_until(expected=bytes([self.CTRL_ETB]))
             if not data or data[-1] != self.CTRL_ETB:
@@ -489,7 +548,7 @@ class MachineComm:
                     _tr("Timeout waiting for P-Memory checksum bytes.")
                 )
 
-            self._serial.write(bytes([self.CTRL_ACK]))
+            self.send(bytes([self.CTRL_ACK]))
             return data + checksum_bytes
         finally:
             self._serial.timeout = saved_timeout
@@ -517,7 +576,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             cmd = f"PL{slot_index:02X}".encode('ascii') + bytes([self.CTRL_ETX])
-            self._serial.write(cmd)
+            self.send(cmd)
 
             response = self._serial.read(1)
             if not response:
@@ -568,7 +627,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             cmd = f"RM06{slot_index:02X}{type_char}".encode('ascii') + bytes([self.CTRL_ETX])
-            self._serial.write(cmd)
+            self.send(cmd)
 
             # First byte: NAK means invalid request, otherwise start of first chunk
             first = self._serial.read(1)
@@ -610,7 +669,7 @@ class MachineComm:
                 payload = bytes(chunk_payload)
                 expected_cs = self.checksum(payload)
                 if received_cs != expected_cs:
-                    self._serial.write(bytes([self.CTRL_NAK]))
+                    self.send(bytes([self.CTRL_NAK]))
                     raise MachineCommError(
                         _tr("Chunk checksum mismatch: expected {0}, got {1}").format(
                             f"{expected_cs:02X}", f"{received_cs:02X}")
@@ -619,8 +678,9 @@ class MachineComm:
                 receive_buffer.extend(payload)
                 if progress_callback is not None:
                     progress_callback(len(receive_buffer), total_size)
-                self._serial.write(bytes([self.CTRL_ACK]))
+                self.send(bytes([self.CTRL_ACK]))
 
+                
                 # After ACK, read the first byte of the next chunk.
                 # CTRL_ETX means the machine has no more data.
                 next_b = self._serial.read(1)
@@ -634,7 +694,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None, byte2_override=None):
         """Dispatch to the appropriate send method based on machine_model.
         """
 
@@ -642,8 +702,9 @@ class MachineComm:
 
         if "1475" in machine_model:
             self.send_pmemory_slot_1475cd(slot_index, pattern,
-                                          chunk_size=chunk_size, timeout=timeout,
-                                          progress_callback=progress_callback)
+                                          timeout=timeout,
+                                          progress_callback=progress_callback,
+                                          byte2_override=byte2_override)
         else:
             self.send_pmemory_slot_75xx(slot_index, pattern,
                                         chunk_size=chunk_size, timeout=timeout,
@@ -698,7 +759,7 @@ class MachineComm:
 
             self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write command")
 
-            self._serial.write(
+            self.send(
                 cmd_payload
                 + bytes([self.CTRL_ETB])
                 + f"{cs:02X}".encode('ascii')
@@ -722,7 +783,7 @@ class MachineComm:
 
             self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write header")
 
-            self._serial.write(
+            self.send(
                 header
                 + bytes([self.CTRL_ETB])
                 + f"{cs:02X}".encode('ascii')
@@ -751,7 +812,7 @@ class MachineComm:
                     f"send_pmemory_slot(slot_index={slot_index}) - write chunk {offset // chunk_size + 1}"
                 )
 
-                self._serial.write(
+                self.send(
                     chunk
                     + bytes([self.CTRL_ETB])
                     + f"{cs:02X}".encode('ascii')
@@ -774,7 +835,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot_1475cd(self, slot_index, pattern, timeout=1.0, progress_callback=None, byte2_override=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -796,6 +857,7 @@ class MachineComm:
             timeout (float): Per-response read timeout in seconds. Default: 1.0.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable
                 called after each stitch-data chunk is acknowledged.
+            byte2_override: Optional int for experimental byte[2] override (MAXI only).
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -813,7 +875,7 @@ class MachineComm:
             expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
 
             # ── Phase 1: write command with header ─────────────────────────
-            header = self.encode_pmemory_header_1475cd(pattern, final_points)
+            header = self.encode_pmemory_header_1475cd(pattern, final_points, byte2_override=byte2_override)
             cmd_payload = (
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii') + header
@@ -821,7 +883,7 @@ class MachineComm:
 
             self._log_info(f"send_pmemory_slot(slot_index={slot_index}) - write command")
 
-            self._serial.write(
+            self.send(
                 cmd_payload
                 + bytes([self.CTRL_ETB])
                 + f"{cs:02X}".encode('ascii')
@@ -851,8 +913,8 @@ class MachineComm:
 
             for offset in range(0, len(frame), 100):
                 piece = frame[offset:offset + 100]
-                time.sleep(0.01)  # slight delay to avoid overwhelming the machine
-                self._serial.write(piece)
+                time.sleep(0.001)  # slight delay to avoid overwhelming the machine
+                self.send(piece)
                 if progress_callback is not None:
                     # Progress based on stitch_data bytes written so far
                     done = min(offset, total)
@@ -919,7 +981,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(b"KI" + bytes([self.CTRL_ETX]))
+            self.send(b"KI" + bytes([self.CTRL_ETX]))
 
             # First byte tells us whether a card is present
             first = self._serial.read(1)
@@ -1115,7 +1177,7 @@ class MachineComm:
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
-            self._serial.write(cmd)
+            self.send(cmd)
 
             name = ''
             size = 0
@@ -1188,10 +1250,10 @@ class MachineComm:
                     name = name_raw.rstrip(b'\x00').decode('latin-1', errors='replace')
                     size = int.from_bytes(size_bytes, 'big')
                     all_payload.extend(chunk_payload)
-                    self._serial.write(bytes([self.CTRL_ACK]))
+                    self.send(bytes([self.CTRL_ACK]))
                     break
                 else:
-                    self._serial.write(bytes([self.CTRL_NAK]))
+                    self.send(bytes([self.CTRL_NAK]))
                     if attempt == max_retries:
                         raise MachineCommError(
                             _tr("First chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
@@ -1244,10 +1306,10 @@ class MachineComm:
 
                     if received_cs == expected_cs:
                         all_payload.extend(chunk_payload)
-                        self._serial.write(bytes([self.CTRL_ACK]))
+                        self.send(bytes([self.CTRL_ACK]))
                         break
                     else:
-                        self._serial.write(bytes([self.CTRL_NAK]))
+                        self.send(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
                                 _tr("Chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
@@ -1350,7 +1412,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(cmd)
+            self.send(cmd)
 
             # Machine should reply with CTRL_ACK to accept the request
             resp = self._serial.read(1)
@@ -1415,10 +1477,10 @@ class MachineComm:
                     all_data.extend(chunk_payload)
                     if progress_callback:
                         progress_callback(len(all_data), total_size)
-                    self._serial.write(bytes([self.CTRL_ACK]))
+                    self.send(bytes([self.CTRL_ACK]))
                     break
                 else:
-                    self._serial.write(bytes([self.CTRL_NAK]))
+                    self.send(bytes([self.CTRL_NAK]))
                     if attempt == max_retries:
                         raise MachineCommError(
                             _tr("First chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
@@ -1475,10 +1537,10 @@ class MachineComm:
                         all_data.extend(chunk_payload)
                         if progress_callback:
                             progress_callback(len(all_data), total_size)
-                        self._serial.write(bytes([self.CTRL_ACK]))
+                        self.send(bytes([self.CTRL_ACK]))
                         break
                     else:
-                        self._serial.write(bytes([self.CTRL_NAK]))
+                        self.send(bytes([self.CTRL_NAK]))
                         if attempt == max_retries:
                             raise MachineCommError(
                                 _tr("Chunk checksum mismatch ({0} slot {1}) after {2} retries.").format(
@@ -1555,7 +1617,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(cmd)
+            self.send(cmd)
 
             resp = self._serial.read(1)
             if not resp:
@@ -1659,7 +1721,7 @@ class MachineComm:
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(cmd)
+            self.send(cmd)
 
             # Machine replies: CTRL_ACK + <BANK> + <SLOT>
             resp = self._serial.read(3)
@@ -1708,7 +1770,7 @@ class MachineComm:
                             bytes([size_byte, self.CTRL_ETB]) +
                             cs_hex
                         )
-                    self._serial.write(frame)
+                    self.send(frame)
                     ack = self._serial.read(1)
                     if not ack:
                         raise MachineCommError(
@@ -1733,7 +1795,7 @@ class MachineComm:
                             f"{ack[0]:02X}", offset // chunk_size + 1)
                     )
             # After the final chunk, send CTRL_ETX to indicate completion
-            self._serial.write(bytes([self.CTRL_ETX]))
+            self.send(bytes([self.CTRL_ETX]))
             return assigned_slot
         finally:
             self._serial.timeout = saved_timeout
@@ -2514,7 +2576,7 @@ class MachineComm:
             )
 
     @staticmethod
-    def encode_pmemory_header_1475cd(pattern, points=None):
+    def encode_pmemory_header_1475cd(pattern, points=None, byte2_override=None):
         """Encode the fixed header for the given pattern. Valid for Creative 1475 CD.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
@@ -2529,6 +2591,8 @@ class MachineComm:
                 used directly so the header reflects any transport adjustments or
                 inserted intermediate stitches.  When ``None``, coordinates are
                 derived from ``pattern.rounded_display_elements()``.
+            byte2_override: Optional int in [0, 255]. When not None and stitch
+                type is MAXI, used as byte[2] instead of the default value.
 
         Raises:
             MachineCommError: If the stitch type is not supported or pattern is empty.
@@ -2554,10 +2618,11 @@ class MachineComm:
                 f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
             ).encode('ascii')
         elif pattern.stitch_type == "MAXI":
+            byte2_val = byte2_override if byte2_override is not None else (span_y // 2)
             return (
                 f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
                 f"{span_y         & 0xFF:02X}"   # byte  1   y_max_norm
-                f"{(span_y // 2)  & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
+                f"{byte2_val      & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
                 f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
             ).encode('ascii')
         else:

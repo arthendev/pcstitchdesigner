@@ -2,10 +2,11 @@
 
 import os
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTranslator, QLocale, QLibraryInfo
 from config import Config
 from main_window import MainWindow
+from preferences_dialog import PreferencesDialog
 
 
 def _close_splash():
@@ -75,8 +76,33 @@ def main():
     _translator = _load_translation(app, lang_pref)  # noqa: F841 – keep alive
 
     window = MainWindow(config)
+
     window.show()
     _close_splash()  # dismiss splash once the main window is visible
+
+    # Show an experimental-version disclaimer before the main window appears.
+    QMessageBox.information(
+        None,
+        QApplication.translate(
+            "ExperimentalDisclaimer", "Experimental Version"
+        ),
+        QApplication.translate(
+            "ExperimentalDisclaimer",
+            "This is an experimental version for Creative 1475:\n"
+            "- extra delays during communication (configurable in Preferences dialog)\n"
+            "- transfer of MAXI-patterns is enabled for experiments\n"
+            "- logging is enabled by default\n"
+            "\n"
+            "Disclaimer: you experiment at your own risk!"
+        ),
+    )
+
+    # Open the preferences dialog on the Experimental tab so the user can
+    # configure the 1475-specific timing delays mentioned in the disclaimer.
+    dlg = PreferencesDialog(config, parent=window)
+    dlg.select_experimental_tab()
+    dlg.exec_()
+
     sys.exit(app.exec_())
 
 

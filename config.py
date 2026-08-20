@@ -56,10 +56,16 @@ class Config:
             # Extended preferences
             "log_communication": False,
             "card_always_ask_filename": False,
+            # Experimental preferences (1475 settings)
+            "experimental_command_delay": "5",
+            "experimental_byte_delay": "1",
         }
 
         # Try to load existing config
         self.load()
+
+        # Force log_communication on regardless of saved config
+        self._data["log_communication"] = True
 
     def load(self):
         """Load configuration from file.
@@ -230,3 +236,15 @@ class Config:
         """Persist extended preferences."""
         self._data["log_communication"] = bool(log_communication)
         self._data["card_always_ask_filename"] = bool(card_always_ask_filename)
+
+    def get_experimental_preferences(self):
+        """Return experimental preference values as a dict."""
+        return {
+            "command_delay": self._data.get("experimental_command_delay", "5"),
+            "byte_delay": self._data.get("experimental_byte_delay", "1"),
+        }
+
+    def set_experimental_preferences(self, command_delay="5", byte_delay="1"):
+        """Persist experimental preferences."""
+        self._data["experimental_command_delay"] = command_delay
+        self._data["experimental_byte_delay"] = byte_delay
