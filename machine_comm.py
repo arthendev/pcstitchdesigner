@@ -23,7 +23,9 @@ class _CommLogger:
     """Buffered direction-aware communication logger.
 
     Accumulates bytes sent in one direction and flushes a timestamped line
-    whenever the direction changes or the logger is closed.
+    whenever the direction changes or the logger is closed.  The timestamp
+    reflects when the batch started (first send/receive), not when it was
+    flushed to disk.
     """
 
     def __init__(self, log_dir):
@@ -31,6 +33,9 @@ class _CommLogger:
         self._log_dir = log_dir
         self._current_direction = None  # 'send' or 'receive'
         self._buffer = bytearray()
+        # Timestamp captured when the current batch started, so log lines
+        # reflect when the transfer was executed rather than when it was flushed.
+        self._start_time = None
 
     def _ensure_file(self):
         if self._file is None:
@@ -41,17 +46,20 @@ class _CommLogger:
 
     def _flush(self):
         if self._buffer and self._current_direction is not None:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            ts = (self._start_time or datetime.now()).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             arrow = "->" if self._current_direction == "send" else "<-"
             hex_bytes = " ".join(f"{b:02X}" for b in self._buffer)
             self._file.write(f"[{ts}] {arrow} {hex_bytes}\n")
             self._file.flush()
             self._buffer.clear()
+            self._start_time = None
 
     def log_send(self, data):
         self._ensure_file()
         if self._current_direction == "receive":
             self._flush()
+        if self._start_time is None:
+            self._start_time = datetime.now()
         self._current_direction = "send"
         self._buffer.extend(data)
 
@@ -59,6 +67,8 @@ class _CommLogger:
         self._ensure_file()
         if self._current_direction == "send":
             self._flush()
+        if self._start_time is None:
+            self._start_time = datetime.now()
         self._current_direction = "receive"
         self._buffer.extend(data)
 
