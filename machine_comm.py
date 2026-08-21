@@ -420,6 +420,7 @@ class MachineComm:
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
+            self.flush()
             cmd = f"PL{slot_index:02X}".encode('ascii') + bytes([self.CTRL_ETX])
             self._serial.write(cmd)
 
@@ -471,6 +472,7 @@ class MachineComm:
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
+            self.flush()
             cmd = f"RM06{slot_index:02X}{type_char}".encode('ascii') + bytes([self.CTRL_ETX])
             self._serial.write(cmd)
 
@@ -588,6 +590,7 @@ class MachineComm:
         self._serial.timeout = timeout
         
         try:
+            self.flush()
             stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
 
             # ── Pre-compute stitch data and final machine-side points ──────
@@ -710,6 +713,7 @@ class MachineComm:
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
+            self.flush()
             stitch_type_byte = 0x00 if pattern.stitch_type == "9mm" else 0x01
 
             # ── Pre-compute stitch data and final machine-side points ──────
@@ -1019,6 +1023,7 @@ class MachineComm:
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
+            self.flush()
             self._serial.write(cmd)
 
             name = ''
