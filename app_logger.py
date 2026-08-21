@@ -20,9 +20,13 @@ class AppLogger:
 
     High-level event lines are written immediately via :meth:`log_info`,
     flushing any pending byte-traffic first so the event stays in order.
+
+    The logger can be activated/deactivated via :meth:`set_enabled`; while
+    deactivated every logging call is a no-op, so callers can hold a logger
+    unconditionally.
     """
 
-    def __init__(self, log_dir):
+    def __init__(self, log_dir=None, enabled=True):
         self._file = None
         self._log_dir = log_dir
         self._current_direction = None  # 'send' or 'receive'
@@ -30,6 +34,34 @@ class AppLogger:
         # Timestamp captured when the current batch started, so log lines
         # reflect when the transfer was executed rather than when it was flushed.
         self._start_time = None
+        # A logger without a destination cannot be active.
+        self._enabled = bool(enabled) and bool(log_dir)
+
+    @property
+    def enabled(self):
+        """Return True if this logger is currently active."""
+        return self._enabled
+
+    def set_enabled(self, enabled):
+        """Activate or deactivate this logger.
+
+        Deactivating flushes and closes any open log file; the file is
+        re-created lazily on the next write after reactivating.
+        """
+        enabled = bool(enabled) and bool(self._log_dir)
+        if enabled == self._enabled:
+            return
+        if not enabled:
+            self.close()
+        self._enabled = enabled
+
+    def activate(self):
+        """Activate logging (alias for ``set_enabled(True)``)."""
+        self.set_enabled(True)
+
+    def deactivate(self):
+        """Deactivate logging (alias for ``set_enabled(False)``)."""
+        self.set_enabled(False)
 
     def _ensure_file(self):
         if self._file is None:
@@ -50,6 +82,8 @@ class AppLogger:
 
     def log_send(self, data):
         """Record bytes sent to the machine, buffered per direction."""
+        if not self._enabled:
+            return
         self._ensure_file()
         if self._current_direction == "receive":
             self._flush()
@@ -60,6 +94,8 @@ class AppLogger:
 
     def log_receive(self, data):
         """Record bytes received from the machine, buffered per direction."""
+        if not self._enabled:
+            return
         self._ensure_file()
         if self._current_direction == "send":
             self._flush()
@@ -70,6 +106,8 @@ class AppLogger:
 
     def log_info(self, message):
         """Write a high-level event line, flushing any pending data first."""
+        if not self._enabled:
+            return
         self._ensure_file()
         self._flush()
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -86,30 +124,3 @@ class AppLogger:
             self._flush()
             self._file.close()
             self._file = None
-
-
-class _NullLogger:
-    """No-op logger used when application logging is disabled.
-
-    Mirrors the public :class:`AppLogger` interface so callers can invoke
-    logging methods unconditionally; every method is a no-op.
-    """
-
-    def log_send(self, data):
-        pass
-
-    def log_receive(self, data):
-        pass
-
-    def log_info(self, message):
-        pass
-
-    def log_error(self, message):
-        pass
-
-    def close(self):
-        pass
-
-
-# Shared no-op logger instance for components that have no active logger.
-NULL_LOGGER = _NullLogger()

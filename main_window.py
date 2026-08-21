@@ -45,13 +45,12 @@ class MainWindow(QMainWindow):
         self._recent_files = self._config.get_recent_files()
 
         # Application logging (also fed to MachineComm for serial traffic).
-        # Created at startup if the preference is set, so file operations are
-        # logged even when no machine connection is open.
-        self._app_logger = None
-        if self._config.get("log_communication", False):
-            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
-            log_dir = os.path.join(base_dir, "logs")
-            self._app_logger = AppLogger(log_dir)
+        # Always created; activated/deactivated to match the preference so
+        # file operations are logged even when no machine connection is open.
+        base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+        log_dir = os.path.join(base_dir, "logs")
+        self._app_logger = AppLogger(log_dir, enabled=self._config.get("log_communication", False))
+        if self._app_logger.enabled:
             self._app_logger.log_info(f"PC Stitch Designer v{APP_VERSION} starting")
 
         # Machine communication
@@ -2572,29 +2571,17 @@ class MainWindow(QMainWindow):
     # ── Logging helpers ──
 
     def _log_info(self, message):
-        """Write an application info line, if logging is active."""
-        if self._app_logger is not None:
-            self._app_logger.log_info(message)
+        """Write an application info line (no-op when logging is inactive)."""
+        self._app_logger.log_info(message)
 
     def _log_error(self, message):
-        """Write an application error line, if logging is active."""
-        if self._app_logger is not None:
-            self._app_logger.log_error(message)
+        """Write an application error line (no-op when logging is inactive)."""
+        self._app_logger.log_error(message)
 
     def _sync_logging(self):
-        """Enable/disable the app logger to match the current preferences."""
+        """Activate/deactivate the app logger to match the current preferences."""
         ext_prefs = self._config.get_extended_preferences()
-        if ext_prefs.get("log_communication", False):
-            if self._app_logger is None:
-                base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
-                log_dir = os.path.join(base_dir, "logs")
-                self._app_logger = AppLogger(log_dir)
-            self._machine_comm.set_logger(self._app_logger)
-        else:
-            if self._app_logger is not None:
-                self._app_logger.close()
-                self._app_logger = None
-            self._machine_comm.set_logger(None)
+        self._app_logger.set_enabled(ext_prefs.get("log_communication", False))
 
     # ── Close event ──
 
@@ -2604,9 +2591,7 @@ class MainWindow(QMainWindow):
             # buffered bytes are written to disk and the log file is not left
             # open on shutdown.
             self._machine_comm.close()
-            if self._app_logger is not None:
-                self._app_logger.close()
-                self._app_logger = None
+            self._app_logger.close()
             # Save configuration before closing
             self._config.save()
             event.accept()

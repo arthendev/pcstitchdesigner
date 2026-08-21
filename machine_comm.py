@@ -6,7 +6,7 @@ import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
 from model import elem_has_coords
-from app_logger import NULL_LOGGER
+from app_logger import AppLogger
 
 
 def _tr(s):
@@ -74,19 +74,9 @@ class MachineComm:
 
     def __init__(self, logger=None):
         self._serial = None
-        # Logger for traffic/event lines, injected by the app (may be None).
-        # A null logger keeps internal logging calls safe when logging is off.
-        self._logger = logger if logger is not None else NULL_LOGGER
-        self._logging_enabled = logger is not None
-
-    def set_logger(self, logger):
-        """Attach (or detach) the logger used for traffic and event lines.
-
-        Args:
-            logger: An :class:`AppLogger` instance, or None to disable logging.
-        """
-        self._logger = logger if logger is not None else NULL_LOGGER
-        self._logging_enabled = logger is not None
+        # Logger for traffic/event lines, injected by the app.  A deactivated
+        # AppLogger is used when none is supplied so logging calls stay safe.
+        self._logger = logger if logger is not None else AppLogger(enabled=False)
 
     # ── Port enumeration ──
 
@@ -136,7 +126,7 @@ class MachineComm:
             timeout=timeout,
         )
 
-        if self._logging_enabled:
+        if self._logger.enabled:
             self._serial = _LoggedSerial(self._serial, self._logger)
 
     def close(self):

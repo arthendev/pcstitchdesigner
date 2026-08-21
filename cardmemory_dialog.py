@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor, QTransform
 
 from machine_comm import MachineComm, MachineCommError
-from app_logger import NULL_LOGGER
+from app_logger import AppLogger
 
 
 class CardMemoryDialog(QDialog):
@@ -84,7 +84,7 @@ class CardMemoryDialog(QDialog):
         self._card_info = card_info
         self._action = action
         self._comm = comm
-        self._logger = logger if logger is not None else NULL_LOGGER
+        self._logger = logger if logger is not None else AppLogger(enabled=False)
         self._transmission_ended = False
 
         # Set by _do_load() / accepted when a pattern is successfully loaded

@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
 from machine_comm import MachineComm, MachineCommError
-from app_logger import NULL_LOGGER
+from app_logger import AppLogger
 
 
 class _PatternPreviewWidget(QWidget):
@@ -148,7 +148,7 @@ class PMemoryDialog(QDialog):
     def __init__(self, pmem_info, action, comm, machine_model, pattern=None, logger=None, parent=None):
         super().__init__(parent)
         self._comm = comm
-        self._logger = logger if logger is not None else NULL_LOGGER
+        self._logger = logger if logger is not None else AppLogger(enabled=False)
         self._action = action
         self._machine_model = machine_model
         self._pattern = pattern
