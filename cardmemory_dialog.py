@@ -11,6 +11,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor, QTransform
 
 from machine_comm import MachineComm, MachineCommError
+from app_logger import NULL_LOGGER
 
 
 class CardMemoryDialog(QDialog):
@@ -78,11 +79,12 @@ class CardMemoryDialog(QDialog):
     )
     # _ICON_SIZE = QSize(106, 96)
 
-    def __init__(self, card_info, action, comm, parent=None):
+    def __init__(self, card_info, action, comm, logger=None, parent=None):
         super().__init__(parent)
         self._card_info = card_info
         self._action = action
         self._comm = comm
+        self._logger = logger if logger is not None else NULL_LOGGER
         self._transmission_ended = False
 
         # Set by _do_load() / accepted when a pattern is successfully loaded
@@ -468,7 +470,7 @@ class CardMemoryDialog(QDialog):
                 progress_callback=_load_progress,
             )
         except (MachineCommError, Exception) as exc:
-            self._comm._log_error(str(exc))
+            self._logger.log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._loading = False
@@ -501,7 +503,7 @@ class CardMemoryDialog(QDialog):
                 )
                 return
         except MachineCommError as exc:
-            self._comm._log_error(str(exc))
+            self._logger.log_error(str(exc))
             self._progress_bar.setValue(0)
             self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
             self._loading = False
@@ -568,7 +570,7 @@ class CardMemoryDialog(QDialog):
                 self._card_info['card_no_bytes'], slot_byte, ptype
             )
         except (MachineCommError, Exception) as exc:
-            self._comm._log_error(str(exc))
+            self._logger.log_error(str(exc))
             QMessageBox.critical(
                 self,
                 self.tr("Delete Failed"),
@@ -583,7 +585,7 @@ class CardMemoryDialog(QDialog):
         try:
             new_card_info = self._comm.query_card_index()
         except (MachineCommError, Exception) as exc:
-            self._comm._log_error(str(exc))
+            self._logger.log_error(str(exc))
             QMessageBox.critical(
                 self,
                 self.tr("Memory Card"),
@@ -654,7 +656,7 @@ class CardMemoryDialog(QDialog):
             try:
                 self._reload_previews(new_card_info)
             except (MachineCommError, Exception) as exc:
-                self._comm._log_error(str(exc))
+                self._logger.log_error(str(exc))
                 QMessageBox.critical(
                     self,
                     self.tr("Memory Card"),

@@ -21,6 +21,7 @@ from config import Config
 from version import APP_VERSION
 from preferences_dialog import PreferencesDialog
 from machine_comm import MachineComm, MachineCommError
+from app_logger import AppLogger
 from pmemory_dialog import PMemoryDialog
 from cardmemory_dialog import CardMemoryDialog
 from animation_window import AnimationWindow
@@ -43,16 +44,18 @@ class MainWindow(QMainWindow):
         self._config = config if config is not None else Config()
         self._recent_files = self._config.get_recent_files()
 
-        # Machine communication
-        self._machine_comm = MachineComm()
-
-        # Enable logging at startup if the preference is set, so file
-        # operations are logged even when no machine connection is open.
+        # Application logging (also fed to MachineComm for serial traffic).
+        # Created at startup if the preference is set, so file operations are
+        # logged even when no machine connection is open.
+        self._app_logger = None
         if self._config.get("log_communication", False):
             base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
             log_dir = os.path.join(base_dir, "logs")
-            self._machine_comm.enable_logging(log_dir)
-            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} starting")
+            self._app_logger = AppLogger(log_dir)
+            self._app_logger.log_info(f"PC Stitch Designer v{APP_VERSION} starting")
+
+        # Machine communication
+        self._machine_comm = MachineComm(logger=self._app_logger)
 
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
@@ -1108,7 +1111,7 @@ class MainWindow(QMainWindow):
     def _file_new(self):
         if not self._confirm_discard():
             return
-        self._machine_comm._log_info("New file created")
+        self._log_info("New file created")
         self._pattern.clear()
         self._canvas.set_selected_point(None)
         self._file_path = None
@@ -1166,7 +1169,7 @@ class MainWindow(QMainWindow):
 
     def _open_file(self, path):
         """Open a file and add it to recent files list."""
-        self._machine_comm._log_info(f"File opened: {path}")
+        self._log_info(f"File opened: {path}")
         try:
             pattern = file_io.load_pattern(path)
         except Exception as e:
@@ -1254,7 +1257,7 @@ class MainWindow(QMainWindow):
 
     def _file_save(self):
         if self._file_path:
-            self._machine_comm._log_info(f"File saved: {self._file_path}")
+            self._log_info(f"File saved: {self._file_path}")
             try:
                 file_io.save_pattern(self._file_path, self._pattern)
             except Exception as e:
@@ -1720,26 +1723,21 @@ class MainWindow(QMainWindow):
             else MachineComm.DEFAULT_BAUDRATE
         )
 
-        # Configure communication logging
-        ext_prefs = self._config.get_extended_preferences()
-        if ext_prefs.get("log_communication", False):
-            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
-            log_dir = os.path.join(base_dir, "logs")
-            self._machine_comm.enable_logging(log_dir)
-        else:
-            self._machine_comm.disable_logging()
+        # Make sure the app logger matches the current preference, so serial
+        # traffic is logged even if the preference changed since startup.
+        self._sync_logging()
 
         try:
             self._machine_comm.open(port, baudrate=baudrate)
         except Exception as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_error(self.tr("Could not open port \"{0}\":").format(port) + "\n" + str(exc))
             return None
 
         try:
             info = self._machine_comm.query_machine()
         except (MachineCommError, Exception) as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.close()
             self._machine_error(self.tr("No communication with the machine:") + "\n" + str(exc))
             return None
@@ -1933,7 +1931,7 @@ class MainWindow(QMainWindow):
         try:
             raw = self._machine_comm.query_pmemory_index()
         except (MachineCommError, Exception) as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"), 
@@ -1946,7 +1944,7 @@ class MainWindow(QMainWindow):
         try:
             pmem_info = MachineComm.decode_pmemory_index(raw, machine_model)
         except Exception as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
@@ -1960,6 +1958,7 @@ class MainWindow(QMainWindow):
             comm=self._machine_comm,
             machine_model=machine_model,
             pattern=self._pattern if action == PMemoryDialog.ACTION_SEND else None,
+            logger=self._app_logger,
             parent=self,
         )
         result = dlg.exec_()
@@ -2009,12 +2008,12 @@ class MainWindow(QMainWindow):
         try:
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"), 
@@ -2034,10 +2033,10 @@ class MainWindow(QMainWindow):
 
         try:
             dlg = CardMemoryDialog(
-                card_info, action, self._machine_comm, parent=self
+                card_info, action, self._machine_comm, logger=self._app_logger, parent=self
             )
         except (MachineCommError, Exception) as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
@@ -2176,12 +2175,12 @@ class MainWindow(QMainWindow):
         try:
             card_info = self._machine_comm.query_card_index()
         except MachineCommError as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             self._machine_comm.end_transmission()
             QMessageBox.critical(self,
                 self.tr("Error"),
@@ -2212,13 +2211,13 @@ class MainWindow(QMainWindow):
                 progress_callback=_send_progress,
             )
         except MachineCommError as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             progress_dlg.close()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
-            self._machine_comm._log_error(str(exc))
+            self._log_error(str(exc))
             progress_dlg.close()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
@@ -2570,15 +2569,44 @@ class MainWindow(QMainWindow):
         else:
             super().keyPressEvent(event)
 
+    # ── Logging helpers ──
+
+    def _log_info(self, message):
+        """Write an application info line, if logging is active."""
+        if self._app_logger is not None:
+            self._app_logger.log_info(message)
+
+    def _log_error(self, message):
+        """Write an application error line, if logging is active."""
+        if self._app_logger is not None:
+            self._app_logger.log_error(message)
+
+    def _sync_logging(self):
+        """Enable/disable the app logger to match the current preferences."""
+        ext_prefs = self._config.get_extended_preferences()
+        if ext_prefs.get("log_communication", False):
+            if self._app_logger is None:
+                base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+                log_dir = os.path.join(base_dir, "logs")
+                self._app_logger = AppLogger(log_dir)
+            self._machine_comm.set_logger(self._app_logger)
+        else:
+            if self._app_logger is not None:
+                self._app_logger.close()
+                self._app_logger = None
+            self._machine_comm.set_logger(None)
+
     # ── Close event ──
 
     def closeEvent(self, event):
         if self._confirm_discard():
-            # Close the serial port and flush/close the communication log
-            # (disable_logging -> _CommLogger.close) so buffered bytes are
-            # written to disk and the log file is not left open on shutdown.
+            # Close the serial port and flush/close the application log so
+            # buffered bytes are written to disk and the log file is not left
+            # open on shutdown.
             self._machine_comm.close()
-            self._machine_comm.disable_logging()
+            if self._app_logger is not None:
+                self._app_logger.close()
+                self._app_logger = None
             # Save configuration before closing
             self._config.save()
             event.accept()
