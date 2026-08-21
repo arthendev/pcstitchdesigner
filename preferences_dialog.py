@@ -510,63 +510,6 @@ class ExtendedTab(QWidget):
         }
 
 
-# ── Experimental tab ──────────────────────────────────────────────────────────
-
-class ExperimentalTab(QWidget):
-    """Experimental settings tab, including 1475-specific timing options."""
-
-    def __init__(self, prefs: dict, parent=None):
-        super().__init__(parent)
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(10)
-
-        group = QGroupBox(self.tr("1475 settings"))
-        form = QFormLayout(group)
-        form.setVerticalSpacing(10)
-
-        self._command_delay_combo = QComboBox()
-        for label, data in (
-            (self.tr("None"), "none"),
-            ("1ms", "1"),
-            ("5ms", "5"),
-            ("10ms", "10"),
-            ("20ms", "20"),
-            ("50ms", "50"),
-        ):
-            self._command_delay_combo.addItem(label, data)
-        self._select_combo(self._command_delay_combo, prefs.get("command_delay", "5"))
-        form.addRow(self.tr("Delay between commands:"), self._command_delay_combo)
-
-        self._byte_delay_combo = QComboBox()
-        for label, data in (
-            (self.tr("None"), "none"),
-            ("1ms", "1"),
-            ("2ms", "2"),
-            ("5ms", "5"),
-        ):
-            self._byte_delay_combo.addItem(label, data)
-        self._select_combo(self._byte_delay_combo, prefs.get("byte_delay", "1"))
-        form.addRow(self.tr("Delay between bytes:"), self._byte_delay_combo)
-
-        outer.addWidget(group)
-        outer.addStretch()
-
-    @staticmethod
-    def _select_combo(combo: QComboBox, value: str):
-        for i in range(combo.count()):
-            if combo.itemData(i) == value:
-                combo.setCurrentIndex(i)
-                return
-
-    def values(self) -> dict:
-        return {
-            "command_delay": self._command_delay_combo.currentData(),
-            "byte_delay": self._byte_delay_combo.currentData(),
-        }
-
-
 # ── Preferences dialog ────────────────────────────────────────────────────────
 
 class PreferencesDialog(QDialog):
@@ -589,11 +532,9 @@ class PreferencesDialog(QDialog):
         )
         self._display_tab = DisplayTab(config.get_display_preferences())
         self._extended_tab = ExtendedTab(config.get_extended_preferences())
-        self._experimental_tab = ExperimentalTab(config.get_experimental_preferences())
         self._tabs.addTab(self._general_tab, self.tr("General"))
         self._tabs.addTab(self._display_tab, self.tr("Display"))
         self._tabs.addTab(self._extended_tab, self.tr("Extended"))
-        self._tabs.addTab(self._experimental_tab, self.tr("Experimental"))
         layout.addWidget(self._tabs)
 
         # OK / Cancel
@@ -601,10 +542,6 @@ class PreferencesDialog(QDialog):
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    def select_experimental_tab(self):
-        """Select the Experimental tab in the tab widget."""
-        self._tabs.setCurrentWidget(self._experimental_tab)
 
     def _accept(self):
         m = self._general_tab.values()
@@ -639,11 +576,6 @@ class PreferencesDialog(QDialog):
         self._config.set_extended_preferences(
             log_communication=e["log_communication"],
             card_always_ask_filename=e["card_always_ask_filename"],
-        )
-        x = self._experimental_tab.values()
-        self._config.set_experimental_preferences(
-            command_delay=x["command_delay"],
-            byte_delay=x["byte_delay"],
         )
         self._config.save()
         if old_language != new_language:

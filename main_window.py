@@ -31,32 +31,11 @@ from auto_stitch_dialog import AutoStitchLengthDialog
 from check_updates_dialog import run_check_for_updates, run_silent_check_for_updates
 
 
-# Suffix appended to the app name in the title bar and startup log line.
-APP_TITLE_SUFFIX = "experimental 20260820"
-
-
-def _parse_delay_ms(value):
-    """Convert a delay preference value to milliseconds, or None.
-
-    Args:
-        value: The raw preference value ("none" or a millisecond string).
-
-    Returns:
-        float: Delay in milliseconds, or None if the delay is disabled.
-    """
-    if value is None or value == "none":
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self, config=None):
         super().__init__()
-        self.setWindowTitle(f"PC Stitch Designer, {APP_TITLE_SUFFIX}")
+        self.setWindowTitle("PC Stitch Designer")
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icons", "pc_stitch_designer.svg")))
         self.resize(1200, 700)
 
@@ -73,7 +52,7 @@ class MainWindow(QMainWindow):
             base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
             log_dir = os.path.join(base_dir, "logs")
             self._machine_comm.enable_logging(log_dir)
-            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} {APP_TITLE_SUFFIX} starting")
+            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} starting")
 
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
@@ -1107,7 +1086,7 @@ class MainWindow(QMainWindow):
         else:
             name = self.tr("Untitled")
         mod = " *" if self._pattern.modified else ""
-        self.setWindowTitle(f"{name}{mod} - PC Stitch Designer, {APP_TITLE_SUFFIX}")
+        self.setWindowTitle(f"{name}{mod} - PC Stitch Designer")
 
     # ── File actions ──
 
@@ -1740,12 +1719,6 @@ class MainWindow(QMainWindow):
             if prefs.get("high_speed", False)
             else MachineComm.DEFAULT_BAUDRATE
         )
-
-        # Configure experimental 1475 timing settings
-        exp_prefs = self._config.get_experimental_preferences()
-        self._machine_comm.set_byte_delay(_parse_delay_ms(exp_prefs.get("byte_delay")))
-        self._machine_comm.set_command_delay(_parse_delay_ms(exp_prefs.get("command_delay")))
-        self._machine_comm.set_machine_model(prefs.get("model", ""))
 
         # Configure communication logging
         ext_prefs = self._config.get_extended_preferences()

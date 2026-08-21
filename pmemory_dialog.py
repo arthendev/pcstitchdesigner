@@ -5,7 +5,6 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QAbstractItemView, QPushButton, QLabel, QMessageBox,
     QProgressBar, QApplication, QWidget, QSizePolicy,
-    QInputDialog,
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
@@ -389,13 +388,13 @@ class PMemoryDialog(QDialog):
         if slot_index is None:
             return
 
-        # # MAXI stitches are not yet supported for PFAFF Creative 1475 CD.
-        # if "1475" in self._machine_model and self._pattern.stitch_type == "MAXI":
-        #     QMessageBox.critical(
-        #         self, self.tr("Not Supported"),
-        #         self.tr("Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD")
-        #     )
-        #     return
+        # MAXI stitches are not yet supported for PFAFF Creative 1475 CD.
+        if "1475" in self._machine_model and self._pattern.stitch_type == "MAXI":
+            QMessageBox.critical(
+                self, self.tr("Not Supported"),
+                self.tr("Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD")
+            )
+            return
 
         # If the selected slot is not empty, ask the user to clear it first.
         if self._selected_slot_size() > 0:
@@ -456,28 +455,9 @@ class PMemoryDialog(QDialog):
                 self._progress_bar.setValue(done * 100 // total)
             QApplication.processEvents()
 
-        byte2_override = None
-        if "1475" in self._machine_model and self._pattern.stitch_type == "MAXI":
-            value, ok = QInputDialog.getInt(
-                self,
-                self.tr("Experimental Header Byte"),
-                self.tr("Experimental: please provide value for byte[2] (unknown meaning).\n\n" \
-                "Allowed range: 0-255.\n\n" \
-                "Start with small values (0, 1, 2, 3, 4, 5, 10...).\n\n" \
-                "Observe what effect different values have on the pattern.\n" \
-                "Sewing may be affected, available scaling/mirroring options from machine panel may differ.\n" \
-                "Please report back your findings.\n\n" \
-                "Disclaimer: you experiment at your own risk"),
-                value=0, min=0, max=255,
-            )
-            if not ok:
-                return
-            byte2_override = value
-
         try:
             self._comm.send_pmemory_slot(
-                slot_index, self._pattern, machine_model=self._machine_model,
-                progress_callback=_send_progress, byte2_override=byte2_override,
+                slot_index, self._pattern, machine_model=self._machine_model, progress_callback=_send_progress
             )
         except Exception as exc:
             self._comm._log_error(str(exc))
