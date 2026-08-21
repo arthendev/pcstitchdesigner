@@ -2,7 +2,7 @@
 
 import os
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTranslator, QLocale, QLibraryInfo
 from config import Config
 from main_window import MainWindow
@@ -75,8 +75,27 @@ def main():
     _translator = _load_translation(app, lang_pref)  # noqa: F841 – keep alive
 
     window = MainWindow(config)
+
     window.show()
     _close_splash()  # dismiss splash once the main window is visible
+
+    # Show an experimental-version disclaimer before the main window appears.
+    QMessageBox.information(
+        None,
+        QApplication.translate(
+            "ExperimentalDisclaimer", "Experimental Version"
+        ),
+        QApplication.translate(
+            "ExperimentalDisclaimer",
+            "This is an experimental version for Creative 1475:\n"
+            "- communication change for 1475A\n"
+            "- transfer of MAXI-patterns is enabled for experiments\n"
+            "- logging is enabled by default\n"
+            "\n"
+            f"Disclaimer: you experiment at your own risk!"
+        ),
+    )
+
     sys.exit(app.exec_())
 
 

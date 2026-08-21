@@ -30,12 +30,14 @@ from color_palette_bar import ColorPaletteBar
 from auto_stitch_dialog import AutoStitchLengthDialog
 from check_updates_dialog import run_check_for_updates, run_silent_check_for_updates
 
+# Suffix appended to the app name in the title bar and startup log line.
+APP_TITLE_SUFFIX = "experimental 20260821"
 
 class MainWindow(QMainWindow):
 
     def __init__(self, config=None):
         super().__init__()
-        self.setWindowTitle("PC Stitch Designer")
+        self.setWindowTitle(f"PC Stitch Designer, {APP_TITLE_SUFFIX}")
         self.setWindowIcon(QIcon(os.path.join(os.path.dirname(__file__), "icons", "pc_stitch_designer.svg")))
         self.resize(1200, 700)
 
@@ -52,7 +54,7 @@ class MainWindow(QMainWindow):
             base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
             log_dir = os.path.join(base_dir, "logs")
             self._machine_comm.enable_logging(log_dir)
-            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} starting")
+            self._machine_comm._log_info(f"PC Stitch Designer v{APP_VERSION} {APP_TITLE_SUFFIX} starting")
 
         self._file_path = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
@@ -1086,7 +1088,7 @@ class MainWindow(QMainWindow):
         else:
             name = self.tr("Untitled")
         mod = " *" if self._pattern.modified else ""
-        self.setWindowTitle(f"{name}{mod} - PC Stitch Designer")
+        self.setWindowTitle(f"{name}{mod} - PC Stitch Designer, {APP_TITLE_SUFFIX}")
 
     # ── File actions ──
 

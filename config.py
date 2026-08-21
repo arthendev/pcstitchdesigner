@@ -61,6 +61,9 @@ class Config:
         # Try to load existing config
         self.load()
 
+        # Force log_communication on regardless of saved config
+        self._data["log_communication"] = True
+
     def load(self):
         """Load configuration from file.
         

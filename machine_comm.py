@@ -636,7 +636,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None, byte2_override=None):
         """Dispatch to the appropriate send method based on machine_model.
         """
 
@@ -644,8 +644,9 @@ class MachineComm:
 
         if "1475" in machine_model:
             self.send_pmemory_slot_1475cd(slot_index, pattern,
-                                          chunk_size=chunk_size, timeout=timeout,
-                                          progress_callback=progress_callback)
+                                          timeout=timeout,
+                                          progress_callback=progress_callback,
+                                          byte2_override=byte2_override)
         else:
             self.send_pmemory_slot_75xx(slot_index, pattern,
                                         chunk_size=chunk_size, timeout=timeout,
@@ -777,7 +778,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot_1475cd(self, slot_index, pattern, timeout=1.0, progress_callback=None, byte2_override=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -799,6 +800,7 @@ class MachineComm:
             timeout (float): Per-response read timeout in seconds. Default: 1.0.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable
                 called after each stitch-data chunk is acknowledged.
+            byte2_override: Optional int for experimental byte[2] override (MAXI only).
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -817,7 +819,7 @@ class MachineComm:
             expected_size = len(final_points) * 2 if pattern.stitch_type == "9mm" else len(final_points) * 3
 
             # ── Phase 1: write command with header ─────────────────────────
-            header = self.encode_pmemory_header_1475cd(pattern, final_points)
+            header = self.encode_pmemory_header_1475cd(pattern, final_points, byte2_override=byte2_override)
             cmd_payload = (
                 f"PN{slot_index:02X}{stitch_type_byte:02X}{expected_size:04X}"
             ).encode('ascii') + header
@@ -2518,7 +2520,7 @@ class MachineComm:
             )
 
     @staticmethod
-    def encode_pmemory_header_1475cd(pattern, points=None):
+    def encode_pmemory_header_1475cd(pattern, points=None, byte2_override=None):
         """Encode the fixed header for the given pattern. Valid for Creative 1475 CD.
 
         Returns ASCII-encoded bytes (no framing, no checksum).
@@ -2533,6 +2535,8 @@ class MachineComm:
                 used directly so the header reflects any transport adjustments or
                 inserted intermediate stitches.  When ``None``, coordinates are
                 derived from ``pattern.rounded_display_elements()``.
+            byte2_override: Optional int in [0, 255]. When not None and stitch
+                type is MAXI, used as byte[2] instead of the default value.
 
         Raises:
             MachineCommError: If the stitch type is not supported or pattern is empty.
@@ -2558,10 +2562,11 @@ class MachineComm:
                 f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
             ).encode('ascii')
         elif pattern.stitch_type == "MAXI":
+            byte2_val = byte2_override if byte2_override is not None else (span_y // 2)
             return (
                 f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
                 f"{span_y         & 0xFF:02X}"   # byte  1   y_max_norm
-                f"{(span_y // 2)  & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
+                f"{byte2_val      & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
                 f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
             ).encode('ascii')
         else:
