@@ -4,7 +4,7 @@
 
 This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (PFAFF Creative 7570, 7550, 1475 CD).
 
-It serves as a modern replacement for "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
+It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
 
 ## Main window of the application
 
@@ -48,6 +48,7 @@ On Linux or macOS: download and unpack the sources and run pc_designer.py with y
 
 The following features are planned for future releases:
 
+- Support for 1475A machines and MAXI-patterns for the 1475CD/1475A family
 - Creation and transfer of stitch sequences ("M-Designs")
 - Embroidery Design Support
   - Loading embroidery design files (already done)
