@@ -19,7 +19,7 @@ It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software 
 - Transfer stitch patterns to and from supported sewing machines
   - PFAFF Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
   - PFAFF Creative 7550
-  - PFAFF Creative 1475 CD (limited to 9mm patterns only)
+  - PFAFF Creative 1475 CD
 - Compatibility with modern 64-bit operating systems
 - App interface is available in English and German
 
@@ -27,7 +27,6 @@ It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software 
 
 - Compatible sewing machine
   - PFAFF Creative 7570, 7550 or 1475 CD
-  - machines identifying as 1475**A** are not yet supported
 - Interface cable
   - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
@@ -48,7 +47,6 @@ On Linux or macOS: download and unpack the sources and run pc_designer.py with y
 
 The following features are planned for future releases:
 
-- Support for 1475A machines and MAXI-patterns for the 1475CD/1475A family
 - Creation and transfer of stitch sequences ("M-Designs")
 - Embroidery Design Support
   - Loading embroidery design files (already done)
