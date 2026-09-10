@@ -2454,6 +2454,8 @@ class MachineComm:
         y_max         = max(ys)
         dx_abs_max    = max((abs(dx) for dx in dxs), default=0)
         span_y        = max(ys) - min(ys)
+        span_x        = max(xs) - min(xs)
+        span_x_mm     = span_x // 6
 
         if pattern.stitch_type == "9mm":
             return (
@@ -2466,7 +2468,7 @@ class MachineComm:
             return (
                 f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
                 f"{span_y         & 0xFF:02X}"   # byte  1   y_max_norm
-                f"{(span_y // 2)  & 0xFF:02X}"   # byte  2   y_max_norm_div_2 # ToDo: this is wrong! Find correct value!
+                f"{span_x_mm      & 0xFF:02X}"   # byte  2   span_x_mm
                 f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
             ).encode('ascii')
         else:
