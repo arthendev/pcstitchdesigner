@@ -1506,10 +1506,6 @@
         <translation>Nicht unterstützt</translation>
     </message>
     <message>
-        <source>Sending MAXI stitches is not yet implemented for PFAFF Creative 1475 CD</source>
-        <translation>Das Senden von MAXI-Stichmuster ist für die PFAFF Creative 1475 CD noch nicht implementiert</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Speicher nicht leer</translation>
     </message>
