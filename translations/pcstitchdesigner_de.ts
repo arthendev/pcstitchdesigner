@@ -484,10 +484,6 @@
         <translation>Keine Antwort auf Karten-Abfragebefehl.</translation>
     </message>
     <message>
-        <source>No memory card inserted in the machine.</source>
-        <translation>Keine Speicherkarte in der Nähmaschine eingelegt.</translation>
-    </message>
-    <message>
         <source>Timeout reading card query response header.</source>
         <translation>Zeitüberschreitung beim Lesen des Karten-Antwortheaders.</translation>
     </message>
@@ -672,12 +668,12 @@
         <translation>Nicht unterstützter Stichtyp für Kartenschreiben: {0}</translation>
     </message>
     <message>
-        <source>No response to card write (KN) command.</source>
-        <translation>Keine Antwort auf Karten-Schreibbefehl (KN).</translation>
+        <source>No response to card write command.</source>
+        <translation>Keine Antwort auf Karten-Schreibbefehl.</translation>
     </message>
     <message>
-        <source>Machine rejected the card write command. The card may be full or write-protected.</source>
-        <translation>Nähmaschine hat den Karten-Schreibbefehl abgelehnt. Die Karte ist möglicherweise voll oder schreibgeschützt.</translation>
+        <source>Machine rejected the card write command.</source>
+        <translation>Nähmaschine hat den Karten-Schreibbefehl abgelehnt</translation>
     </message>
     <message>
         <source>Unexpected response 0x{0} to card write command.</source>
@@ -792,12 +788,28 @@
         <translation>Nutzlast des MAXI-Kartensteckplatzes hat keinen 0x8A Marker an Position -6.</translation>
     </message>
     <message>
+        <source>No memory card inserted in the machine.</source>
+        <translation>Keine Speicherkarte in der Nähmaschine eingelegt.</translation>
+    </message>
+    <message>
         <source>The card is copyright protected. It is not allowed to read or modify the content of this card.</source>
         <translation>Die Speicherkarte ist kopiergeschützt. Der Inhalt dieser Karte darf nicht gelesen oder verändert werden.</translation>
     </message>
     <message>
         <source>The memory card is write-protected. Please switch the write-protection off (slide write-protect tab on the card) and try again.</source>
         <translation>Die Speicherkarte ist schreibgeschützt. Bitte deaktivieren Sie den Schreibschutz (Schieberegler am Kartenrand) und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <source>The memory card is not initialized. Please initialize the card and try again.</source>
+        <translation>Die Speicherkarte ist nicht initialisiert. Bitte initialisieren Sie die Karte und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <source>The memory card is not writable. Please use a writable card and try again.</source>
+        <translation>Die Speicherkarte ist nicht beschreibbar. Bitte verwenden Sie eine beschreibbare Karte und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <source>The memory card has not enough free space.</source>
+        <translation>Auf der Speicherkarte ist nicht genügend Speicherplatz vorhanden.</translation>
     </message>
     <message>
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
