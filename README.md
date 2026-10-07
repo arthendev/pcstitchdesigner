@@ -21,7 +21,7 @@ It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software 
   - PFAFF Creative 7550
   - PFAFF Creative 1475 CD
 - Compatibility with modern 64-bit operating systems
-- App interface is available in English and German
+- App interface is available in English, Danish, Dutch, French, German, Italian, Russian and Swedish
 
 ## Hardware requirements
 

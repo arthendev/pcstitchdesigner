@@ -123,7 +123,14 @@ class GeneralTab(QWidget):
         for lang_label, lang_data in (
             (self.tr("System Default"), "system"),
             ("English", "en"),
+            ("Dansk (Danish)", "da"),
             ("Deutsch (German)", "de"),
+            ("Español (Spanish)", "es"),
+            ("Français (French)", "fr"),
+            ("Italiano (Italian)", "it"),
+            ("Nederlands (Dutch)", "nl"),
+            ("Русский (Russian)", "ru"),
+            ("Svenska (Swedish)", "sv"),
         ):
             self._lang_combo.addItem(lang_label, lang_data)
         lang = general_prefs.get("language", "system")
