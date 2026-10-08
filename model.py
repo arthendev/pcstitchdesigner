@@ -270,9 +270,9 @@ class StitchPattern:
     # Canvas size definitions: {name: (width, height)}
     CANVAS_SIZES = {
         "9mm": (198, 54),
-        "MAXI": (998, 359),
+        "MAXI": (999, 360),
         "small hoop": (480, 480),
-        "large hoop": (720, 689),
+        "large hoop": (720, 690),
     }
 
     STITCH_RES_MM = 1/6  # 1 stitch = 0.166... mm
