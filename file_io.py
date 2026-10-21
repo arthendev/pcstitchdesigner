@@ -7,6 +7,7 @@ File format (PCD/PCQ compatible):
            uint16 element record count
   Colors:  color_count × (R G B padding)
   Body:    record_count × (byte c0, 3-byte x LE, byte c1, 3-byte y LE, byte control)
+           record_count does not include color-change records (control == 0x03)!
 
 Element encoding:
   control == 0: ELEM_STITCH  — normal stitch point, coords in x/y + fractional parts in c0/c1
@@ -26,6 +27,22 @@ Information sources:
   https://web.archive.org/web/20160730135244/http://achatina.de/sewing/main/PCS.HTM
   https://github.com/EmbroidePy/pyembroidery/blob/main/pyembroidery/PcsReader.py
   + several PCS files and own experiments
+
+Notes:
+  0x03: (color change) might carry coordinates; if so, should they be accounted to total number of data blocks? Which color do they belong to?
+        It is not included in the record count in the header; the record count is only for actual stitch points (0x00, 0x01, 0x02, 0x04).
+        So we don't know how many records to read in total. Some PCD files spotted in the wild handle it wrongly and are too long or too short.
+
+  0x04 is a section marker; for PCD/PCQ the first and last record has control_byte = 0x04, i.e. whole pattern is a single section
+       It is not transmitted to the machine, but we want to preserve it in the pattern (e.g. for selection of a single section)
+  
+  File might include optional 13-bytes block for the name of BMP background image. Name is null-terminated.
+  It occurs directly after the data block.
+
+  File might include optional ASCII comment field of any length, terminated by 0x00. It occurs after the 13-bytes BMP name block (if present).
+
+  There is another (older?) file format for PCD, PCQ. Magic number = 0x31. It omits the color count and color block.
+
 """
 
 import struct
