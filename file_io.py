@@ -9,21 +9,28 @@ File format (PCD/PCQ compatible):
   Body:    record_count × (byte c0, 3-byte x LE, byte c1, 3-byte y LE, byte control)
 
 Element encoding:
-  control == 0: ELEM_STITCH  — normal stitch point, coords in x/y
-  control == 2: ELEM_AUTO    — automatic stitch point, coords in x/y
+  control == 0: ELEM_STITCH  — normal stitch point, coords in x/y + fractional parts in c0/c1
+  control == 1: ELEM_AUTO    — automatic stitch point, coords in x/y + fractional parts in c0/c1
+  control == 2: ELEM_AUTO    — automatic stitch point, coords in x/y + fractional parts in c0/c1
   control == 3: ELEM_COLOR   — color change; new palette index stored in c0
-  control == 4: ELEM_TRIM    — trim point; line suppressed only between two consecutive trims
+  control == 4: ELEM_SECTION — section marker (start/end), carries regular stitch coords; not transmitted to machine
 
-Legacy format (read-only, produced by old save_pattern):
-  control == 1: old-style color-change marker; treated as ELEM_COLOR with
-                inferred sequential color index.
+Physical resolution of the hardware:
+  9mm: 1/6 mm (0.1667 mm) per step
+  MAXI: 1/6 mm (0.1667 mm) per step
+  Embroidery: ca. 1/10 mm (0.1 mm) per step; exact value: 51/512 mm (0.099609375 mm) per step
 
 All integer values are little-endian.
+
+Information sources:
+  https://web.archive.org/web/20160730135244/http://achatina.de/sewing/main/PCS.HTM
+  https://github.com/EmbroidePy/pyembroidery/blob/main/pyembroidery/PcsReader.py
+  + several PCS files and own experiments
 """
 
 import struct
 from PyQt5.QtCore import QCoreApplication
-from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM
+from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION
 
 
 def _tr(s):
@@ -74,7 +81,7 @@ def save_pattern(path, pattern):
             elif kind == ELEM_COLOR:
                 color_idx = elem[1]
                 f.write(struct.pack(POINT_FMT, color_idx, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x03))
-            elif kind == ELEM_TRIM:
+            elif kind == ELEM_SECTION:
                 x, y = elem[1], elem[2]
                 f.write(struct.pack(POINT_FMT, 0, x.to_bytes(3, 'little'), 0, y.to_bytes(3, 'little'), 0x04))
     pattern.modified = False
@@ -166,16 +173,10 @@ def load_pattern(path):
                 # Normal stitch point; c0/c1 are fractional parts of x/y
                 all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
                 # all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
-            elif control_byte == 0x01:
-                # Legacy color-change marker: infer sequential palette index
-                if pattern.colors:
-                    all_elems.append((ELEM_COLOR, legacy_color_idx))
-                    legacy_color_idx += 1
-            elif control_byte == 0x02:
+            elif control_byte == 0x01 or control_byte == 0x02:
                 # Automatic stitch point; treated as normal stitch for hoop patterns
                 if pattern.stitch_type in ("small hoop", "large hoop"):
-                    all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
-                    # all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                    all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts; embroidery adapter has finer resolution (ca. 1/10 mm)
                 else:
                     all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
             elif control_byte == 0x03:
@@ -183,12 +184,8 @@ def load_pattern(path):
                 all_elems.append((ELEM_COLOR, c0))
                 extra_records += 1 # color change records don't correspond to actual stitches, so we need to read extra records until we get stitch_count stitch points
             elif control_byte == 0x04:
-                if pattern.stitch_type in ("small hoop", "large hoop"):
-                    # Trim: line is drawn to this point, line broken after it
-                    all_elems.append((ELEM_TRIM, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
-                else:
-                    # Treat as normal stitch for 9mm and MAXI
-                    all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts
+                # Treat as normal stitch point; section markers are not transmitted to the machine, but we want to preserve them in the pattern (e.g. for selection of a single section)
+                all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts
             # Any other control byte is silently ignored.
             i += 1
 
