@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap
 
-from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM, elem_has_coords
+from model import StitchPattern, ELEM_AUTO, ELEM_COLOR, elem_has_coords
 
 
 class StitchCanvas(QWidget):
@@ -834,17 +834,18 @@ class StitchCanvas(QWidget):
                 painter.setPen(default_line_pen)
 
             current_color_idx = 0  # active palette index as we walk through elements
-            last_coord = None      # (display_idx, sx, sy, kind) of the previous coord element
+            last_coord = None      # (display_idx, sx, sy, color_idx) of the previous coord element
             last_eff_base_idx = None  # base index of the last non-auto coord element seen
 
             for elem_idx, elem in enumerate(display_elems):
                 kind = elem[0]
 
                 if kind == ELEM_COLOR:
-                    current_color_idx = elem[1]
+                    if use_palette:
+                        current_color_idx = min(elem[1], len(self.pattern.colors) - 1)
                     continue
 
-                if kind not in (ELEM_STITCH, ELEM_AUTO, ELEM_TRIM):
+                if not elem_has_coords(elem):
                     continue
 
                 x, y = elem[1], elem[2]
@@ -854,9 +855,10 @@ class StitchCanvas(QWidget):
                 sx, sy = self.canvas_to_screen(x, y)
 
                 if last_coord is not None:
-                    last_display_idx, last_sx, last_sy, last_kind = last_coord
-                    # Suppress line only between two consecutive ELEM_TRIM or ELEM_COLOR elements
-                    if not (kind in (ELEM_TRIM, ELEM_COLOR) and last_kind in (ELEM_TRIM, ELEM_COLOR)):
+                    last_display_idx, last_sx, last_sy, last_color_idx = last_coord
+                    # A colour change between the two points means the thread is cut
+                    # there, so no line may connect them.
+                    if last_color_idx == current_color_idx:
                         # Determine which base index to use for selection highlight.
                         # For ELEM_AUTO starting points, fall back to the last known base index.
                         start_base = display_map[last_display_idx]
@@ -875,8 +877,7 @@ class StitchCanvas(QWidget):
                             dashed_pen.setDashPattern([4, 4])
                             painter.setPen(dashed_pen)
                         elif use_palette:
-                            ci = min(current_color_idx, len(self.pattern.colors) - 1)
-                            pr, pg, pb = self.pattern.colors[ci]
+                            pr, pg, pb = self.pattern.colors[current_color_idx]
                             painter.setPen(QPen(QColor(pr, pg, pb), self._line_width))
                         else:
                             painter.setPen(default_line_pen)
@@ -884,7 +885,7 @@ class StitchCanvas(QWidget):
 
                 if curr_base_idx is not None:
                     last_eff_base_idx = curr_base_idx
-                last_coord = (elem_idx, sx, sy, kind)
+                last_coord = (elem_idx, sx, sy, current_color_idx)
 
         # Collect coord elements with running color for point rendering.
         # coord_elems: list of (base_idx_or_neg1, x, y, color_idx, kind)

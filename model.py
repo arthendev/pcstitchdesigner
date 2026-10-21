@@ -8,12 +8,12 @@ import math
 ELEM_STITCH = 0   # (ELEM_STITCH, x, y)  — normal stitch point
 ELEM_AUTO   = 2   # (ELEM_AUTO, x, y)    — automatic stitch (hollow circle)
 ELEM_COLOR  = 3   # (ELEM_COLOR, color_index) — color change
-ELEM_TRIM   = 4   # (ELEM_TRIM, x, y)   — trim; line suppressed only between two consecutive trims
+ELEM_SECTION = 4  # (ELEM_SECTION, x, y) — section marker (start/end)
 
 
 def elem_has_coords(e):
     """Return True when element *e* carries x,y coordinates."""
-    return e[0] in (ELEM_STITCH, ELEM_AUTO, ELEM_TRIM)
+    return e[0] in (ELEM_STITCH, ELEM_AUTO, ELEM_SECTION)
 
 
 class Command:
@@ -264,7 +264,7 @@ class StitchPattern:
     """Ordered list of pattern elements with undo/redo.
 
     Each element in ``elements`` is a tuple whose first value is an element
-    type constant (ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM).
+    type constant (ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION).
     """
 
     # Canvas size definitions: {name: (width, height)}
@@ -276,6 +276,7 @@ class StitchPattern:
     }
 
     STITCH_RES_MM = 1/6  # 1 stitch = 0.166... mm
+    EMBROIDERY_RES_MM = 51/512  # 1 stitch = 0.099609375 mm (approx. 1/10 mm)
 
     def __init__(self):
         self.elements = []  # list of base element tuples (never contains ELEM_AUTO)
@@ -435,12 +436,12 @@ class StitchPattern:
         self.modified = True
         self._rebuild_display_no_auto()
 
-    def add_trim(self, index=None):
-        """Insert a trim element (ELEM_TRIM) at *index*."""
+    def add_section_marker(self, index=None):
+        """Insert a section marker (ELEM_SECTION) at *index*."""
         if index is None:
             index = len(self.elements)
         index = max(0, min(index, len(self.elements)))
-        self.elements.insert(index, (ELEM_TRIM,))
+        self.elements.insert(index, (ELEM_SECTION,))
         self._undo_stack.clear()   # simple insert — no undo support yet
         self._redo_stack.clear()
         self.modified = True

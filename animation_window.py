@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QIcon, QPixmap, QPolygon
-from model import ELEM_COLOR, ELEM_TRIM, elem_has_coords
+from model import ELEM_COLOR, elem_has_coords
 
 
 _ICONS = os.path.join(os.path.dirname(__file__), "icons")
@@ -88,8 +88,8 @@ class AnimationCanvas(QWidget):
 
         # Cached geometry — invalidated on resize
         self._screen_pts = []         # [(sx, sy), ...] for every coord element
-        self._coord_elem_indices = []  # parallel list: element index for each screen point
-        self._trim_after = set()       # coord-point indices after which a trim/break occurs
+        self._point_colors = []       # parallel list: active palette index at each screen point
+        self._trim_after = set()      # coord-point indices after which the thread is cut
         self._bbox_vals = None         # (bx0, by0, bx1, by1)
         self._scale = 1.0
         self._off_x = 0.0
@@ -126,7 +126,7 @@ class AnimationCanvas(QWidget):
 
     def _invalidate_cache(self):
         self._screen_pts = []
-        self._coord_elem_indices = []
+        self._point_colors = []
         self._trim_after = set()
         self._bbox_vals = None
         self._lines_pixmap = None
@@ -164,35 +164,38 @@ class AnimationCanvas(QWidget):
         remaining_h = self.height() - 2 * self.MARGIN - self.LABEL_HEIGHT
         self._off_y = self.MARGIN + self.LABEL_HEIGHT + max(0.0, (remaining_h - draw_h) / 2)
         off_x, off_y, scale = self._off_x, self._off_y, self._scale
-        coord_idx = 0
-        prev_kind = None
-        self._coord_elem_indices = []
-        self._trim_after = set()
+        has_palette = self._pattern.has_palette
+        last_color_idx = len(self._pattern.colors) - 1
+        cur_color = 0
+        self._point_colors = []
         new_screen_pts = []
-        for elem_idx, e in enumerate(self._pattern.elements):
+        for e in self._pattern.elements:
             if e[0] == ELEM_COLOR:
-                pass
-            elif e[0] == ELEM_TRIM or elem_has_coords(e):
+                if has_palette:
+                    cur_color = min(e[1], last_color_idx)
+            elif elem_has_coords(e):
                 cx, cy = e[1], e[2]
                 new_screen_pts.append(
                     (int(off_x + (cx - bx0) * scale), int(off_y + (by1 - cy) * scale))
                 )
-                self._coord_elem_indices.append(elem_idx)
-                if e[0] == ELEM_TRIM:
-                    if coord_idx > 0 and prev_kind == ELEM_TRIM:
-                        self._trim_after.add(coord_idx - 1)  # break between two consecutive TRIMs
-                prev_kind = e[0]
-                coord_idx += 1
+                self._point_colors.append(cur_color)
         self._screen_pts = new_screen_pts
+
+        # A colour change between two points means the thread is cut there, so
+        # no line may connect them.
+        if has_palette:
+            self._trim_after = {
+                i for i in range(len(self._point_colors) - 1)
+                if self._point_colors[i] != self._point_colors[i + 1]
+            }
+        else:
+            self._trim_after = set()
 
     def _pen_for_segment(self, seg_idx):
         """Return the QPen for segment seg_idx (the line from coord point seg_idx to seg_idx+1)."""
-        if not self._pattern.has_palette:
+        if not self._pattern.has_palette or seg_idx >= len(self._point_colors):
             return self._pen_line
-        elem_idx = self._coord_elem_indices[seg_idx] if seg_idx < len(self._coord_elem_indices) else 0
-        color_idx = self._pattern.get_color_at(elem_idx)
-        if color_idx is None:
-            return self._pen_line
+        color_idx = self._point_colors[seg_idx]
         if color_idx not in self._color_pens:
             r, g, b = self._pattern.colors[color_idx]
             self._color_pens[color_idx] = QPen(QColor(r, g, b), 2)
@@ -201,7 +204,7 @@ class AnimationCanvas(QWidget):
     def _draw_segments(self, painter, from_seg, to_seg):
         """Draw line segments [from_seg, to_seg) onto painter.
 
-        Segments are grouped into polylines by colour and split at jump stitches.
+        Segments are grouped into polylines by colour and split at colour changes.
         Segment i connects screen points i and i+1.
         """
         pts = self._screen_pts

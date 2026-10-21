@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 )
 
 import file_io
-from model import ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_TRIM, elem_has_coords
+from model import ELEM_COLOR, elem_has_coords
 
 
 class PatternPreviewWidget(QWidget):
@@ -93,29 +93,26 @@ class PatternPreviewWidget(QWidget):
         painter.setPen(border_pen)
         painter.drawRect(int(origin_x), int(origin_y), int(pattern_w), int(pattern_h))
 
-        # Draw connecting lines, respecting color changes and trims
+        # Draw connecting lines, breaking the thread at colour changes
+        has_palette = self._pattern.has_palette
         current_color_idx = 0
-        kind = None
-        last_kind = None
+        last_color_idx = 0
         last_sx, last_sy = None, None
         for elem in elements:
-            if kind is not None:
-                last_kind = kind
-            kind = elem[0]
-            if kind == ELEM_COLOR:
-                current_color_idx = elem[1]
+            if elem[0] == ELEM_COLOR:
+                if has_palette:
+                    current_color_idx = min(elem[1], len(self._pattern.colors) - 1)
                 continue
-            # if kind == ELEM_TRIM:
-            #     trim_pending = True
-            #     # continue
             if not elem_has_coords(elem):
                 continue
 
             x, y = elem[1], elem[2]
             sx, sy = to_screen(x, y)
 
-            if last_sx is not None and not (kind in (ELEM_TRIM, ELEM_COLOR) and last_kind in (ELEM_TRIM, ELEM_COLOR)):
-                if self._pattern.has_palette and current_color_idx < len(self._pattern.colors):
+            # A colour change between the two points means the thread is cut
+            # there, so no line may connect them.
+            if last_sx is not None and last_color_idx == current_color_idx:
+                if has_palette:
                     r, g, b = self._pattern.colors[current_color_idx]
                     line_color = QColor(r, g, b)
                 else:
@@ -124,6 +121,7 @@ class PatternPreviewWidget(QWidget):
                 painter.drawLine(int(last_sx), int(last_sy), int(sx), int(sy))
 
             last_sx, last_sy = sx, sy
+            last_color_idx = current_color_idx
 
         # Draw start/end markers for stitch formats on top of lines.
         if self._pattern.stitch_type in ("9mm", "MAXI") and coord_elems:
