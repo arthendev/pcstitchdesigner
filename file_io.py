@@ -202,7 +202,7 @@ def load_pattern(path):
                 extra_records += 1 # color change records don't correspond to actual stitches, so we need to read extra records until we get stitch_count stitch points
             elif control_byte == 0x04:
                 # Treat as normal stitch point; section markers are not transmitted to the machine, but we want to preserve them in the pattern (e.g. for selection of a single section)
-                all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts
+                all_elems.append((ELEM_SECTION, x + c0 / 256, y + c1 / 256)) # include fractional parts
             # Any other control byte is silently ignored.
             i += 1
 
