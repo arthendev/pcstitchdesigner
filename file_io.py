@@ -85,19 +85,23 @@ class PatternFileInfo:
     warnings: List[str] = field(default_factory=list)
 
 
-def _parse_text_block(block):
+def _parse_text_block(block, allow_empty=False):
     """Decode a NUL-terminated text block, or return None if it is invalid.
 
     Valid blocks hold only bytes 32..255 before the terminator. Everything
-    after the first NUL is ignored. A missing terminator, an empty string or a
-    control byte before the terminator makes the block invalid.
+    after the first NUL is ignored. A missing terminator or a control byte
+    before the terminator makes the block invalid.
+
+    An empty block (NUL as its first byte) normally counts as invalid, but the
+    optional background-name block is still valid when empty — it just holds no
+    file name — so *allow_empty* makes it return an empty string instead.
     """
     terminator = block.find(b"\x00")
     if terminator < 0:
         return None
     text = block[:terminator]
     if not text:
-        return None
+        return "" if allow_empty else None
     if any(byte < 32 for byte in text):
         return None
     return text.decode("latin-1")
@@ -285,14 +289,16 @@ def load_pattern(path):
             trailer = f.read()
             consumed = 0
             if len(trailer) >= BG_BLOCK_SIZE:
-                background_image = _parse_text_block(trailer[:BG_BLOCK_SIZE])
-                if background_image is not None:
-                    info.background_image = background_image
+                # An all-NUL name block is still a valid block, just without a name.
+                background_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
+                if background_name is not None:
+                    info.background_image = background_name or None
                     consumed = BG_BLOCK_SIZE
                     # The comment block starts right after the background name block.
                     comment_block = trailer[BG_BLOCK_SIZE:]
-                    info.comment = _parse_text_block(comment_block)
-                    if info.comment is not None:
+                    comment = _parse_text_block(comment_block, allow_empty=True)
+                    if comment is not None:
+                        info.comment = comment or None
                         consumed += comment_block.index(b"\x00") + 1
             if DEBUG:
                 if info.background_image is not None:
