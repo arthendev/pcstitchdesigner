@@ -203,7 +203,7 @@ class PatternBrowserDialog(QFileDialog):
             return
 
         try:
-            pattern = file_io.load_pattern(path)
+            pattern, _file_info = file_io.load_pattern(path)
         except Exception as exc:
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))

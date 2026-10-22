@@ -1170,10 +1170,15 @@ class MainWindow(QMainWindow):
         """Open a file and add it to recent files list."""
         self._log_info(f"File opened: {path}")
         try:
-            pattern = file_io.load_pattern(path)
+            pattern, file_info = file_io.load_pattern(path)
         except Exception as e:
             QMessageBox.critical(self, self.tr("Error opening file"), str(e))
             return
+        if file_info.warnings:
+            for warning in file_info.warnings:
+                self._log_error(warning)
+            QMessageBox.warning(
+                self, self.tr("File loaded with warnings"), "\n".join(file_info.warnings))
         self._pattern = pattern
         self._canvas.pattern = pattern
         self._canvas.set_selected_point(None)

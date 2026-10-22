@@ -45,7 +45,11 @@ Notes:
 
 """
 
+import os
 import struct
+from dataclasses import dataclass, field
+from typing import List, Optional
+
 from PyQt5.QtCore import QCoreApplication
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION
 
@@ -56,7 +60,47 @@ def _tr(s):
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
+BG_BLOCK_SIZE = 13  # fixed size of the optional BMP background-name block
+
 DEBUG = 0  # 1: print details of each element record; 2: print only for non-zero control bytes
+
+
+@dataclass
+class PatternFileInfo:
+    """What the parser actually found in a pattern file.
+
+    The counts mirror what was read from the file, not what the header claims,
+    so callers can compare the two and detect malformed files.
+    """
+
+    input_file_format: str = "UNKNOWN"  # file extension, e.g. "PCS", "PCD", "PCQ"
+    stitch_type: str = ""  # "9mm", "MAXI", "small hoop", "large hoop"
+    stitch_count: int = 0  # parsed records excluding colour changes
+    has_color_palette: bool = False
+    color_count: int = 0  # parsed palette entries
+    color_changes: int = 0  # parsed ELEM_COLOR records
+    sections_count: int = 0  # parsed ELEM_SECTION markers
+    background_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
+    comment: Optional[str] = None  # optional comment, None if absent/invalid
+    warnings: List[str] = field(default_factory=list)
+
+
+def _parse_text_block(block):
+    """Decode a NUL-terminated text block, or return None if it is invalid.
+
+    Valid blocks hold only bytes 32..255 before the terminator. Everything
+    after the first NUL is ignored. A missing terminator, an empty string or a
+    control byte before the terminator makes the block invalid.
+    """
+    terminator = block.find(b"\x00")
+    if terminator < 0:
+        return None
+    text = block[:terminator]
+    if not text:
+        return None
+    if any(byte < 32 for byte in text):
+        return None
+    return text.decode("latin-1")
 
 
 def save_pattern(path, pattern):
@@ -105,8 +149,17 @@ def save_pattern(path, pattern):
 
 
 def load_pattern(path):
-    """Load a StitchPattern from a binary file. Returns a new StitchPattern."""
+    """Load a StitchPattern from a binary file.
+
+    Returns ``(pattern, info)``: the parsed pattern and a PatternFileInfo
+    describing the file. Structurally broken headers still raise ValueError;
+    a file that ends before the header's record count is loaded partially and
+    reported through ``info.warnings``.
+    """
     pattern = StitchPattern()
+    file_format = os.path.splitext(path)[1].lstrip(".").upper()
+    info = PatternFileInfo(input_file_format=file_format or "UNKNOWN")
+
     with open(path, 'rb') as f:
         # Read and validate header
         header_size = struct.calcsize(HEADER_FMT)
@@ -130,6 +183,8 @@ def load_pattern(path):
             pattern.stitch_type = "large hoop"
         else:
             raise ValueError(_tr("Invalid/unsupported stitch type"))
+
+        info.stitch_type = pattern.stitch_type
 
         # Read colors
         for _ in range(color_count):
@@ -157,6 +212,9 @@ def load_pattern(path):
                   + str(stitch_count) + " stitch records:")
 
         all_elems = []
+        stitch_records = 0  # parsed records that count towards the header's stitch count
+        sections = 0
+        truncated = False
 
         # for i in range(stitch_count):
         i = 0
@@ -164,7 +222,13 @@ def load_pattern(path):
         while i < stitch_count + extra_records:
             point_data = f.read(point_size)
             if len(point_data) < point_size:
-                raise ValueError(_tr("Unexpected end of file while reading stitch points"))
+                # The header promises more records than the file holds, so the
+                # file was cut short (or the writer under-counted colour changes).
+                info.warnings.append(_tr(
+                    "File appears to be truncated: only {0} of {1} records could be read"
+                ).format(i, stitch_count + extra_records))
+                truncated = True
+                break
             c0, x_bytes, c1, y_bytes, control_byte = struct.unpack(POINT_FMT, point_data)
             x = int.from_bytes(x_bytes, 'little')
             y = int.from_bytes(y_bytes, 'little')
@@ -190,12 +254,14 @@ def load_pattern(path):
                 # Normal stitch point; c0/c1 are fractional parts of x/y
                 all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256))
                 # all_elems.append((ELEM_STITCH, round(x + c0 / 256), round(y + c1 / 256))) # align to grid, machine can't do fractions anyway (WYSIWYG)
+                stitch_records += 1
             elif control_byte == 0x01 or control_byte == 0x02:
                 # Automatic stitch point; treated as normal stitch for hoop patterns
                 if pattern.stitch_type in ("small hoop", "large hoop"):
                     all_elems.append((ELEM_STITCH, x + c0 / 256, y + c1 / 256)) # include fractional parts; embroidery adapter has finer resolution (ca. 1/10 mm)
                 else:
                     all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
+                stitch_records += 1
             elif control_byte == 0x03:
                 # Color change: palette index in c0
                 all_elems.append((ELEM_COLOR, c0))
@@ -203,8 +269,27 @@ def load_pattern(path):
             elif control_byte == 0x04:
                 # Treat as normal stitch point; section markers are not transmitted to the machine, but we want to preserve them in the pattern (e.g. for selection of a single section)
                 all_elems.append((ELEM_SECTION, x + c0 / 256, y + c1 / 256)) # include fractional parts
+                stitch_records += 1
+                sections += 1
             # Any other control byte is silently ignored.
             i += 1
 
+        # Optional trailing blocks are only trustworthy when the record stream
+        # was complete; in a truncated file they would be read from cut-off data.
+        if not truncated:
+            trailer = f.read()
+            if len(trailer) >= BG_BLOCK_SIZE:
+                background_image = _parse_text_block(trailer[:BG_BLOCK_SIZE])
+                if background_image is not None:
+                    info.background_image = background_image
+                    # The comment block starts right after the background name block.
+                    info.comment = _parse_text_block(trailer[BG_BLOCK_SIZE:])
+
+    info.stitch_count = stitch_records
+    info.has_color_palette = bool(pattern.colors)
+    info.color_count = len(pattern.colors)
+    info.color_changes = extra_records
+    info.sections_count = sections
+
     pattern._load_elements(all_elems)
-    return pattern
+    return pattern, info
