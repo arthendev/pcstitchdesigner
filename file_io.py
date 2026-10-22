@@ -62,7 +62,7 @@ POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) 
 
 BG_BLOCK_SIZE = 13  # fixed size of the optional BMP background-name block
 
-DEBUG = 0  # 1: print details of each element record; 2: print only for non-zero control bytes
+DEBUG = 1  # 1: print details of each element record; 2: print only for non-zero control bytes
 
 
 @dataclass
@@ -222,6 +222,11 @@ def load_pattern(path):
         while i < stitch_count + extra_records:
             point_data = f.read(point_size)
             if len(point_data) < point_size:
+                # Some writers include colour-change records in the header count.
+                # If the file ends exactly at that count, it is complete despite
+                # the non-standard header, so no warning is warranted.
+                if i == stitch_count and not point_data:
+                    break
                 # The header promises more records than the file holds, so the
                 # file was cut short (or the writer under-counted colour changes).
                 info.warnings.append(_tr(
@@ -278,12 +283,26 @@ def load_pattern(path):
         # was complete; in a truncated file they would be read from cut-off data.
         if not truncated:
             trailer = f.read()
+            consumed = 0
             if len(trailer) >= BG_BLOCK_SIZE:
                 background_image = _parse_text_block(trailer[:BG_BLOCK_SIZE])
                 if background_image is not None:
                     info.background_image = background_image
+                    consumed = BG_BLOCK_SIZE
                     # The comment block starts right after the background name block.
-                    info.comment = _parse_text_block(trailer[BG_BLOCK_SIZE:])
+                    comment_block = trailer[BG_BLOCK_SIZE:]
+                    info.comment = _parse_text_block(comment_block)
+                    if info.comment is not None:
+                        consumed += comment_block.index(b"\x00") + 1
+            if DEBUG:
+                if info.background_image is not None:
+                    print(f"Background image: {info.background_image!r}")
+                if info.comment is not None:
+                    print(f"Comment: {info.comment!r}")
+                remaining = trailer[consumed:]
+                if remaining:
+                    print(f"Unparsed trailing bytes ({len(remaining)}): "
+                          f"{remaining.hex(' ')}")
 
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
