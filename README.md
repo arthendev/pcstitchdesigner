@@ -2,9 +2,9 @@
 
 ## Application Overview
 
-This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (Pfaff Creative 7570, 7550, 1475 CD).
+This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (Creative 7570, 7550, 1475 CD from Pfaff).
 
-It serves as a modern alternative to "Pfaff PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
+It serves as a modern alternative to "PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
 
 ## Main window of the application
 
@@ -26,7 +26,7 @@ It serves as a modern alternative to "Pfaff PC Designer 2.2", a legacy software 
 ## Hardware requirements
 
 - Compatible sewing machine
-  - Pfaff Creative 7570, 7550 or 1475 CD
+  - Creative 7570, 7550 or 1475 CD
 - Interface cable
   - [compatible USB cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
