@@ -221,9 +221,16 @@ def load_pattern(path):
         truncated = False
 
         # for i in range(stitch_count):
+        file_size = os.fstat(f.fileno()).st_size
         i = 0
         extra_records = 0
         while i < stitch_count + extra_records:
+            if file_size - f.tell() == BG_BLOCK_SIZE:
+                # Exactly the size of the optional background-name block is left:
+                # the record stream ends here and a trailer follows, even though
+                # the header count implies more records. Leave it for the trailer
+                # parser instead of consuming it as a stitch record.
+                break
             point_data = f.read(point_size)
             if len(point_data) < point_size:
                 # Some writers include colour-change records in the header count.
@@ -301,6 +308,7 @@ def load_pattern(path):
                         info.comment = comment or None
                         consumed += comment_block.index(b"\x00") + 1
             if DEBUG:
+                print(f"Trailing bytes: {len(trailer)}")
                 if info.background_image is not None:
                     print(f"Background image: {info.background_image!r}")
                 if info.comment is not None:
@@ -309,6 +317,9 @@ def load_pattern(path):
                 if remaining:
                     print(f"Unparsed trailing bytes ({len(remaining)}): "
                           f"{remaining.hex(' ')}")
+
+        if DEBUG and info.warnings:
+            print(f"Warnings: {info.warnings}")
 
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
