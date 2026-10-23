@@ -2,13 +2,13 @@
 
 ## Application Overview
 
-This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (PFAFF Creative 7570, 7550, 1475 CD).
+This application is designed to enable users to create, edit, and transfer custom stitch patterns to compatible sewing machines (Pfaff Creative 7570, 7550, 1475 CD).
 
-It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
+It serves as a modern alternative to "Pfaff PC Designer 2.2", a legacy software originally developed for Windows 3.11. Due to its age, the original software is no longer compatible with recent 64-bit Windows systems. This project aims to allow owners of old sewing machines continue using them with modern PCs.
 
 ## Main window of the application
 
-<img width="900" alt="main_window" src="https://github.com/user-attachments/assets/7da7d1e2-0498-4ed1-9e99-2b469eed21a3" />
+<img width="1235" height="688" alt="main_window_overview_2" src="https://github.com/user-attachments/assets/cf4f44c2-4fb1-4b20-bebe-3bf5e51c3af6" />
 
 ## Available Features
 
@@ -17,18 +17,18 @@ It serves as a modern alternative to "PFAFF PC Designer 2.2", a legacy software 
   - *.PCD (9 mm stitches)
   - *.PCQ (MAXI stitches)
 - Transfer stitch patterns to and from supported sewing machines
-  - PFAFF Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
-  - PFAFF Creative 7550
-  - PFAFF Creative 1475 CD
+  - Pfaff Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
+  - Pfaff Creative 7550
+  - Pfaff Creative 1475 CD
 - Compatibility with modern 64-bit operating systems
 - App interface is available in English, Danish, Dutch, French, German, Italian, Russian and Swedish
 
 ## Hardware requirements
 
 - Compatible sewing machine
-  - PFAFF Creative 7570, 7550 or 1475 CD
+  - Pfaff Creative 7570, 7550 or 1475 CD
 - Interface cable
-  - [compatible USB-PFAFF cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
+  - [compatible USB cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
 
 ## Download
@@ -51,12 +51,12 @@ The following features are planned for future releases:
 - Embroidery Design Support
   - Loading embroidery design files (already done)
   - Transferring embroidery designs to and from the sewing machine
-  - Support for PFAFF Creative 7560
+  - Support for Creative 7560
 - Rework of keyboard shortcuts
 
 ## Donations
 
-This project was created entirely in my free time. It started when I was looking for a high-quality sewing machine and, by chance, came across a PFAFF Creative series from 1990s. Being immediately impressed by the craftsmanship and engineering of this classic machine, it was sad to see the original software tools are outdated and not usable on recent computers anymore. I decided to build a modern, user-friendly alternative, that allows owners of these remarkable machines to continue using them with their own stitch designs.
+This project was created entirely in my free time. It started when I was looking for a high-quality sewing machine and, by chance, came across a Pfaff Creative series from 1990s. Being immediately impressed by the craftsmanship and engineering of this classic machine, it was sad to see the original software tools are outdated and not usable on recent computers anymore. I decided to build a modern, user-friendly alternative, that allows owners of these remarkable machines to continue using them with their own stitch designs.
 
 If you find this project useful and would like to say "thank you" for the work already done, you are very welcome to make a small donation.
 
