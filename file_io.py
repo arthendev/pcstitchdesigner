@@ -36,7 +36,7 @@ Notes:
   0x04 is a section marker; for PCD/PCQ the first and last record has control_byte = 0x04, i.e. whole pattern is a single section
        It is not transmitted to the machine, but we want to preserve it in the pattern (e.g. for selection of a single section)
   
-  File might include optional 13-bytes block for the name of BMP background image. Name is null-terminated.
+  File might include optional 13-bytes block for the name of BMP template image. Name is null-terminated.
   It occurs directly after the data block.
 
   File might include optional ASCII comment field of any length, terminated by 0x00. It occurs after the 13-bytes BMP name block (if present).
@@ -51,7 +51,7 @@ VCSM format (.9mm and .max files):
            foot-type length + ASCII, needle-type length + ASCII,
            uint16 tension (value / 100), 2 unknown bytes,
            notes length (0xFF means the next uint16 holds the length) + ASCII notes,
-           uint32 background-image size + embedded image bytes
+           uint32 template-image size + embedded image bytes
   Body:    uint32 stitch count, then 8-byte records:
            int24 x LE, c0, int24 y LE, c1
            Coordinates use 1/10 mm units with c0/c1 as fractional parts (/256)
@@ -75,7 +75,7 @@ def _tr(s):
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
-BG_BLOCK_SIZE = 13  # fixed size of the optional BMP background-name block
+BG_BLOCK_SIZE = 13  # fixed size of the optional BMP template-image name block
 
 VCSM_MAGIC = b"VCSM"
 VCSM_UNIT_MM = 0.1  # VCSM stitch coordinates are stored in 1/10 mm units
@@ -98,7 +98,7 @@ class PatternFileInfo:
     color_count: int = 0  # parsed palette entries
     color_changes: int = 0  # parsed ELEM_COLOR records
     sections_count: int = 0  # parsed ELEM_SECTION markers
-    background_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
+    template_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
     comment: Optional[str] = None  # optional comment, None if absent/invalid
     warnings: List[str] = field(default_factory=list)
 
@@ -111,7 +111,7 @@ def _parse_text_block(block, allow_empty=False):
     before the terminator makes the block invalid.
 
     An empty block (NUL as its first byte) normally counts as invalid, but the
-    optional background-name block is still valid when empty — it just holds no
+    optional template-image name block is still valid when empty — it just holds no
     file name — so *allow_empty* makes it return an empty string instead.
     """
     terminator = block.find(b"\x00")
@@ -173,7 +173,7 @@ def save_pattern(path, pattern):
                 c0 = round((x - x_int) * 256) % 256
                 c1 = round((y - y_int) * 256) % 256
                 f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x04))
-        # Optional trailer: an empty background-name block (no background image).
+        # Optional trailer: an empty template-image name block (no template image).
         f.write(b"\x00" * BG_BLOCK_SIZE)
     pattern.modified = False
 
@@ -254,7 +254,7 @@ def load_pattern_v31(path):
         extra_records = 0
         while i < stitch_count + extra_records:
             if file_size - f.tell() == BG_BLOCK_SIZE:
-                # Exactly the size of the optional background-name block is left:
+                # Exactly the size of the optional template-image name block is left:
                 # the record stream ends here and a trailer follows, even though
                 # the header count implies more records. Leave it for the trailer
                 # parser instead of consuming it as a stitch record.
@@ -317,11 +317,11 @@ def load_pattern_v31(path):
             consumed = 0
             if len(trailer) >= BG_BLOCK_SIZE:
                 # An all-NUL name block is still a valid block, just without a name.
-                background_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
-                if background_name is not None:
-                    info.background_image = background_name or None
+                template_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
+                if template_name is not None:
+                    info.template_image = template_name or None
                     consumed = BG_BLOCK_SIZE
-                    # The comment block starts right after the background name block.
+                    # The comment block starts right after the template name block.
                     comment_block = trailer[BG_BLOCK_SIZE:]
                     comment = _parse_text_block(comment_block, allow_empty=True)
                     if comment is not None:
@@ -329,8 +329,8 @@ def load_pattern_v31(path):
                         consumed += comment_block.index(b"\x00") + 1
             if DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
-                if info.background_image is not None:
-                    print(f"Background image: {info.background_image!r}")
+                if info.template_image is not None:
+                    print(f"Template image: {info.template_image!r}")
                 if info.comment is not None:
                     print(f"Comment: {info.comment!r}")
                 remaining = trailer[consumed:]
@@ -536,7 +536,7 @@ def _load_pcdqs_standard(path):
             if remaining < point_size:
                 truncated = True
             if remaining == BG_BLOCK_SIZE or remaining < point_size:
-                # Exactly the size of the optional background-name block is left:
+                # Exactly the size of the optional template-image name block is left:
                 # assume the record stream ends here and a trailer follows, even though
                 # the header count implies more records. Leave it for the trailer
                 # parser instead of consuming it as a stitch record.
@@ -600,11 +600,11 @@ def _load_pcdqs_standard(path):
             consumed = 0
             if len(trailer) >= BG_BLOCK_SIZE:
                 # An all-NUL name block is still a valid block, just without a name.
-                background_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
-                if background_name is not None:
-                    info.background_image = background_name or None
+                template_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
+                if template_name is not None:
+                    info.template_image = template_name or None
                     consumed = BG_BLOCK_SIZE
-                    # The comment block starts right after the background name block.
+                    # The comment block starts right after the template name block.
                     comment_block = trailer[BG_BLOCK_SIZE:]
                     comment = _parse_text_block(comment_block, allow_empty=True)
                     if comment is not None:
@@ -612,8 +612,8 @@ def _load_pcdqs_standard(path):
                         consumed += comment_block.index(b"\x00") + 1
             if DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
-                if info.background_image is not None:
-                    print(f"Background image: {info.background_image!r}")
+                if info.template_image is not None:
+                    print(f"Template image: {info.template_image!r}")
                 if info.comment is not None:
                     print(f"Comment: {info.comment!r}")
                 remaining = trailer[consumed:]
@@ -642,7 +642,7 @@ def load_pcdqs_nonstandard(path):
     are read until the stream itself signals its end — an unknown control byte,
     a colour index outside the 16-colour palette, coordinates outside the canvas
     of the file's stitch type, an all-zero record (null trailer), or only the
-    background-name block remaining. The record that triggers the stop is
+    template-image name block remaining. The record that triggers the stop is
     discarded. The optional trailer is not parsed here.
     """
     pattern = StitchPattern()
@@ -707,7 +707,7 @@ def load_pcdqs_nonstandard(path):
         while True:
             remaining = file_size - f.tell()
             if remaining == BG_BLOCK_SIZE or remaining < point_size:
-                # Only the optional background-name block is left, or not even a
+                # Only the optional template-image name block is left, or not even a
                 # whole record; the record stream has ended.
                 break
             point_data = f.read(point_size)
@@ -860,7 +860,7 @@ def load_pattern_vcsm(path):
         if DEBUG:
             print(f"VCSM optional block:\nfoot={foot!r}\nneedle={needle!r}\n"
                   f"tension={tension / 100:.2f}\nnotes={notes!r}\n"
-                  f"background image={image_size} bytes")
+                  f"template image={image_size} bytes")
     else:
         pos = 0x18
 
