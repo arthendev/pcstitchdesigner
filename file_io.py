@@ -51,13 +51,13 @@ class PatternFileInfo:
     color_changes: int = 0  # parsed ELEM_COLOR records
     sections_count: int = 0  # parsed ELEM_SECTION markers
     template_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
-    comment: Optional[str] = None  # optional comment, None if absent/invalid
+    note: Optional[str] = None  # optional note, None if absent/invalid
     # VCSM-only metadata (.9mm / .max files)
     sewing_foot: Optional[str] = None  # sewing foot type, e.g. "2A"
     needle_system: Optional[str] = None  # needle system, e.g. "130/705"
     tension: Optional[float] = None  # thread tension, e.g. 2.5
     thread_color: Optional[Tuple[int, int, int]] = None  # (R, G, B) thread colour
-    background_image_data: Optional[bytes] = None  # embedded template image bytes
+    template_image_data: Optional[bytes] = None  # embedded template image bytes
     warnings: List[str] = field(default_factory=list)
 
 
@@ -90,8 +90,12 @@ def save_pattern(path, pattern, info=None, image_data=None):
     """Save a StitchPattern, choosing the format from the file extension.
 
     ``.9mm`` and ``.max`` paths are written by file_io_vcsm_9mm_max.save();
-    every other extension is written by file_io_pcd_pcq_pcs.save().
-    *info* and *image_data* are only used by the VCSM writer.
+    every other extension is written by file_io_pcd_pcq_pcs.save(). *info* is
+    read by both writers.
+
+    *image_data* is the template preview as a raster image (QPixmap), not
+    encoded bytes: the writer that can store an image converts it to whatever
+    its format needs. Only the VCSM format embeds an image.
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
@@ -99,4 +103,19 @@ def save_pattern(path, pattern, info=None, image_data=None):
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         file_io_vcsm_9mm_max.save(path, pattern, info=info, image_data=image_data)
     else:
-        file_io_pcd_pcq_pcs.save(path, pattern)
+        file_io_pcd_pcq_pcs.save(path, pattern, info=info)
+
+
+def note_max_length(path):
+    """Return how many characters a note may have when saved to *path*.
+
+    Each format caps the note differently (see NOTE_MAX_LENGTH in the
+    format modules); callers use this to warn the user before a note is
+    truncated on save.
+    """
+    import file_io_pcd_pcq_pcs
+    import file_io_vcsm_9mm_max
+
+    if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
+        return file_io_vcsm_9mm_max.NOTE_MAX_LENGTH
+    return file_io_pcd_pcq_pcs.NOTE_MAX_LENGTH

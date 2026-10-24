@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
     QLineEdit, QProgressDialog, QApplication,
 )
-from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale, QBuffer, QIODevice
+from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap
 from PyQt5.QtGui import QDesktopServices
 
@@ -1254,9 +1254,9 @@ class MainWindow(QMainWindow):
         self._template_toolbar.setVisible(False)
 
         # VCSM files can embed a preview image; use it as the template underlay
-        if file_info.background_image_data:
+        if file_info.template_image_data:
             pixmap = QPixmap()
-            if pixmap.loadFromData(file_info.background_image_data):
+            if pixmap.loadFromData(file_info.template_image_data):
                 self._canvas.set_template_image(pixmap)
             else:
                 self._log_error("Failed to decode embedded preview image")
@@ -1270,14 +1270,28 @@ class MainWindow(QMainWindow):
         # Center the pattern in the view
         self._fit_pattern()
 
+    def _warn_if_note_truncated(self, path):
+        """Tell the user when the pattern note will not fit into *path*'s format."""
+        limit = file_io.note_max_length(path)
+        note = self._file_info.note if self._file_info else None
+        if not note or len(note) <= limit:
+            return
+        QMessageBox.warning(
+            self,
+            self.tr("Note will be truncated"),
+            self.tr("The note is {0} characters long.\n\n"
+                    "This file format stores at most {1} characters, so the "
+                    "note will be truncated when saving.").format(len(note), limit))
+
     def _file_save(self):
         if self._file_path:
+            self._warn_if_note_truncated(self._file_path)
             self._log_info(f"File saved: {self._file_path}")
             try:
                 file_io.save_pattern(
                     self._file_path, self._pattern,
                     info=self._file_info,
-                    image_data=self._template_image_png())
+                    image_data=self._canvas._template_image)
             except Exception as e:
                 QMessageBox.critical(self, self.tr("Error saving file"), str(e))
                 return False
@@ -2433,18 +2447,6 @@ class MainWindow(QMainWindow):
 
     # ── Template ──
 
-    def _template_image_png(self):
-        """Return the template underlay encoded as PNG, or b\"\" if none is set."""
-        pixmap = self._canvas._template_image
-        if pixmap is None or pixmap.isNull():
-            return b""
-        buffer = QBuffer()
-        buffer.open(QIODevice.WriteOnly)
-        if not pixmap.save(buffer, "PNG"):
-            self._log_error("Failed to encode template image as PNG")
-            return b""
-        return bytes(buffer.data())
-
     def _design_template_load(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -2497,6 +2499,10 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
         self._canvas.set_template_image(None)
+        # Drop the preview bytes from the loaded file as well, so saving does not
+        # put the deleted image back.
+        if self._file_info is not None:
+            self._file_info.template_image_data = None
         self._update_template_action_state()
 
     # ── Help ──
