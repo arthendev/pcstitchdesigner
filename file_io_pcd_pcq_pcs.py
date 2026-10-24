@@ -312,7 +312,7 @@ def load_v31(path):
                 # An all-NUL name block is still a valid block, just without a name.
                 template_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
                 if template_name is not None:
-                    info.template_image = template_name or None
+                    info.template_image_filename = template_name or None
                     consumed = BG_BLOCK_SIZE
                     # The note block starts right after the template name block.
                     note_block = trailer[BG_BLOCK_SIZE:]
@@ -322,8 +322,8 @@ def load_v31(path):
                         consumed += note_block.index(b"\x00") + 1
             if file_io.DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
-                if info.template_image is not None:
-                    print(f"Template image: {info.template_image!r}")
+                if info.template_image_filename is not None:
+                    print(f"Template image: {info.template_image_filename!r}")
                 if info.note is not None:
                     print(f"Note: {info.note!r}")
                 remaining = trailer[consumed:]
@@ -594,7 +594,7 @@ def _load_standard(path):
                 # An all-NUL name block is still a valid block, just without a name.
                 template_name = _parse_text_block(trailer[:BG_BLOCK_SIZE], allow_empty=True)
                 if template_name is not None:
-                    info.template_image = template_name or None
+                    info.template_image_filename = template_name or None
                     consumed = BG_BLOCK_SIZE
                     # The note block starts right after the template name block.
                     note_block = trailer[BG_BLOCK_SIZE:]
@@ -604,8 +604,8 @@ def _load_standard(path):
                         consumed += note_block.index(b"\x00") + 1
             if file_io.DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
-                if info.template_image is not None:
-                    print(f"Template image: {info.template_image!r}")
+                if info.template_image_filename is not None:
+                    print(f"Template image: {info.template_image_filename!r}")
                 if info.note is not None:
                     print(f"Note: {info.note!r}")
                 remaining = trailer[consumed:]

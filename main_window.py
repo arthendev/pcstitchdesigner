@@ -1253,6 +1253,10 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
 
+        # PCD/PCQ/PCS files may name a template image that sits next to them
+        if file_info.template_image_filename:
+            self._load_external_template(path, file_info.template_image_filename)
+
         # VCSM files can embed a preview image; use it as the template underlay
         if file_info.template_image_data:
             pixmap = QPixmap()
@@ -1269,6 +1273,31 @@ class MainWindow(QMainWindow):
 
         # Center the pattern in the view
         self._fit_pattern()
+
+    def _load_external_template(self, pattern_path, name):
+        """Use the template image *name* recorded in a loaded pattern file.
+
+        The name points at a file next to the pattern; when it is missing or
+        unreadable the pattern is still usable, so the user only gets a warning.
+        """
+        template_path = os.path.join(os.path.dirname(pattern_path), name)
+        if not os.path.isfile(template_path):
+            self._log_error(f"Template image not found: {template_path}")
+            QMessageBox.warning(
+                self, self.tr("Template Image Missing"),
+                self.tr("The pattern refers to the template image \"{0}\", but no "
+                        "such file exists next to the pattern.\n\n"
+                        "The pattern was loaded without a template.").format(name))
+            return
+        pixmap = QPixmap(template_path)
+        if pixmap.isNull():
+            self._log_error(f"Template image could not be read: {template_path}")
+            QMessageBox.warning(
+                self, self.tr("Template Image Missing"),
+                self.tr("The template image \"{0}\" could not be read.\n\n"
+                        "The pattern was loaded without a template.").format(name))
+            return
+        self._canvas.set_template_image(pixmap)
 
     def _warn_if_note_truncated(self, path):
         """Tell the user when the pattern note will not fit into *path*'s format."""

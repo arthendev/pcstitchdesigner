@@ -50,7 +50,7 @@ class PatternFileInfo:
     color_count: int = 0  # parsed palette entries
     color_changes: int = 0  # parsed ELEM_COLOR records
     sections_count: int = 0  # parsed ELEM_SECTION markers
-    template_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
+    template_image_filename: Optional[str] = None  # optional BMP file name, None if absent/invalid
     note: Optional[str] = None  # optional note, None if absent/invalid
     # VCSM-only metadata (.9mm / .max files)
     sewing_foot: Optional[str] = None  # sewing foot type, e.g. "2A"
