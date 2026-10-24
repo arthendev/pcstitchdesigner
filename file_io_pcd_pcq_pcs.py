@@ -39,7 +39,9 @@ Notes:
   File might include optional 13-bytes block for the name of BMP template image. Name is null-terminated.
   It occurs directly after the data block.
 
-  File might include optional ASCII comment field of any length, terminated by 0x00. It occurs after the 13-bytes BMP name block (if present).
+  File might include optional ASCII note field terminated by 0x00. It occurs after the 13-bytes BMP name block (if present).
+  The reader accepts a note of any length, but the writer stores at most NOTE_MAX_LENGTH (250) characters
+  to keep compatiblity with PC Designer — longer notes are truncated.
 
   There is another (older?) file format for PCD, PCQ. Magic number = 0x31. It omits the color count and color block.
 
@@ -60,6 +62,11 @@ HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 byte
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
 BG_BLOCK_SIZE = 13  # fixed size of the optional BMP template-image name block
+
+NOTE_MAX_LENGTH = 250  # longest note the format stores; a 0x00 terminator follows
+
+# Longest possible trailer: the name block plus a maximal note and its terminator.
+TRAILER_MAX_SIZE = BG_BLOCK_SIZE + NOTE_MAX_LENGTH + 1
 
 EXTENSIONS = (".pcd", ".pcq", ".pcs")
 
@@ -91,12 +98,15 @@ def _parse_text_block(block, allow_empty=False):
     return text.decode("latin-1")
 
 
-def save(path, pattern):
+def save(path, pattern, info=None):
     """Save a StitchPattern in the PCD/PCQ/PCS binary format.
 
     PCD and PCQ are the machine's own formats and carry no thread palette: every
     native sample file stores a colour count of 0. The colour block is therefore
     written only for PCS files.
+
+    *info* supplies the note, which the format limits to NOTE_MAX_LENGTH
+    characters; longer notes are truncated (the file cannot hold more).
     """
     if pattern.stitch_type == "9mm":
         stitch_type_byte = 0x00
@@ -111,6 +121,18 @@ def save(path, pattern):
 
     uses_palette = os.path.splitext(path)[1].lower() == ".pcs"
     colors = list(pattern.colors) if uses_palette else []
+
+    note = (info.note or "") if info is not None else ""
+    if len(note) > NOTE_MAX_LENGTH:
+        # The text block is limited to 250 characters plus the NUL terminator.
+        note = note[:NOTE_MAX_LENGTH]
+    try:
+        note_bytes = note.encode("latin-1")
+    except UnicodeEncodeError:
+        # Text blocks hold single-byte characters only; the reader decodes them
+        # as latin-1, so anything else would come back mangled.
+        raise ValueError(_tr(
+            "The note contains characters that cannot be stored in this file format"))
 
     with open(path, 'wb') as f:
         # Header: magic, stitch_type, color_count
@@ -147,8 +169,11 @@ def save(path, pattern):
                 c0 = round((x - x_int) * 256) % 256
                 c1 = round((y - y_int) * 256) % 256
                 f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x04))
-        # Optional trailer: an empty template-image name block (no template image).
+        # Optional trailer: an empty template-image name block (no template
+        # image), followed by the note when there is one.
         f.write(b"\x00" * BG_BLOCK_SIZE)
+        if note_bytes:
+            f.write(note_bytes + b"\x00")
     pattern.modified = False
 
 
@@ -289,18 +314,18 @@ def load_v31(path):
                 if template_name is not None:
                     info.template_image = template_name or None
                     consumed = BG_BLOCK_SIZE
-                    # The comment block starts right after the template name block.
-                    comment_block = trailer[BG_BLOCK_SIZE:]
-                    comment = _parse_text_block(comment_block, allow_empty=True)
-                    if comment is not None:
-                        info.comment = comment or None
-                        consumed += comment_block.index(b"\x00") + 1
+                    # The note block starts right after the template name block.
+                    note_block = trailer[BG_BLOCK_SIZE:]
+                    note = _parse_text_block(note_block, allow_empty=True)
+                    if note is not None:
+                        info.note = note or None
+                        consumed += note_block.index(b"\x00") + 1
             if file_io.DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
                 if info.template_image is not None:
                     print(f"Template image: {info.template_image!r}")
-                if info.comment is not None:
-                    print(f"Comment: {info.comment!r}")
+                if info.note is not None:
+                    print(f"Note: {info.note!r}")
                 remaining = trailer[consumed:]
                 if remaining:
                     print(f"Unparsed trailing bytes ({len(remaining)}): "
@@ -571,18 +596,18 @@ def _load_standard(path):
                 if template_name is not None:
                     info.template_image = template_name or None
                     consumed = BG_BLOCK_SIZE
-                    # The comment block starts right after the template name block.
-                    comment_block = trailer[BG_BLOCK_SIZE:]
-                    comment = _parse_text_block(comment_block, allow_empty=True)
-                    if comment is not None:
-                        info.comment = comment or None
-                        consumed += comment_block.index(b"\x00") + 1
+                    # The note block starts right after the template name block.
+                    note_block = trailer[BG_BLOCK_SIZE:]
+                    note = _parse_text_block(note_block, allow_empty=True)
+                    if note is not None:
+                        info.note = note or None
+                        consumed += note_block.index(b"\x00") + 1
             if file_io.DEBUG:
                 print(f"Trailing bytes: {len(trailer)}")
                 if info.template_image is not None:
                     print(f"Template image: {info.template_image!r}")
-                if info.comment is not None:
-                    print(f"Comment: {info.comment!r}")
+                if info.note is not None:
+                    print(f"Note: {info.note!r}")
                 remaining = trailer[consumed:]
                 if remaining:
                     print(f"Unparsed trailing bytes ({len(remaining)}): "
