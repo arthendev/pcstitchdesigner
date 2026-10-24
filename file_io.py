@@ -856,7 +856,9 @@ def load_pattern_vcsm(path):
         pos += 4
         if pos + image_size > len(data):
             raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        image_data = data[pos:pos + image_size]
         pos += image_size
+        info.background_image_data = image_data or None
         if DEBUG:
             print(f"VCSM optional block:\nfoot={foot!r}\nneedle={needle!r}\n"
                   f"tension={tension / 100:.2f}\nnotes={notes!r}\n"

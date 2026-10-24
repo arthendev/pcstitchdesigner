@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QProgressDialog, QApplication,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
-from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator
+from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap
 from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
@@ -1249,6 +1249,14 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
+
+        # VCSM files can embed a preview image; use it as the template underlay
+        if file_info.background_image_data:
+            pixmap = QPixmap()
+            if pixmap.loadFromData(file_info.background_image_data):
+                self._canvas.set_template_image(pixmap)
+            else:
+                self._log_error("Failed to decode embedded preview image")
         self._update_template_action_state()
         self._cancel_sel_xform_if_active()
 
@@ -2414,7 +2422,6 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return
-        from PyQt5.QtGui import QPixmap
         pixmap = QPixmap(path)
         if pixmap.isNull():
             QMessageBox.warning(self, self.tr("Load Template Image"), self.tr("Could not load the selected image."))
