@@ -1253,17 +1253,17 @@ class MainWindow(QMainWindow):
         self._canvas.set_template_resize_mode(False)
         self._template_toolbar.setVisible(False)
 
+        # VCSM files can embed a preview image; use it as the template underlay -> This has priority
         # PCD/PCQ/PCS files may name a template image that sits next to them
-        if file_info.template_image_filename:
-            self._load_external_template(path, file_info.template_image_filename)
-
-        # VCSM files can embed a preview image; use it as the template underlay
         if file_info.template_image_data:
             pixmap = QPixmap()
             if pixmap.loadFromData(file_info.template_image_data):
                 self._canvas.set_template_image(pixmap)
             else:
                 self._log_error("Failed to decode embedded preview image")
+        elif file_info.template_image_filename:
+            self._load_external_template(path, file_info.template_image_filename)
+
         self._update_template_action_state()
         self._cancel_sel_xform_if_active()
 
