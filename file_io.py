@@ -43,6 +43,20 @@ Notes:
 
   There is another (older?) file format for PCD, PCQ. Magic number = 0x31. It omits the color count and color block.
 
+VCSM format (.9mm and .max files):
+  Header:  "VCSM" (4 bytes)
+           byte 4: 0xE8 = no optional header block, 0xE9 = optional block present
+           byte 8: stitch type (0x00 = 9mm, 0x01 = MAXI)
+  Optional block (0xE9 only, starting at offset 0x14):
+           foot-type length + ASCII, needle-type length + ASCII,
+           uint16 tension (value / 100), 2 unknown bytes,
+           notes length (0xFF means the next uint16 holds the length) + ASCII notes,
+           uint32 background-image size + embedded image bytes
+  Body:    uint32 stitch count, then 8-byte records:
+           int24 x LE, c0, int24 y LE, c1
+           Coordinates use 1/10 mm units with c0/c1 as fractional parts (/256)
+           and are stored as 24-bit signed values.
+
 """
 
 import os
@@ -63,7 +77,10 @@ POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) 
 
 BG_BLOCK_SIZE = 13  # fixed size of the optional BMP background-name block
 
-DEBUG = 0  # 1: print details of each element record; 2: print only for non-zero control bytes
+VCSM_MAGIC = b"VCSM"
+VCSM_UNIT_MM = 0.1  # VCSM stitch coordinates are stored in 1/10 mm units
+
+DEBUG = 1  # 1: print details of each element record; 2: print only for non-zero control bytes
 
 
 @dataclass
@@ -176,11 +193,14 @@ def load_pattern(path):
     through ``info.warnings``.
     """
     with open(path, 'rb') as f:
-        header = f.read(2)
+        header = f.read(5)
     if len(header) < 2:
         raise ValueError(_tr("File too short"))
 
-    magic_number, stitch_type_byte = header
+    if header[:4] == VCSM_MAGIC:
+        return load_pattern_vcsm(path)
+
+    magic_number, stitch_type_byte = header[0], header[1]
     if magic_number == 0x31:
         # Older PCD/PCQ/PCS variant that omits the stitch type, color count and color table.
         return load_pattern_v31(path)
@@ -754,6 +774,136 @@ def load_pcdqs_nonstandard(path):
     info.color_count = len(pattern.colors)
     info.color_changes = extra_records
     info.sections_count = sections
+
+    pattern._load_elements(all_elems)
+    return pattern, info
+
+
+def _signed24(value):
+    """Interpret a 24-bit value as a two's-complement signed number."""
+    return value - 0x1000000 if value & 0x800000 else value
+
+
+def _read_vcsm_text(data, pos):
+    """Return (text, new_pos) for a length-prefixed ASCII field at *pos*."""
+    if pos >= len(data):
+        raise ValueError(_tr("Unexpected end of file in VCSM header"))
+    length = data[pos]
+    pos += 1
+    if pos + length > len(data):
+        raise ValueError(_tr("Unexpected end of file in VCSM header"))
+    return data[pos:pos + length].decode("latin-1"), pos + length
+
+
+def load_pattern_vcsm(path):
+    """Load a VCSM pattern (.9mm or .max file).
+
+    Coordinates are stored in 1/10 mm units while StitchPattern works in
+    StitchPattern.STITCH_RES_MM (1/6 mm) units, so the coordinates are scaled to
+    preserve physical sizes. Every record is a normal stitch point.
+    """
+    pattern = StitchPattern()
+    file_format = os.path.splitext(path)[1].lstrip(".").upper()
+    info = PatternFileInfo(input_file_format=file_format or "UNKNOWN")
+
+    with open(path, 'rb') as f:
+        data = f.read()
+
+    if len(data) < 9:
+        raise ValueError(_tr("File too short"))
+    if data[:4] != VCSM_MAGIC:
+        raise ValueError(_tr("Invalid file format"))
+
+    marker = data[4]
+    if marker not in (0xE8, 0xE9):
+        raise ValueError(_tr("Invalid file format"))
+
+    stitch_type_byte = data[8]
+    if stitch_type_byte == 0x00:
+        pattern.stitch_type = "9mm"
+    elif stitch_type_byte == 0x01:
+        pattern.stitch_type = "MAXI"
+    else:
+        raise ValueError(_tr("Invalid/unsupported stitch type"))
+    info.stitch_type = pattern.stitch_type
+
+    notes = ""
+    if marker == 0xE9:
+        pos = 0x14
+        foot, pos = _read_vcsm_text(data, pos)
+        needle, pos = _read_vcsm_text(data, pos)
+        if pos + 2 > len(data):
+            raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        tension, = struct.unpack_from("<H", data, pos)
+        pos += 2
+        pos += 2  # two bytes of unknown purpose between tension and notes length
+        if pos >= len(data):
+            raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        notes_len = data[pos]
+        pos += 1
+        if notes_len == 0xFF:
+            if pos + 2 > len(data):
+                raise ValueError(_tr("Unexpected end of file in VCSM header"))
+            notes_len, = struct.unpack_from("<H", data, pos)
+            pos += 2
+        if pos + notes_len > len(data):
+            raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        notes = data[pos:pos + notes_len].decode("latin-1")
+        pos += notes_len
+        if pos + 4 > len(data):
+            raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        image_size, = struct.unpack_from("<I", data, pos)
+        pos += 4
+        if pos + image_size > len(data):
+            raise ValueError(_tr("Unexpected end of file in VCSM header"))
+        pos += image_size
+        if DEBUG:
+            print(f"VCSM optional block:\nfoot={foot!r}\nneedle={needle!r}\n"
+                  f"tension={tension / 100:.2f}\nnotes={notes!r}\n"
+                  f"background image={image_size} bytes")
+    else:
+        pos = 0x18
+
+    if pos + 4 > len(data):
+        raise ValueError(_tr("Unexpected end of file while reading stitch count"))
+    stitch_count, = struct.unpack_from("<I", data, pos)
+    pos += 4
+
+    if DEBUG:
+        print("Reading VCSM " + pattern.stitch_type + " pattern with "
+              + str(stitch_count) + " stitch records:")
+
+    # 1/10 mm per unit in the file vs. 1/6 mm per StitchPattern unit.
+    scale = VCSM_UNIT_MM / StitchPattern.STITCH_RES_MM
+    # VCSM measures y from the top of the canvas, while StitchPattern uses a
+    # bottom-left origin, so y must be mirrored vertically.
+    canvas_height = StitchPattern.CANVAS_SIZES[pattern.stitch_type][1]
+
+    all_elems = []
+    for i in range(stitch_count):
+        if pos + 8 > len(data):
+            info.warnings.append(_tr(
+                "File appears to be truncated: only {0} of {1} records could be read"
+            ).format(i, stitch_count))
+            break
+        x_int = _signed24(int.from_bytes(data[pos:pos + 3], "little"))
+        c0 = data[pos + 3]
+        y_int = _signed24(int.from_bytes(data[pos + 4:pos + 7], "little"))
+        c1 = data[pos + 7]
+        pos += 8
+        x = x_int * scale
+        y = canvas_height - y_int * scale
+        all_elems.append((ELEM_STITCH, x, y))
+
+        if DEBUG == 1:
+            print(f"Read record {i}: x={x:8.3f} y={y:8.3f} c0={c0} c1={c1}")
+
+    info.comment = notes or None
+    info.stitch_count = len(all_elems)
+    info.has_color_palette = False
+    info.color_count = 0
+    info.color_changes = 0
+    info.sections_count = 0
 
     pattern._load_elements(all_elems)
     return pattern, info

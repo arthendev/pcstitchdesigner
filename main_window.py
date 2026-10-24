@@ -1144,10 +1144,10 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self, self.tr("Open Stitch Pattern"), "",
             ";;".join([
-                self.tr("All Supported Files (*.pcd *.pcq *.pcs)"),
-                self.tr("Stitch Files (*.pcd *.pcq)"),
-                self.tr("9mm Stitch Files (*.pcd)"),
-                self.tr("MAXI Stitch Files (*.pcq)"),
+                self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"),
+                self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
+                self.tr("9mm Stitch Files (*.pcd *.9mm)"),
+                self.tr("MAXI Stitch Files (*.pcq *.max)"),
                 self.tr("Embroidery Files (*.pcs)"),
                 self.tr("All Files (*)"),
             ]),

@@ -45,7 +45,8 @@ class PatternPreviewWidget(QWidget):
 
         if self._pattern is None:
             painter.setPen(QColor(120, 120, 120))
-            painter.drawText(draw_rect, Qt.AlignCenter, self.tr("Select a .pcd or .pcq file"))
+            painter.drawText(draw_rect, Qt.AlignCenter,
+                             self.tr("Select a supported file"))
             return
 
         elements = self._pattern.elements
@@ -157,20 +158,20 @@ class PatternBrowserDialog(QFileDialog):
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
         self.setNameFilters([
-            self.tr("All Supported Files (*.pcd *.pcq *.pcs)"),
-            self.tr("Stitch Files (*.pcd *.pcq)"),
-            self.tr("9mm Stitch Files (*.pcd)"),
-            self.tr("MAXI Stitch Files (*.pcq)"),
+            self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"),
+            self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
+            self.tr("9mm Stitch Files (*.pcd *.9mm)"),
+            self.tr("MAXI Stitch Files (*.pcq *.max)"),
             self.tr("Embroidery Files (*.pcs)"),
             self.tr("All Files (*)"),
         ])
-        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs)"))
+        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"))
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
         self._size_label = QLabel(self.tr("Size: -"), self)
         self._size_label.setWordWrap(True)
-        self._info_label = QLabel(self.tr("Select a .pcd, .pcq, or .pcs file"), self)
+        self._info_label = QLabel(self.tr("Select a supported file"), self)
         self._info_label.setWordWrap(True)
 
         preview_panel = QWidget(self)
@@ -192,11 +193,11 @@ class PatternBrowserDialog(QFileDialog):
         if not path or not os.path.isfile(path):
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))
-            self._info_label.setText(self.tr("Select a .pcd, .pcq, or .pcs file"))
+            self._info_label.setText(self.tr("Select a supported file"))
             return
 
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".pcd", ".pcq", ".pcs"):
+        if ext not in (".pcd", ".pcq", ".pcs", ".9mm", ".max"):
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))
             self._info_label.setText(self.tr("Unsupported file type"))
