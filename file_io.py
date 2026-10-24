@@ -28,8 +28,10 @@ from typing import List, Optional, Tuple
 
 from PyQt5.QtCore import QCoreApplication
 
-DEBUG = 1  # 1: print details of each element record; 2: print only for non-zero control bytes
-
+# DEBUG print
+# 1: print details of each element record
+# 2: print only selected info (PCD/PCQ/PCS: non-zero control bytes)
+DEBUG = 0
 
 def _tr(s):
     return QCoreApplication.translate("FileIO", s)
