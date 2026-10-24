@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
     QLineEdit, QProgressDialog, QApplication,
 )
-from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
+from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale, QBuffer, QIODevice
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap
 from PyQt5.QtGui import QDesktopServices
 
@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self._machine_comm = MachineComm(logger=self._app_logger)
 
         self._file_path = None
+        self._file_info = None  # PatternFileInfo from the last loaded file
         self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of (x, y) tuples copied from selection
         self._pattern = StitchPattern()
@@ -1114,6 +1115,7 @@ class MainWindow(QMainWindow):
         self._pattern.clear()
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._file_info = None
         self._machine_pattern_name = None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
@@ -1204,6 +1206,7 @@ class MainWindow(QMainWindow):
                 self._pattern._rebuild_display_no_auto()
             self._pattern.modified = False
         self._file_path = path
+        self._file_info = file_info
         self._add_recent_file(path)
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
@@ -1271,7 +1274,10 @@ class MainWindow(QMainWindow):
         if self._file_path:
             self._log_info(f"File saved: {self._file_path}")
             try:
-                file_io.save_pattern(self._file_path, self._pattern)
+                file_io.save_pattern(
+                    self._file_path, self._pattern,
+                    info=self._file_info,
+                    image_data=self._template_image_png())
             except Exception as e:
                 QMessageBox.critical(self, self.tr("Error saving file"), str(e))
                 return False
@@ -1282,26 +1288,39 @@ class MainWindow(QMainWindow):
     def _file_save_as(self):
         # Determine file filter and extension based on stitch type
         if self._pattern.stitch_type == "9mm":
-            file_filter = ";;".join([self.tr("9mm Stitch Files (*.pcd)"), self.tr("All Files (*)")])
+            file_filter = ";;".join([
+                self.tr("PCD Stitch Files (*.pcd)"),
+                self.tr("9MM Stitch Files (*.9mm)"),
+                self.tr("All Files (*)"),
+            ])
             default_ext = ".pcd"
         elif self._pattern.stitch_type == "MAXI":
-            file_filter = ";;".join([self.tr("MAXI Stitch Files (*.pcq)"), self.tr("All Files (*)")])
+            file_filter = ";;".join([
+                self.tr("PCQ Stitch Files (*.pcq)"),
+                self.tr("MAX Stitch Files (*.max)"),
+                self.tr("All Files (*)"),
+            ])
             default_ext = ".pcq"
         else:
             file_filter = ";;".join([self.tr("Embroidery Files (*.pcs)"), self.tr("All Files (*)")])
             default_ext = ""
         
         proposed = self._machine_pattern_name or ""
-        path, _ = QFileDialog.getSaveFileName(
+        path, selected_filter = QFileDialog.getSaveFileName(
             self, self.tr("Save Stitch Pattern"), proposed,
             file_filter,
         )
         if not path:
             return False
         
-        # Add extension if not already present
-        if default_ext and not path.endswith(default_ext):
-            path += default_ext
+        # Add an extension when the user did not type one
+        if not os.path.splitext(path)[1]:
+            if "*.9mm" in selected_filter:
+                path += ".9mm"
+            elif "*.max" in selected_filter:
+                path += ".max"
+            elif default_ext:
+                path += default_ext
         
         self._file_path = path
         result = self._file_save()
@@ -1777,6 +1796,7 @@ class MainWindow(QMainWindow):
         self._canvas.pattern = new_pattern
         self._canvas.set_selected_point(None)
         self._file_path = None
+        self._file_info = None
         self._machine_pattern_name = name or None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
@@ -2412,6 +2432,18 @@ class MainWindow(QMainWindow):
                 self._on_pattern_changed()
 
     # ── Template ──
+
+    def _template_image_png(self):
+        """Return the template underlay encoded as PNG, or b\"\" if none is set."""
+        pixmap = self._canvas._template_image
+        if pixmap is None or pixmap.isNull():
+            return b""
+        buffer = QBuffer()
+        buffer.open(QIODevice.WriteOnly)
+        if not pixmap.save(buffer, "PNG"):
+            self._log_error("Failed to encode template image as PNG")
+            return b""
+        return bytes(buffer.data())
 
     def _design_template_load(self):
         path, _ = QFileDialog.getOpenFileName(

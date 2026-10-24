@@ -43,10 +43,15 @@ Notes:
 
   There is another (older?) file format for PCD, PCQ. Magic number = 0x31. It omits the color count and color block.
 
+  PCD and PCQ files written by the machine software carry no palette: every native
+  sample file has a colour count of 0, no colour block and no colour-change records.
+  Only .pcs files might hold a palette, so the writer saves the colour block only for .pcs.
+
 VCSM format (.9mm and .max files):
   Header:  "VCSM" (4 bytes)
            byte 4: 0xE8 = no optional header block, 0xE9 = optional block present
            byte 8: stitch type (0x00 = 9mm, 0x01 = MAXI)
+           bytes 12-14: thread colour, R then G then B
   Optional block (0xE9 only, starting at offset 0x14):
            foot-type length + ASCII, needle-type length + ASCII,
            uint16 tension (value / 100), 2 unknown bytes,
@@ -57,14 +62,21 @@ VCSM format (.9mm and .max files):
            Coordinates use 1/10 mm units with c0/c1 as fractional parts (/256)
            and are stored as 24-bit signed values.
 
+  Header bytes that are constant across the 238 sample files:
+           5-7 = 03 00 00, 9-11 = 00 00 00, 15 = 00,
+           16-19 = 01 00 00 00 (16 samples store 0). The meaning of bytes 15-19
+           is unknown, so the writer emits the common values above.
+
 """
 
+import math
 import os
 import struct
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtGui import QColor
 from model import (StitchPattern, elem_has_coords,
                    ELEM_STITCH, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION)
 
@@ -100,6 +112,12 @@ class PatternFileInfo:
     sections_count: int = 0  # parsed ELEM_SECTION markers
     template_image: Optional[str] = None  # optional BMP file name, None if absent/invalid
     comment: Optional[str] = None  # optional comment, None if absent/invalid
+    # VCSM-only metadata (.9mm / .max files)
+    sewing_foot: Optional[str] = None  # sewing foot type, e.g. "2A"
+    needle_system: Optional[str] = None  # needle system, e.g. "130/705"
+    tension: Optional[float] = None  # thread tension, e.g. 2.5
+    thread_color: Optional[Tuple[int, int, int]] = None  # (R, G, B) thread colour
+    background_image_data: Optional[bytes] = None  # embedded template image bytes
     warnings: List[str] = field(default_factory=list)
 
 
@@ -125,8 +143,13 @@ def _parse_text_block(block, allow_empty=False):
     return text.decode("latin-1")
 
 
-def save_pattern(path, pattern):
-    """Save a StitchPattern to a binary file."""
+def save_pattern_pcdqs(path, pattern):
+    """Save a StitchPattern in the PCD/PCQ/PCS binary format.
+
+    PCD and PCQ are the machine's own formats and carry no thread palette: every
+    native sample file stores a colour count of 0. The colour block is therefore
+    written only for PCS files.
+    """
     if pattern.stitch_type == "9mm":
         stitch_type_byte = 0x00
     elif pattern.stitch_type == "MAXI":
@@ -138,12 +161,15 @@ def save_pattern(path, pattern):
     else:
         raise ValueError(_tr("Invalid/unsupported stitch type"))
 
+    uses_palette = os.path.splitext(path)[1].lower() == ".pcs"
+    colors = list(pattern.colors) if uses_palette else []
+
     with open(path, 'wb') as f:
         # Header: magic, stitch_type, color_count
-        f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, len(pattern.colors)))
+        f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, len(colors)))
 
         # Colors
-        for r, g, b in pattern.colors:
+        for r, g, b in colors:
             f.write(struct.pack('BBBx', r, g, b))
 
         # Element record count; the format excludes colour-change records
@@ -176,6 +202,19 @@ def save_pattern(path, pattern):
         # Optional trailer: an empty template-image name block (no template image).
         f.write(b"\x00" * BG_BLOCK_SIZE)
     pattern.modified = False
+
+
+def save_pattern(path, pattern, info=None, image_data=None):
+    """Save a StitchPattern, choosing the format from the file extension.
+
+    ``.9mm`` and ``.max`` paths are written by save_pattern_vcsm(); every other
+    extension is written by save_pattern_pcdqs(). *info* and *image_data* are
+    only used by the VCSM writer.
+    """
+    if os.path.splitext(path)[1].lower() in (".9mm", ".max"):
+        save_pattern_vcsm(path, pattern, info=info, image_data=image_data)
+    else:
+        save_pattern_pcdqs(path, pattern)
 
 
 def load_pattern(path):
@@ -784,6 +823,20 @@ def _signed24(value):
     return value - 0x1000000 if value & 0x800000 else value
 
 
+def _configured_line_color():
+    """Return the Display > Line colour setting as an (R, G, B) tuple.
+
+    A pattern without a palette is drawn in that colour, so a VCSM file written
+    without an explicit thread colour should sew what the user sees on screen.
+    """
+    from config import Config  # local import: only saving needs the settings
+
+    color = QColor(Config().get_display_preferences()["line_color"])
+    if not color.isValid():
+        return (0, 0, 0)
+    return color.red(), color.green(), color.blue()
+
+
 def _read_vcsm_text(data, pos):
     """Return (text, new_pos) for a length-prefixed ASCII field at *pos*."""
     if pos >= len(data):
@@ -809,7 +862,8 @@ def load_pattern_vcsm(path):
     with open(path, 'rb') as f:
         data = f.read()
 
-    if len(data) < 9:
+    # The header itself is 20 bytes; 15 are needed to reach the thread colour.
+    if len(data) < 15:
         raise ValueError(_tr("File too short"))
     if data[:4] != VCSM_MAGIC:
         raise ValueError(_tr("Invalid file format"))
@@ -826,6 +880,9 @@ def load_pattern_vcsm(path):
     else:
         raise ValueError(_tr("Invalid/unsupported stitch type"))
     info.stitch_type = pattern.stitch_type
+
+    # Bytes 12-14 hold the thread colour as R, G, B.
+    info.thread_color = (data[12], data[13], data[14])
 
     notes = ""
     if marker == 0xE9:
@@ -859,6 +916,9 @@ def load_pattern_vcsm(path):
         image_data = data[pos:pos + image_size]
         pos += image_size
         info.background_image_data = image_data or None
+        info.sewing_foot = foot or None
+        info.needle_system = needle or None
+        info.tension = tension / 100
         if DEBUG:
             print(f"VCSM optional block:\nfoot={foot!r}\nneedle={needle!r}\n"
                   f"tension={tension / 100:.2f}\nnotes={notes!r}\n"
@@ -873,7 +933,8 @@ def load_pattern_vcsm(path):
 
     if DEBUG:
         print("Reading VCSM " + pattern.stitch_type + " pattern with "
-              + str(stitch_count) + " stitch records:")
+              + str(stitch_count) + " stitch records, thread colour "
+              + "#{:02X}{:02X}{:02X}".format(*info.thread_color) + ":")
 
     # 1/10 mm per unit in the file vs. 1/6 mm per StitchPattern unit.
     scale = VCSM_UNIT_MM / StitchPattern.STITCH_RES_MM
@@ -902,10 +963,112 @@ def load_pattern_vcsm(path):
 
     info.comment = notes or None
     info.stitch_count = len(all_elems)
-    info.has_color_palette = False
-    info.color_count = 0
     info.color_changes = 0
     info.sections_count = 0
+    # VCSM has a single thread colour but we ignore it for now (user sets color manually in the settings window)
+    # pattern.colors = [info.thread_color]
+    # info.has_color_palette = True
+    info.color_count = 1
 
     pattern._load_elements(all_elems)
     return pattern, info
+
+
+def save_pattern_vcsm(path, pattern, info=None, image_data=None):
+    """Save a StitchPattern as a VCSM file (.9mm or .max).
+
+    The optional header block (marker 0xE9) is written only when metadata or a
+    template image is available; otherwise the compact 0xE8 layout is used.
+    *image_data* overrides the image stored in *info*; pass ``b""`` to omit it.
+    """
+    if pattern.stitch_type == "9mm":
+        stitch_type_byte = 0x00
+    elif pattern.stitch_type == "MAXI":
+        stitch_type_byte = 0x01
+    else:
+        raise ValueError(_tr("Invalid/unsupported stitch type"))
+
+    info = info if info is not None else PatternFileInfo()
+
+    foot = (info.sewing_foot or "").encode("latin-1")
+    needle = (info.needle_system or "").encode("latin-1")
+    notes = (info.comment or "").encode("latin-1")
+    if len(foot) > 255 or len(needle) > 255:
+        raise ValueError(_tr("VCSM header text exceeds 255 characters"))
+    if len(notes) > 0xFFFF:
+        raise ValueError(_tr("VCSM notes exceed 65535 characters"))
+
+    if image_data is None:
+        image_data = info.background_image_data or b""
+
+    # Tension is stored as hundredths. 2.50 is the value all sample files use
+    # when the header block is present but no explicit tension is known.
+    tension = 250 if info.tension is None else round(info.tension * 100)
+    tension = max(0, min(0xFFFF, tension))
+
+    has_block = bool(foot or needle or notes or image_data or info.tension is not None)
+
+    # Bytes 12-14 hold the thread colour. Fall back to the pattern's first
+    # palette entry, then to the Display > Line colour the canvas draws with.
+    if info.thread_color is not None:
+        thread_color = info.thread_color
+    elif pattern.colors:
+        thread_color = pattern.colors[0]
+    else:
+        thread_color = _configured_line_color()
+    if not all(0 <= value <= 0xFF for value in thread_color):
+        raise ValueError(_tr("Invalid thread colour"))
+
+    data = bytearray(b"VCSM")
+    data.append(0xE9 if has_block else 0xE8)
+    data += b"\x03\x00\x00"         # bytes 5-7: constant in all sample files
+    data.append(stitch_type_byte)
+    data += b"\x00\x00\x00"         # bytes 9-11: constant in all sample files
+    data += bytes(thread_color) + b"\x00"  # bytes 12-15: thread colour + zero
+    data += b"\x01\x00\x00\x00"     # bytes 16-19: 1 in nearly all samples
+
+    if has_block:
+        data.append(len(foot))
+        data += foot
+        data.append(len(needle))
+        data += needle
+        data += struct.pack("<H", tension)
+        data += b"\x00\x00"         # two unknown bytes, zero in all samples
+        if len(notes) < 0xFF:
+            data.append(len(notes))
+        else:
+            data.append(0xFF)
+            data += struct.pack("<H", len(notes))
+        data += notes
+        data += struct.pack("<I", len(image_data))
+        data += image_data
+    else:
+        data += b"\x00\x00\x00\x00"  # bytes 0x14-0x17: padding in 0xE8 files
+
+    # 1/10 mm per file unit vs. 1/6 mm per StitchPattern unit, and y is stored
+    # from the top of the canvas.
+    scale = VCSM_UNIT_MM / StitchPattern.STITCH_RES_MM
+    canvas_height = StitchPattern.CANVAS_SIZES[pattern.stitch_type][1]
+
+    records = bytearray()
+    for elem in pattern.display_elements:
+        if elem[0] not in (ELEM_STITCH, ELEM_SECTION):
+            continue  # VCSM has no colour or section records
+        # Round away binary floating-point noise (e.g. 18 / 0.6 = 29.999...).
+        x = round(elem[1] / scale, 9)
+        y = round((canvas_height - elem[2]) / scale, 9)
+        x_int = math.floor(x)
+        y_int = math.floor(y)
+        c0 = 0
+        c1 = 0
+        records += x_int.to_bytes(3, "little", signed=True)
+        records.append(c0)
+        records += y_int.to_bytes(3, "little", signed=True)
+        records.append(c1)
+
+    data += struct.pack("<I", len(records) // 8)
+    data += records
+
+    with open(path, 'wb') as f:
+        f.write(data)
+    pattern.modified = False
