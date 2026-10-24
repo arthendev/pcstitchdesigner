@@ -43,8 +43,8 @@ VCSM_UNIT_MM = 0.1  # VCSM stitch coordinates are stored in 1/10 mm units
 
 NOTE_MAX_LENGTH = 0x400  # longest note text the format stores (1024 characters)
 
-# Template image geometry: the stored PNG has a fixed height per stitch type and
-# keeps the aspect ratio, and carries 150 dpi so the machine can scale it.
+# Template image geometry: the stored PNG has a fixed height per stitch type and 150 dpi.
+# This makes it compatible with Stitch Artist
 TEMPLATE_IMAGE_HEIGHT = {"9mm": 450, "MAXI": 600}
 TEMPLATE_IMAGE_DPI = 150
 
