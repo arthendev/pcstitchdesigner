@@ -61,6 +61,10 @@ from model import (StitchPattern, elem_has_coords,
 HEADER_FMT = '<BBH'  # header_byte(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) = 9 bytes
 
+# c0/c1 hold the coordinate fraction in 1/256 of a stitch unit (1/6 mm), so the
+# finest representable step is 1/1536 mm — about 0.00065 mm.
+FRACTION_SCALE = 256
+
 BG_BLOCK_SIZE = 13  # fixed size of the optional BMP template-image name block
 
 NOTE_MAX_LENGTH = 250  # longest note the format stores; a 0x00 terminator follows
@@ -96,6 +100,26 @@ def _parse_text_block(block, allow_empty=False):
     if any(byte < 32 for byte in text):
         return None
     return text.decode("latin-1")
+
+
+def _split_coordinate(value):
+    """Return ``(whole_units, fraction)`` for a stitch coordinate.
+
+    The format stores a point as a 24-bit whole part plus a byte holding the
+    remainder in 1/256 of a stitch unit. The total is quantised *before* it is
+    split: truncating the whole part and rounding the remainder separately turns
+    any value a hair below an integer into a whole unit of drift, because the
+    remainder rounds up to 256 and ``% 256`` silently drops the carry.
+    Coordinates loaded from a 1/10 mm source hit this constantly — 45 * 0.6 is
+    26.999999999999996 in binary floating point, which used to be written back
+    as 26 instead of 27.
+    """
+    total = round(value * FRACTION_SCALE)
+    if total < 0:
+        # The coordinate fields are unsigned in every file this code reads, so a
+        # negative value cannot be represented; refuse instead of clamping.
+        raise ValueError(_tr("Pattern coordinates must not be negative"))
+    return divmod(total, FRACTION_SCALE)
 
 
 def save(path, pattern, info=None):
@@ -145,30 +169,20 @@ def save(path, pattern, info=None):
         # Element record count; the format excludes colour-change records
         f.write(struct.pack('<H', sum(1 for e in pattern.display_elements if e[0] != ELEM_COLOR)))
 
-        # Element records
+        # Element records. Stitch, auto and section records share the same
+        # coordinate layout and differ only in the control byte.
+        stitch_types = {ELEM_STITCH: 0x00, ELEM_AUTO: 0x02, ELEM_SECTION: 0x04}
         for elem in pattern.display_elements:
-            kind = elem[0]
-            if kind == ELEM_STITCH:
-                x, y = elem[1], elem[2]
-                x_int, y_int = int(x), int(y)
-                c0 = round((x - x_int) * 256) % 256
-                c1 = round((y - y_int) * 256) % 256
-                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x00))
-            elif kind == ELEM_AUTO:
-                x, y = elem[1], elem[2]
-                x_int, y_int = int(x), int(y)
-                c0 = round((x - x_int) * 256) % 256
-                c1 = round((y - y_int) * 256) % 256
-                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x02))
-            elif kind == ELEM_COLOR:
+            element_type = elem[0]
+            control_byte = stitch_types[element_type]
+            if element_type in stitch_types:
+                x_int, c0 = _split_coordinate(elem[1])
+                y_int, c1 = _split_coordinate(elem[2])
+                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'),
+                                    c1, y_int.to_bytes(3, 'little'), control_byte))
+            elif element_type == ELEM_COLOR:
                 color_idx = elem[1]
                 f.write(struct.pack(POINT_FMT, color_idx, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x03))
-            elif kind == ELEM_SECTION:
-                x, y = elem[1], elem[2]
-                x_int, y_int = int(x), int(y)
-                c0 = round((x - x_int) * 256) % 256
-                c1 = round((y - y_int) * 256) % 256
-                f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'), c1, y_int.to_bytes(3, 'little'), 0x04))
         # Optional trailer: an empty template-image name block (no template
         # image), followed by the note when there is one.
         f.write(b"\x00" * BG_BLOCK_SIZE)
