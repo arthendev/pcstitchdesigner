@@ -62,10 +62,6 @@
         <source>Limit the longitudinal distance (fabric transport) between consecutive stitches to 6 mm.</source>
         <translation>Längsabstand (Stofftransport) zwischen aufeinanderfolgenden Stichen auf 6 mm begrenzen.</translation>
     </message>
-    <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Automatische Stiche werden eingefügt, wenn dieser Abstand überschritten wird.</translation>
-    </message>
 </context>
 <context>
     <name>CardMemoryDialog</name>
@@ -278,8 +274,36 @@
         <translation>Unerwartetes Dateiende beim Lesen der Stichanzahl</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Unerwartetes Dateiende beim Lesen der Stichpunkte</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>Das Vorlagenbild konnte nicht als PNG kodiert werden</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Die Datei scheint abgeschnitten zu sein: nur {0} von {1} Datensätzen konnten gelesen werden</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Ungültige Fadenfarbe</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>Die Mustergröße überschreitet alle unterstützten Stichtypen; es wird der große Rahmen verwendet</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>Die Notiz enthält Zeichen, die in diesem Dateiformat nicht gespeichert werden können</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Unerwartetes Dateiende im VCSM-Kopf</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>VCSM-Kopftext überschreitet 255 Zeichen</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Musterkoordinaten dürfen nicht negativ sein</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Unerwartete Antwort auf Kartenabfrage: NAK gefolgt von 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>Nähmaschine hat die Stichdaten abgelehnt.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Zeitüberschreitung beim Warten auf die Bestätigung nach den Stichdaten.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Unerwartete Antwort 0x{0} nach den Stichdaten.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stichmuster (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-Muster (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-Muster (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Stickdateiformate (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Bitte den Karteninhalt überprüfen.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>9MM Dateiformat (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-Muster (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Datei mit Warnungen geladen</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>MAX Dateiformat (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-Muster (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>Notiz wird gekürzt</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>PCD Dateiformat (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>PCQ Dateiformat (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stichmuster (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Vorlagenbild fehlt</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>Die Notiz ist {0} Zeichen lang.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Dieses Dateiformat speichert höchstens {0} Zeichen, daher wird die Notiz beim Speichern gekürzt.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Das Muster verweist auf das Vorlagenbild &quot;{0}&quot;, aber neben dem Muster existiert keine solche Datei.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>Das Vorlagenbild &quot;{0}&quot; konnte nicht gelesen werden.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Das Muster wurde ohne Vorlage geladen.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Keine Musterdaten zum Senden.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Nicht unterstützt</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Speicher nicht leer</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stichmuster (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-Muster (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-Muster (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Stickdateiformate (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Größe: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>.pcd-, .pcq- oder .pcs-Datei auswählen</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Farben: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-Muster (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-Muster (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Unterstützte Datei auswählen</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stichmuster (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>.pcd- oder .pcq-Datei auswählen</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Keine Stichpunkte</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Unterstützte Datei auswählen</translation>
     </message>
 </context>
 <context>

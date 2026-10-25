@@ -1286,16 +1286,16 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self, self.tr("Template Image Missing"),
                 self.tr("The pattern refers to the template image \"{0}\", but no "
-                        "such file exists next to the pattern.\n\n"
-                        "The pattern was loaded without a template.").format(name))
+                        "such file exists next to the pattern.").format(name) + "\n\n" +
+                self.tr("The pattern was loaded without a template."))
             return
         pixmap = QPixmap(template_path)
         if pixmap.isNull():
             self._log_error(f"Template image could not be read: {template_path}")
             QMessageBox.warning(
                 self, self.tr("Template Image Missing"),
-                self.tr("The template image \"{0}\" could not be read.\n\n"
-                        "The pattern was loaded without a template.").format(name))
+                self.tr("The template image \"{0}\" could not be read.").format(name) + "\n\n" + 
+                self.tr("The pattern was loaded without a template."))
             return
         self._canvas.set_template_image(pixmap)
 
@@ -1308,9 +1308,9 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(
             self,
             self.tr("Note will be truncated"),
-            self.tr("The note is {0} characters long.\n\n"
-                    "This file format stores at most {1} characters, so the "
-                    "note will be truncated when saving.").format(len(note), limit))
+            self.tr("The note is {0} characters long.").format(len(note)) + "\n\n" + 
+            self.tr("This file format stores at most {0} characters, so the "
+                    "note will be truncated when saving.").format(limit))
 
     def _file_save(self):
         if self._file_path:

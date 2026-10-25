@@ -43,10 +43,6 @@
         <translation>Begränsa det maximala avståndet mellan på varandra följande stygn.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Automatiska stygn infogas när detta överskrids.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Max. stygnlängd</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Oväntat filslut vid läsning av antalet stygn</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Oväntat filslut vid läsning av stygnpunkter</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>Det gick inte att koda mallbilden som PNG</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Filen verkar vara trunkerad: endast {0} av {1} poster kunde läsas</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Ogiltig trådfärg</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>Mönstret är större än alla stödda stygntyper; stor ram används</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>Anteckningen innehåller tecken som inte kan sparas i det här filformatet</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Oväntat filslut i VCSM-huvudet</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>VCSM-huvudtexten överstiger 255 tecken</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Mönsterkoordinater får inte vara negativa</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Oväntat svar på kortförfrågan: NAK följt av 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>Maskinen avvisade stygnsdatan.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Tidsgränsen för bekräftelse efter stygnsdatan överskreds.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Oväntat svar 0x{0} efter stygnsdatan.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stygnfiler (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-stygnfiler (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-stygnfiler (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Broderifiler (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Kontrollera kortets innehåll.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>9MM-stygnfiler (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Filen lästes in med varningar</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>MAX-stygnfiler (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-stygnfiler (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>Anteckningen trunkeras</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>PCD-stygnfiler (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>PCQ-stygnfiler (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stygnfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Mallbild saknas</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>Anteckningen är {0} tecken lång.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Mönstret hänvisar till mallbilden &quot;{0}&quot;, men det finns ingen sådan fil bredvid mönstret.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Mönstret lästes in utan mall.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>Mallbilden &quot;{0}&quot; kunde inte läsas.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Det här filformatet lagrar högst {0} tecken, så anteckningen trunkeras när den sparas.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Ingen mönsterdata att skicka.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Stöds inte</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Platsen är inte tom</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stygnfiler (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-stygnfiler (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-stygnfiler (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Broderifiler (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Storlek: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Välj en .pcd-, .pcq- eller .pcs-fil</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Färger: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-stygnfiler (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Välj en fil som stöds</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stygnfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Välj en .pcd- eller .pcq-fil</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Inga stygnpunkter</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Välj en fil som stöds</translation>
     </message>
 </context>
 <context>

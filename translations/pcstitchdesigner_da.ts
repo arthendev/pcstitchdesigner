@@ -43,10 +43,6 @@
         <translation>Begræns den maksimale afstand mellem på hinanden følgende sting.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Der indsættes automatiske sting, når denne værdi overskrides.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Maks. stinglængde</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Uventet filslutning ved læsning af antal sting</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Uventet filslutning ved læsning af stingpunkter</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>Skabelonbilledet kunne ikke kodes som PNG</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Filen ser ud til at være afkortet: kun {0} af {1} poster kunne læses</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Ugyldig trådfarve</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>Mønsterets størrelse overstiger alle understøttede stingtyper; stor ramme bruges</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>Noten indeholder tegn, som ikke kan gemmes i dette filformat</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Uventet filslutning i VCSM-header</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>VCSM-headertekst overstiger 255 tegn</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Mønsterkoordinater må ikke være negative</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Uventet svar på kortforespørgsel: NAK efterfulgt af 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>Maskinen afviste stingdataene.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Timeout under venten på bekræftelse efter stingdata.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Uventet svar 0x{0} efter stingdata.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stingfiler (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-stingfiler (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-stingfiler (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Broderifiler (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Kontrollér kortets indhold.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>9MM-stingfiler (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Filen blev indlæst med advarsler</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>MAX-stingfiler (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-stingfiler (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>Noten forkortes</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>PCD-stingfiler (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>PCQ-stingfiler (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stingfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Skabelonbillede mangler</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>Noten er {0} tegn lang.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Mønsteret henviser til skabelonbilledet &quot;{0}&quot;, men der findes ingen sådan fil ved siden af mønsteret.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Mønsteret blev indlæst uden skabelon.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>Skabelonbilledet &quot;{0}&quot; kunne ikke læses.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Dette filformat gemmer højst {0} tegn, så noten forkortes ved lagring.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Ingen mønsterdata at sende.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Ikke understøttet</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Slottet er ikke tomt</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Stingfiler (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-stingfiler (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-stingfiler (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Broderifiler (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Størrelse: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Vælg en .pcd-, .pcq- eller .pcs-fil</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Farver: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-stingfiler (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Vælg en understøttet fil</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Stingfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Vælg en .pcd- eller .pcq-fil</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Ingen stingpunkter</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Vælg en understøttet fil</translation>
     </message>
 </context>
 <context>

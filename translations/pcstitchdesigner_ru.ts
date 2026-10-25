@@ -43,10 +43,6 @@
         <translation>Ограничить максимальное расстояние между последовательными стежками.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>При превышении этого значения вставляются автоматические стежки.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Макс. длина стежка</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Неожиданный конец файла при чтении числа стежков</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Неожиданный конец файла при чтении точек стежков</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>Не удалось закодировать изображение шаблона в PNG</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Файл выглядит усечённым: удалось прочитать только {0} из {1} записей</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Недопустимый цвет нити</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>Размер узора превышает все поддерживаемые типы стежка; используются большие пяльцы</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>Заметка содержит символы, которые нельзя сохранить в этом формате файла</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Неожиданный конец файла в заголовке VCSM</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>Текст заголовка VCSM превышает 255 символов</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Координаты узора не могут быть отрицательными</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Неожиданный ответ на запрос карты: NAK, затем 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>Машина отклонила данные стежков.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Тайм-аут ожидания подтверждения после данных стежков.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Неожиданный ответ 0x{0} после данных стежков.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Файлы узоров (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Файлы узоров 9 мм (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Файлы узоров MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Файлы вышивки (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Проверьте содержимое карты.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>Файлы узоров 9MM (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Файл загружен с предупреждениями</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>Файлы узоров MAX (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Файлы узоров MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>Заметка будет обрезана</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>Файлы узоров PCD (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>Файлы узоров PCQ (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Файлы узоров (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Изображение шаблона отсутствует</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>Длина заметки — {0} символов.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Узор ссылается на изображение шаблона &quot;{0}&quot;, но рядом с узором нет такого файла.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Узор был загружен без шаблона.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>Не удалось прочитать изображение шаблона &quot;{0}&quot;.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Этот формат файла хранит не более {0} символов, поэтому при сохранении заметка будет обрезана.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Нет данных узора для отправки.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Не поддерживается</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Слот не пуст</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Файлы узоров (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Файлы узоров 9 мм (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Файлы узоров MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Файлы вышивки (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Размер: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Выберите файл .pcd, .pcq или .pcs</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, цветов: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Файлы узоров MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Выберите поддерживаемый файл</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Файлы узоров (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Выберите файл .pcd или .pcq</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Нет точек стежков</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Выберите поддерживаемый файл</translation>
     </message>
 </context>
 <context>

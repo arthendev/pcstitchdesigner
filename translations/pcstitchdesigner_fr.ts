@@ -43,10 +43,6 @@
         <translation>Limiter la distance maximale entre points consécutifs.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Des points automatiques sont insérés lorsque cette valeur est dépassée.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Longueur de point max.</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Fin de fichier inattendue lors de la lecture du nombre de points</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Fin de fichier inattendue lors de la lecture des points de couture</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>Impossible d'encoder l'image modèle au format PNG</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Le fichier semble tronqué : seuls {0} enregistrements sur {1} ont pu être lus</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Couleur de fil non valide</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>La taille du motif dépasse tous les types de points pris en charge ; le grand cadre est utilisé</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>La note contient des caractères qui ne peuvent pas être enregistrés dans ce format de fichier</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Fin de fichier inattendue dans l'en-tête VCSM</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>Le texte de l'en-tête VCSM dépasse 255 caractères</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Les coordonnées du motif ne doivent pas être négatives</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Réponse inattendue à l'interrogation de la carte : NAK suivi de 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>La machine a refusé les données de points.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Délai d'attente de l'accusé de réception dépassé après les données de points.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Réponse inattendue 0x{0} après les données de points.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Fichiers de points (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Fichiers de points 9mm (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Fichiers de points MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Fichiers de broderie (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Veuillez vérifier le contenu de la carte.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>Fichiers de points 9MM (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Fichier chargé avec des avertissements</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>Fichiers de points MAX (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Fichiers de points MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>La note sera tronquée</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>Fichiers de points PCD (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>Fichiers de points PCQ (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Fichiers de points (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Image modèle manquante</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>La note contient {0} caractères.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Le motif fait référence à l'image modèle &quot;{0}&quot;, mais aucun fichier de ce nom n'existe à côté du motif.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Le motif a été chargé sans modèle.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>Impossible de lire l'image modèle &quot;{0}&quot;.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Ce format de fichier enregistre au maximum {0} caractères ; la note sera donc tronquée lors de l'enregistrement.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Aucune donnée de motif à envoyer.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Non pris en charge</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Emplacement occupé</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Fichiers de points (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Fichiers de points 9mm (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Fichiers de points MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Fichiers de broderie (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Taille : -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Sélectionnez un fichier .pcd, .pcq ou .pcs</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Couleurs : {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Fichiers de points MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Sélectionner un fichier pris en charge</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Fichiers de points (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Sélectionnez un fichier .pcd ou .pcq</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Aucun point de couture</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Sélectionner un fichier pris en charge</translation>
     </message>
 </context>
 <context>

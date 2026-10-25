@@ -43,10 +43,6 @@
         <translation>Beperk de maximale afstand tussen opeenvolgende steken.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Automatische steken worden ingevoegd wanneer dit wordt overschreden.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Max. steeklengte</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Onverwacht einde van bestand bij het lezen van het aantal steken</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Onverwacht einde van bestand bij het lezen van steekpunten</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>De sjabloonafbeelding kon niet als PNG worden gecodeerd</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>Het bestand lijkt afgekapt: slechts {0} van {1} records konden worden gelezen</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Ongeldige draadkleur</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>De patroongrootte overschrijdt alle ondersteunde steektypen; grote ring wordt gebruikt</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>De notitie bevat tekens die in dit bestandsformaat niet kunnen worden opgeslagen</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Onverwacht einde van het bestand in de VCSM-header</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>VCSM-headertekst overschrijdt 255 tekens</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Patrooncoördinaten mogen niet negatief zijn</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Onverwacht antwoord op de kaartopvraag: NAK gevolgd door 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>De machine heeft de steekgegevens geweigerd.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Time-out bij het wachten op bevestiging na de steekgegevens.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Onverwachte reactie 0x{0} na de steekgegevens.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Steekpatroon openen</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Steekbestanden (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-steekbestanden (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-steekbestanden (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Borduurbestanden (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Controleer de inhoud van de kaart.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>9MM-steekbestanden (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-steekbestanden (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Bestand geladen met waarschuwingen</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>MAX-steekbestanden (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-steekbestanden (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>Notitie wordt afgekapt</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>PCD-steekbestanden (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>PCQ-steekbestanden (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Steekbestanden (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Sjabloonafbeelding ontbreekt</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>De notitie is {0} tekens lang.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>Het patroon verwijst naar de sjabloonafbeelding &quot;{0}&quot;, maar er bestaat geen dergelijk bestand naast het patroon.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>Het patroon is zonder sjabloon geladen.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>De sjabloonafbeelding &quot;{0}&quot; kon niet worden gelezen.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Dit bestandsformaat slaat maximaal {0} tekens op, dus de notitie wordt bij het opslaan afgekapt.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>Geen patroongegevens om te verzenden.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>Niet ondersteund</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Slot niet leeg</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Steekpatroon openen</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Steekbestanden (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>9mm-steekbestanden (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>MAXI-steekbestanden (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Borduurbestanden (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Grootte: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Selecteer een .pcd-, .pcq- of .pcs-bestand</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Kleuren: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>9mm-steekbestanden (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>MAXI-steekbestanden (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Een ondersteund bestand selecteren</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Steekbestanden (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Selecteer een .pcd- of .pcq-bestand</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Geen steekpunten</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Een ondersteund bestand selecteren</translation>
     </message>
 </context>
 <context>

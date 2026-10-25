@@ -43,10 +43,6 @@
         <translation>Limitar la distancia máxima entre puntadas consecutivas.</translation>
     </message>
     <message>
-        <source>Auto-stitches are inserted in between when this is exceeded.</source>
-        <translation>Se insertan puntadas automáticas cuando se supera este valor.</translation>
-    </message>
-    <message>
         <source>Max. Stitch Length</source>
         <translation>Long. máx. de puntada</translation>
     </message>
@@ -278,8 +274,36 @@
         <translation>Fin de archivo inesperado al leer el número de puntadas</translation>
     </message>
     <message>
-        <source>Unexpected end of file while reading stitch points</source>
-        <translation>Fin de archivo inesperado al leer los puntos de puntada</translation>
+        <source>Failed to encode the template image as PNG</source>
+        <translation>No se pudo codificar la imagen de plantilla como PNG</translation>
+    </message>
+    <message>
+        <source>File appears to be truncated: only {0} of {1} records could be read</source>
+        <translation>El archivo parece estar truncado: solo se pudieron leer {0} de {1} registros</translation>
+    </message>
+    <message>
+        <source>Invalid thread colour</source>
+        <translation>Color de hilo no válido</translation>
+    </message>
+    <message>
+        <source>Pattern size exceeds all supported stitch types; using large hoop</source>
+        <translation>El tamaño del patrón supera todos los tipos de puntada admitidos; se usa el bastidor grande</translation>
+    </message>
+    <message>
+        <source>The note contains characters that cannot be stored in this file format</source>
+        <translation>La nota contiene caracteres que no se pueden guardar en este formato de archivo</translation>
+    </message>
+    <message>
+        <source>Unexpected end of file in VCSM header</source>
+        <translation>Fin de archivo inesperado en la cabecera VCSM</translation>
+    </message>
+    <message>
+        <source>VCSM header text exceeds 255 characters</source>
+        <translation>El texto de la cabecera VCSM supera los 255 caracteres</translation>
+    </message>
+    <message>
+        <source>Pattern coordinates must not be negative</source>
+        <translation>Las coordenadas del patrón no pueden ser negativas</translation>
     </message>
 </context>
 <context>
@@ -815,6 +839,18 @@
         <source>Unexpected response to card query: NAK followed by 0x{0}.</source>
         <translation>Respuesta inesperada a la consulta de la tarjeta: NAK seguido de 0x{0}.</translation>
     </message>
+    <message>
+        <source>Machine rejected the stitch data.</source>
+        <translation>La máquina rechazó los datos de puntadas.</translation>
+    </message>
+    <message>
+        <source>Timeout waiting for acknowledgement after stitch data.</source>
+        <translation>Se agotó el tiempo de espera de la confirmación tras los datos de puntadas.</translation>
+    </message>
+    <message>
+        <source>Unexpected response 0x{0} after stitch data.</source>
+        <translation>Respuesta inesperada 0x{0} tras los datos de puntadas.</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -1243,22 +1279,6 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Archivos de puntadas (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Archivos de puntadas de 9mm (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Archivos de puntadas MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Archivos de bordado (*.pcs)</translation>
     </message>
@@ -1446,6 +1466,70 @@
         <source>Please verify the card contents.</source>
         <translation>Verifique el contenido de la tarjeta.</translation>
     </message>
+    <message>
+        <source>9MM Stitch Files (*.9mm)</source>
+        <translation>Archivos de puntadas 9MM (*.9mm)</translation>
+    </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>File loaded with warnings</source>
+        <translation>Archivo cargado con advertencias</translation>
+    </message>
+    <message>
+        <source>MAX Stitch Files (*.max)</source>
+        <translation>Archivos de puntadas MAX (*.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Archivos de puntadas MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Note will be truncated</source>
+        <translation>La nota se truncará</translation>
+    </message>
+    <message>
+        <source>PCD Stitch Files (*.pcd)</source>
+        <translation>Archivos de puntadas PCD (*.pcd)</translation>
+    </message>
+    <message>
+        <source>PCQ Stitch Files (*.pcq)</source>
+        <translation>Archivos de puntadas PCQ (*.pcq)</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Archivos de puntadas (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Template Image Missing</source>
+        <translation>Falta la imagen de plantilla</translation>
+    </message>
+    <message>
+        <source>The note is {0} characters long.</source>
+        <translation>La nota tiene {0} caracteres.</translation>
+    </message>
+    <message>
+        <source>The pattern refers to the template image &quot;{0}&quot;, but no such file exists next to the pattern.</source>
+        <translation>El patrón hace referencia a la imagen de plantilla &quot;{0}&quot;, pero no existe ese archivo junto al patrón.</translation>
+    </message>
+    <message>
+        <source>The pattern was loaded without a template.</source>
+        <translation>El patrón se cargó sin una plantilla.</translation>
+    </message>
+    <message>
+        <source>The template image &quot;{0}&quot; could not be read.</source>
+        <translation>No se pudo leer la imagen de plantilla &quot;{0}&quot;.</translation>
+    </message>
+    <message>
+        <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
+        <translation>Este formato de archivo admite como máximo {0} caracteres, por lo que la nota se truncará al guardar.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1514,10 +1598,6 @@
         <translation>No hay datos de patrón para enviar.</translation>
     </message>
     <message>
-        <source>Not Supported</source>
-        <translation>No admitido</translation>
-    </message>
-    <message>
         <source>Slot Not Empty</source>
         <translation>Ranura no vacía</translation>
     </message>
@@ -1565,22 +1645,6 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs)</translation>
-    </message>
-    <message>
-        <source>Stitch Files (*.pcd *.pcq)</source>
-        <translation>Archivos de puntadas (*.pcd *.pcq)</translation>
-    </message>
-    <message>
-        <source>9mm Stitch Files (*.pcd)</source>
-        <translation>Archivos de puntadas de 9mm (*.pcd)</translation>
-    </message>
-    <message>
-        <source>MAXI Stitch Files (*.pcq)</source>
-        <translation>Archivos de puntadas MAXI (*.pcq)</translation>
-    </message>
-    <message>
         <source>Embroidery Files (*.pcs)</source>
         <translation>Archivos de bordado (*.pcs)</translation>
     </message>
@@ -1591,10 +1655,6 @@
     <message>
         <source>Size: -</source>
         <translation>Tamaño: -</translation>
-    </message>
-    <message>
-        <source>Select a .pcd, .pcq, or .pcs file</source>
-        <translation>Seleccione un archivo .pcd, .pcq o .pcs</translation>
     </message>
     <message>
         <source>Preview</source>
@@ -1624,16 +1684,36 @@
         <source>, Colors: {0}</source>
         <translation>, Colores: {0}</translation>
     </message>
+    <message>
+        <source>9mm Stitch Files (*.pcd *.9mm)</source>
+        <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>MAXI Stitch Files (*.pcq *.max)</source>
+        <translation>Archivos de puntadas MAXI (*.pcq *.max)</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Seleccione un archivo admitido</translation>
+    </message>
+    <message>
+        <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
+        <translation>Archivos de puntadas (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
 </context>
 <context>
     <name>PatternPreviewWidget</name>
     <message>
-        <source>Select a .pcd or .pcq file</source>
-        <translation>Seleccione un archivo .pcd o .pcq</translation>
-    </message>
-    <message>
         <source>No stitch points</source>
         <translation>Sin puntos de puntada</translation>
+    </message>
+    <message>
+        <source>Select a supported file</source>
+        <translation>Seleccione un archivo admitido</translation>
     </message>
 </context>
 <context>
