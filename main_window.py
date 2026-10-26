@@ -7,10 +7,10 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
-    QLineEdit, QProgressDialog, QApplication,
+    QLineEdit, QProgressDialog, QApplication, QColorDialog,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
-from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap
+from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
 from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
 
         # Color palette toolbar (left edge, hidden until a palette is loaded)
         self._palette_bar = ColorPaletteBar(self)
+        self._palette_bar.color_clicked.connect(self._edit_palette_color)
         self.addToolBar(Qt.LeftToolBarArea, self._palette_bar)
 
         # Temporary Ctrl→SelectPoint state (while AddPointTool is active)
@@ -860,12 +861,14 @@ class MainWindow(QMainWindow):
             return
         old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "9mm"
+        self._drop_stitch_palette()
         self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
+        self._update_pattern_type_actions()
+        self._update_palette_bar()
         if not self._pattern.elements:
             self._zoom_fit_height()
 
@@ -880,12 +883,14 @@ class MainWindow(QMainWindow):
             return
         old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "MAXI"
+        self._drop_stitch_palette()
         self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
+        self._update_pattern_type_actions()
+        self._update_palette_bar()
 
         # Center the pattern in the view
         if self._pattern.elements:
@@ -896,12 +901,11 @@ class MainWindow(QMainWindow):
     def _on_stitch_small_hoop(self):
         if not self._pattern_fits_in_canvas("small hoop"):
             QMessageBox.warning(
-                self, "Canvas Size Change",
-                "Current pattern will be too large for the working area."
+                self, self.tr("Canvas Size Change"),
+                self.tr("Current pattern will be too large for the working area.")
             )
             self._act_large_hoop.setChecked(True)
             return
-        was_hoop = self._is_hoop_type()
         old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "small hoop"
         self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
@@ -909,13 +913,13 @@ class MainWindow(QMainWindow):
             self._pattern.clear_auto_stitches()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = False
+        self._ensure_embroidery_palette()
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
-        if not was_hoop:
-            self._show_hoop_info()
+        self._update_pattern_type_actions()
+        self._update_palette_bar()
         if self._pattern.elements:
             self._fit_pattern()
         else:
@@ -929,7 +933,6 @@ class MainWindow(QMainWindow):
             )
             self._act_small_hoop.setChecked(True)
             return
-        was_hoop = self._is_hoop_type()
         old_h = self._pattern.CANVAS_HEIGHT
         self._pattern.stitch_type = "large hoop"
         self._canvas.adjust_template_for_height_change(old_h, self._pattern.CANVAS_HEIGHT)
@@ -937,13 +940,13 @@ class MainWindow(QMainWindow):
             self._pattern.clear_auto_stitches()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = False
+        self._ensure_embroidery_palette()
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
-        if not was_hoop:
-            self._show_hoop_info()
+        self._update_pattern_type_actions()
+        self._update_palette_bar()
         if self._pattern.elements:
             self._fit_pattern()
         else:
@@ -951,57 +954,27 @@ class MainWindow(QMainWindow):
 
     # ── Status bar updates ──
 
-    def _show_hoop_info(self):
-        QMessageBox.information(
-            self, self.tr("Embroidery Design"),
-            self.tr(
-                "Embroidery designs can be loaded, viewed and written to a memory card, "
-                "but editing is not yet supported."
-            )
-        )
-
     def _is_hoop_type(self):
-        """Return True when the current stitch type is a hoop (read-only) pattern."""
+        """Return True when the current stitch type is a hoop (embroidery) pattern."""
         return self._pattern.stitch_type in ("small hoop", "large hoop")
 
-    def _update_hoop_restricted_actions(self):
-        """Enable or disable actions that are not supported for hoop patterns."""
-        enabled = not self._is_hoop_type()
-        # File
-        self._act_save.setEnabled(enabled)
-        self._act_save_as.setEnabled(enabled)
-        # Tools
-        self._act_add.setEnabled(enabled)
-        self._act_delete.setEnabled(enabled)
+    def _update_pattern_type_actions(self):
+        """Enable or disable actions that depend on the pattern type.
+
+        Hoop (embroidery) designs are edited and saved like any other pattern,
+        so they are not restricted here. The automatic-stitch tools stay off:
+        automatic stitches are generated between needle movements, whereas a
+        hoop design is a list of absolute positions.
+        """
+        hoop = self._is_hoop_type()
+        # Automatic stitches — generated for 9 mm / MAXI patterns only
+        self._act_set_auto_stitch_length.setEnabled(not hoop)
+        self._act_remove_auto_stitches.setEnabled(not hoop)
+        self._act_convert_auto_stitches.setEnabled(not hoop)
+        self._act_auto_stitch_align_grid.setEnabled(not hoop)
         # Machine — capabilities come from the model registry, not from the
         # pattern type alone, so re-evaluate them through that single path.
         self._update_machine_capability_actions()
-        # Edit (selection-dependent ones are re-evaluated by _update_selection_action_state)
-        self._act_copy.setEnabled(enabled and self._act_copy.isEnabled())
-        self._act_cut.setEnabled(enabled and self._act_cut.isEnabled())
-        self._act_paste.setEnabled(enabled and self._clipboard is not None)
-        self._act_delete_selected.setEnabled(enabled and self._act_delete_selected.isEnabled())
-        self._act_invert_selected.setEnabled(enabled and self._act_invert_selected.isEnabled())
-        self._act_mirror_vertical.setEnabled(enabled and self._act_mirror_vertical.isEnabled())
-        self._act_mirror_horizontal.setEnabled(enabled and self._act_mirror_horizontal.isEnabled())
-        # View orientation
-        self._act_orientation_sewing.setEnabled(enabled)
-        self._act_toggle_orientation.setEnabled(enabled)
-        if not enabled:
-            # Force back to default orientation for hoop types
-            self._act_orientation_default.setChecked(True)
-            self._on_orientation_default()
-        # Normal stitches — disabled entirely for hoop types
-        self._act_std_stitch_align_grid.setEnabled(enabled)
-        # Automatic stitches — disabled entirely for hoop types
-        self._act_set_auto_stitch_length.setEnabled(enabled)
-        self._act_remove_auto_stitches.setEnabled(enabled)
-        self._act_convert_auto_stitches.setEnabled(enabled)
-        self._act_auto_stitch_align_grid.setEnabled(enabled)
-        # If hoop type is active and the current tool is add/delete, switch to pan
-        if not enabled and self._canvas._tool in (self._add_tool, self._delete_tool):
-            self._act_pan.setChecked(True)
-            self._on_tool_pan()
 
     def _update_machine_capability_actions(self):
         """Enable machine actions that the configured model actually supports.
@@ -1106,17 +1079,16 @@ class MainWindow(QMainWindow):
         start, end = self._canvas.get_selection()
         has_selection = start is not None and end is not None
         has_multiple_selection = has_selection and end > start
-        hoop = self._is_hoop_type()
 
         n = len(self._pattern.elements)
-        self._act_copy.setEnabled(has_multiple_selection and not hoop)
-        self._act_cut.setEnabled(has_multiple_selection and not hoop)
-        self._act_paste.setEnabled(self._clipboard is not None and not hoop)
+        self._act_copy.setEnabled(has_multiple_selection)
+        self._act_cut.setEnabled(has_multiple_selection)
+        self._act_paste.setEnabled(self._clipboard is not None)
         self._act_clear_selection.setEnabled(has_selection)
-        self._act_delete_selected.setEnabled(has_selection and not hoop)
-        self._act_invert_selected.setEnabled(has_multiple_selection and not hoop)
-        self._act_mirror_vertical.setEnabled(has_multiple_selection and not hoop)
-        self._act_mirror_horizontal.setEnabled(has_multiple_selection and not hoop)
+        self._act_delete_selected.setEnabled(has_selection)
+        self._act_invert_selected.setEnabled(has_multiple_selection)
+        self._act_mirror_vertical.setEnabled(has_multiple_selection)
+        self._act_mirror_horizontal.setEnabled(has_multiple_selection)
         self._act_sel_extend.setEnabled(has_selection and end < n - 1)
         self._act_sel_reduce.setEnabled(has_multiple_selection)
         self._act_sel_move_backward.setEnabled(has_selection and start > 0)
@@ -1126,9 +1098,8 @@ class MainWindow(QMainWindow):
         self._act_sel_tb_reduce.setEnabled(has_multiple_selection)
         self._act_sel_tb_move_backward.setEnabled(has_selection and start > 0)
         self._act_sel_tb_move_forward.setEnabled(has_selection and end < n - 1)
-        # Resize/Rotate enabled when 2+ coord points selected and not hoop
-        can_xform = (has_multiple_selection and not hoop
-                     and not self._canvas._sel_xform_active)
+        # Resize/Rotate enabled when 2+ coord points are selected
+        can_xform = has_multiple_selection and not self._canvas._sel_xform_active
         self._act_sel_xform.setEnabled(can_xform)
 
     def _update_title(self):
@@ -1174,6 +1145,7 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.update()
         self._on_pattern_changed()
+        self._ensure_embroidery_palette()
         self._update_palette_bar()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
@@ -1257,6 +1229,9 @@ class MainWindow(QMainWindow):
             self._pattern.modified = False
         self._file_path = path
         self._file_info = file_info
+        # The window now shows a file, so a name remembered from the machine
+        # must not leak into the title or the Save As proposal.
+        self._machine_pattern_name = None
         self._add_recent_file(path)
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
@@ -1285,18 +1260,18 @@ class MainWindow(QMainWindow):
         if self._is_hoop_type():
             self._last_auto_stitch_max_dx_active = False
 
+        self._ensure_embroidery_palette()
+
         # Update canvas
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
+        self._update_pattern_type_actions()
         # For patterns loaded without auto stitches, apply the default max-dx rule
         if not self._pattern.has_auto_stitches and not self._is_hoop_type():
             self._recalculate_auto_if_active()
         self._update_palette_bar()
-        if self._is_hoop_type():
-            self._show_hoop_info()
 
         # Clear any template image from a previous file
         self._canvas.set_template_image(None)
@@ -1395,10 +1370,20 @@ class MainWindow(QMainWindow):
             ])
             default_ext = ".pcq"
         else:
-            file_filter = ";;".join([self.tr("Embroidery Files (*.pcs)"), self.tr("All Files (*)")])
-            default_ext = ""
-        
-        proposed = self._machine_pattern_name or ""
+            file_filter = ";;".join([
+                self.tr("Embroidery Files (*.pcs)"),
+                self.tr("All Files (*)"),
+            ])
+            default_ext = ".pcs"
+        # Save As starts from the file being edited, so a rename stays in the
+        # same folder; only a pattern that came from the machine (no file yet)
+        # is proposed by its machine name.
+        if self._file_path:
+            proposed = self._file_path
+        elif self._machine_pattern_name:
+            proposed = self._machine_pattern_name
+        else:
+            proposed = ""
         path, selected_filter = QFileDialog.getSaveFileName(
             self, self.tr("Save Stitch Pattern"), proposed,
             file_filter,
@@ -1465,6 +1450,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_palette_bar()
         self._recalculate_auto_if_active()
 
     def _edit_redo(self):
@@ -1472,6 +1458,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selection(None, None)
         self._canvas.update()
         self._on_pattern_changed()
+        self._update_palette_bar()
         self._recalculate_auto_if_active()
 
     def _edit_copy(self):
@@ -1920,17 +1907,18 @@ class MainWindow(QMainWindow):
 
         is_hoop = new_pattern.stitch_type in ("small hoop", "large hoop")
         if is_hoop:
-            # Hoop designs are read-only and cannot be saved, so a load must not
-            # leave the window claiming unsaved changes.
+            # A design read from the machine is already saved, so the freshly
+            # loaded window must not claim unsaved changes.
             new_pattern.modified = False
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = not is_hoop
 
+        self._ensure_embroidery_palette()
         self._apply_display_settings()
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_hoop_restricted_actions()
+        self._update_pattern_type_actions()
         self._update_palette_bar()
         self._recalculate_auto_if_active()
         self._act_pan.setChecked(True)
@@ -2425,6 +2413,28 @@ class MainWindow(QMainWindow):
 
     # ── Settings ──
 
+    def _ensure_embroidery_palette(self):
+        """Give a hoop design a thread palette when it has none.
+
+        An embroidery design is always drawn in thread colors, so one that was
+        created in an empty document — or read from a file or the machine
+        without a color table — falls back to the machine's default palette.
+        This keeps the palette bar populated for every embroidery design.
+        """
+        if not self._is_hoop_type():
+            return
+        if self._pattern.ensure_palette(MachineComm.DEFAULT_CARD_COLORS):
+            self._log_info("Default embroidery color palette applied")
+
+    def _drop_stitch_palette(self):
+        """Remove the thread palette of a 9 mm / MAXI pattern.
+
+        Those patterns are stitched in the machine's own thread colors, so they
+        neither show a palette bar nor store a palette in the file.
+        """
+        if self._pattern.clear_palette():
+            self._log_info("Embroidery color palette removed")
+
     def _update_palette_bar(self):
         """Show/hide and populate the color palette bar based on the current pattern."""
         if self._pattern.has_palette:
@@ -2432,6 +2442,26 @@ class MainWindow(QMainWindow):
             self._palette_bar.setVisible(True)
         else:
             self._palette_bar.setVisible(False)
+
+    def _edit_palette_color(self, index):
+        """Open a color picker for the palette entry at *index*."""
+        colors = self._pattern.colors
+        if not 0 <= index < len(colors):
+            return
+        current = QColor(*colors[index])
+        chosen = QColorDialog.getColor(
+            current, self,
+            self.tr("Thread Color {0}").format(index + 1),
+        )
+        if not chosen.isValid():
+            return
+        new_rgb = (chosen.red(), chosen.green(), chosen.blue())
+        if new_rgb == tuple(colors[index]):
+            return
+        self._pattern.set_palette_color(index, new_rgb)
+        self._update_palette_bar()
+        self._canvas.update()
+        self._on_pattern_changed()
 
     def _settings_preferences(self):
         dlg = PreferencesDialog(self._config, parent=self)

@@ -10,6 +10,28 @@ ELEM_AUTO   = 2   # (ELEM_AUTO, x, y)    — automatic stitch (hollow circle)
 ELEM_COLOR  = 3   # (ELEM_COLOR, color_index) — color change
 ELEM_SECTION = 4  # (ELEM_SECTION, x, y) — section marker (start/end)
 
+# The machine's 16 standard thread colours. Used when a design names colour
+# numbers but carries no colour table of its own, and as the starting palette
+# of a new embroidery design.
+DEFAULT_PALETTE = (
+    (0, 0, 0),          # 1  black
+    (220, 0, 0),        # 2  red
+    (0, 150, 0),        # 3  green
+    (0, 0, 180),        # 4  blue
+    (230, 140, 0),      # 5  orange
+    (150, 0, 180),      # 6  purple
+    (0, 160, 160),      # 7  teal
+    (210, 0, 140),      # 8  magenta
+    (130, 90, 0),       # 9  brown
+    (100, 100, 100),    # 10 grey
+    (0, 120, 210),      # 11 azure
+    (120, 200, 0),      # 12 lime
+    (255, 150, 190),    # 13 pink
+    (0, 200, 140),      # 14 mint
+    (160, 120, 255),    # 15 violet
+    (0, 70, 130),       # 16 navy
+)
+
 
 def elem_has_coords(e):
     """Return True when element *e* carries x,y coordinates."""
@@ -260,6 +282,27 @@ class ConvertAutoStitchesCommand(Command):
             pattern._display_base_map = self._old_map
 
 
+class SetPaletteColorCommand(Command):
+    """Replaces one entry of the thread palette, keeping the old RGB for undo.
+
+    Only the palette entry changes — every ELEM_COLOR that pointed at *index*
+    keeps pointing at it, so all stitches of that color change together.
+    """
+
+    def __init__(self, index, old_rgb, new_rgb):
+        self.index = index
+        self.old_rgb = tuple(old_rgb)
+        self.new_rgb = tuple(new_rgb)
+
+    def redo(self, pattern):
+        if 0 <= self.index < len(pattern.colors):
+            pattern.colors[self.index] = self.new_rgb
+
+    def undo(self, pattern):
+        if 0 <= self.index < len(pattern.colors):
+            pattern.colors[self.index] = self.old_rgb
+
+
 class StitchPattern:
     """Ordered list of pattern elements with undo/redo.
 
@@ -347,6 +390,59 @@ class StitchPattern:
     def get_point_color_index(self, i):
         """Backward-compatible alias for get_color_at."""
         return self.get_color_at(i)
+
+    def set_palette_color(self, index, rgb):
+        """Change one thread-color palette entry, undoably.
+
+        All stitches of that color keep referencing the same palette index, so
+        they all change together.
+
+        Args:
+            index: zero-based palette position.
+            rgb: new ``(r, g, b)`` tuple with values 0–255.
+
+        Raises:
+            IndexError: when *index* is outside the palette.
+        """
+        if not 0 <= index < len(self.colors):
+            raise IndexError(
+                f"Palette index {index} out of range "
+                f"(0..{len(self.colors) - 1})"
+            )
+        self._exec(SetPaletteColorCommand(index, self.colors[index], rgb))
+
+    def ensure_palette(self, colors=None):
+        """Give the pattern a thread palette when it has none yet.
+
+        Embroidery designs are always shown in thread colors, so a design from
+        an empty document — or from a file or machine that carried no color
+        table — still needs something to display. Not marked as a change: like
+        switching the stitch type, this only supplies a default for a value the
+        pattern did not have.
+
+        Args:
+            colors: fallback palette as ``[(r, g, b), ...]``; defaults to
+                :data:`DEFAULT_PALETTE`.
+
+        Returns:
+            bool: True when the fallback palette was applied.
+        """
+        if self.colors:
+            return False
+        source = DEFAULT_PALETTE if colors is None else colors
+        self.colors = [tuple(c) for c in source]
+        return True
+
+    def clear_palette(self):
+        """Drop the thread palette; 9 mm and MAXI patterns carry none.
+
+        Returns:
+            bool: True when a palette was removed.
+        """
+        if not self.colors:
+            return False
+        self.colors = []
+        return True
 
     def rounded_elements(self):
         """Yield elements with x/y coordinates rounded and converted to int on demand."""

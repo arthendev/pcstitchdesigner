@@ -5,7 +5,9 @@ import time
 import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
-from model import StitchPattern, elem_has_coords, ELEM_COLOR, ELEM_STITCH
+from model import (
+    StitchPattern, DEFAULT_PALETTE, elem_has_coords, ELEM_COLOR, ELEM_STITCH,
+)
 from app_logger import AppLogger
 from machine_models import (
     PMEMORY_VARIANT_1475CD,
@@ -145,25 +147,9 @@ class MachineComm:
     )
 
     # Default thread palette for card patterns whose payload names colour numbers
-    # but carries no colour table.
-    DEFAULT_CARD_COLORS = (
-        (0, 0, 0),          # 1  black
-        (220, 0, 0),        # 2  red
-        (0, 150, 0),        # 3  green
-        (0, 0, 180),        # 4  blue
-        (230, 140, 0),      # 5  orange
-        (150, 0, 180),      # 6  purple
-        (0, 160, 160),      # 7  teal
-        (210, 0, 140),      # 8  magenta
-        (130, 90, 0),       # 9  brown
-        (100, 100, 100),    # 10 grey
-        (0, 120, 210),      # 11 azure
-        (120, 200, 0),      # 12 lime
-        (255, 150, 190),    # 13 pink
-        (0, 200, 140),      # 14 mint
-        (160, 120, 255),    # 15 violet
-        (0, 70, 130),       # 16 navy
-    )
+    # but carries no colour table. Defined once in the model, because a new
+    # embroidery design starts from the same colours.
+    DEFAULT_CARD_COLORS = DEFAULT_PALETTE
 
     def __init__(self, logger=None):
         self._serial = None
