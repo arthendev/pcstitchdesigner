@@ -2,6 +2,7 @@
 
 import os
 import sys
+from dataclasses import dataclass
 
 from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
@@ -31,6 +32,62 @@ from color_palette_bar import ColorPaletteBar
 
 from auto_stitch_dialog import AutoStitchLengthDialog
 from check_updates_dialog import run_check_for_updates, run_silent_check_for_updates
+
+
+# ── Design-type dependent UI ───────────────────────────────────────────────
+# The design types offered by the Design menu. Hoop types are embroidery.
+STITCH_DESIGN_TYPES = ("9mm", "MAXI")
+EMBROIDERY_DESIGN_TYPES = ("small hoop", "large hoop")
+
+
+@dataclass(frozen=True)
+class DesignTypeRule:
+    """Availability of one UI element per design type.
+
+    Attributes:
+        target: attribute name of the QAction (or panel) on MainWindow.
+        types: design types the target is available for.
+        restore: checkable state applied when the target becomes available and
+            the defaults are requested; ``None`` keeps the user's choice.
+        force: checkable state forced while the target is unavailable;
+            ``None`` leaves the state alone (plain, non-checkable actions).
+        reset: MainWindow method called when the target becomes unavailable, so
+            the window cannot stay in a mode its design type does not support.
+    """
+
+    target: str
+    types: tuple
+    restore: bool = None
+    force: bool = None
+    reset: str = None
+
+
+# Everything that is only offered for some design types. Extend this table when
+# a new action depends on the design type; _apply_design_type_rules() needs no
+# change and panels can ask _design_type_allows().
+DESIGN_TYPE_RULES = (
+    # Normal stitches — snapping to the stitch grid is a 9 mm / MAXI feature.
+    DesignTypeRule("_act_std_stitch_align_grid", STITCH_DESIGN_TYPES,
+                   restore=True, force=False),
+    # Automatic stitches are generated between needle movements, so a hoop
+    # design (a list of absolute positions) has no use for them.
+    DesignTypeRule("_act_set_auto_stitch_length", STITCH_DESIGN_TYPES),
+    DesignTypeRule("_act_remove_auto_stitches", STITCH_DESIGN_TYPES),
+    DesignTypeRule("_act_convert_auto_stitches", STITCH_DESIGN_TYPES),
+    DesignTypeRule("_act_auto_stitch_align_grid", STITCH_DESIGN_TYPES,
+                   restore=False, force=False),
+    # Stitch grid and sewing-direction view belong to the 9 mm / MAXI patterns.
+    DesignTypeRule("_act_show_grid", STITCH_DESIGN_TYPES, restore=True, force=False),
+    DesignTypeRule("_act_show_grid_menu", STITCH_DESIGN_TYPES,
+                   restore=True, force=False),
+    DesignTypeRule("_act_orientation_sewing", STITCH_DESIGN_TYPES,
+                   force=False, reset="_on_orientation_default"),
+    DesignTypeRule("_act_toggle_orientation", STITCH_DESIGN_TYPES, force=False),
+    # Embroidery designs are stitched in thread colors, so only they show the
+    # color palette bar.
+    DesignTypeRule("_palette_bar", EMBROIDERY_DESIGN_TYPES),
+)
+
 
 
 class MainWindow(QMainWindow):
@@ -819,6 +876,10 @@ class MainWindow(QMainWindow):
             self._template_edit_cancel()
         self._view_orientation = "default"
         self._canvas.set_view_orientation("default")
+        # Keep both selectors (menu radio and toolbar toggle) on the same state;
+        # _apply_design_type_rules() comes through here when a design type has no
+        # sewing-direction view at all.
+        self._act_orientation_default.setChecked(True)
         self._act_toggle_orientation.setChecked(False)
         self._fit_pattern()
 
@@ -867,7 +928,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules(reset_defaults=True)
         self._update_palette_bar()
         if not self._pattern.elements:
             self._zoom_fit_height()
@@ -889,7 +950,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules(reset_defaults=True)
         self._update_palette_bar()
 
         # Center the pattern in the view
@@ -918,7 +979,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules(reset_defaults=True)
         self._update_palette_bar()
         if self._pattern.elements:
             self._fit_pattern()
@@ -945,7 +1006,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules(reset_defaults=True)
         self._update_palette_bar()
         if self._pattern.elements:
             self._fit_pattern()
@@ -958,20 +1019,53 @@ class MainWindow(QMainWindow):
         """Return True when the current stitch type is a hoop (embroidery) pattern."""
         return self._pattern.stitch_type in ("small hoop", "large hoop")
 
-    def _update_pattern_type_actions(self):
-        """Enable or disable actions that depend on the pattern type.
+    # ── Design-type dependent UI ──
 
-        Hoop (embroidery) designs are edited and saved like any other pattern,
-        so they are not restricted here. The automatic-stitch tools stay off:
-        automatic stitches are generated between needle movements, whereas a
-        hoop design is a list of absolute positions.
+    def _design_type_allows(self, target):
+        """Return True when the current design type offers *target*.
+
+        *target* is a name from :data:`DESIGN_TYPE_RULES`. Panels that are not
+        QActions (such as the color palette bar) use this to decide whether they
+        belong on screen.
         """
-        hoop = self._is_hoop_type()
-        # Automatic stitches — generated for 9 mm / MAXI patterns only
-        self._act_set_auto_stitch_length.setEnabled(not hoop)
-        self._act_remove_auto_stitches.setEnabled(not hoop)
-        self._act_convert_auto_stitches.setEnabled(not hoop)
-        self._act_auto_stitch_align_grid.setEnabled(not hoop)
+        for rule in DESIGN_TYPE_RULES:
+            if rule.target == target:
+                return self._pattern.stitch_type in rule.types
+        raise KeyError(f"No design-type rule for {target!r}")
+
+    def _apply_design_type_rules(self, reset_defaults=False):
+        """Enable, disable and reset the UI that depends on the design type.
+
+        Everything comes from :data:`DESIGN_TYPE_RULES`, so a new
+        design-type dependent action only needs a line in that table.
+
+        Args:
+            reset_defaults: Put the options back into their default state
+                instead of keeping the current one. Used when the user picks a
+                design type or starts a new pattern; loading a file keeps the
+                states the file implies (fractional coordinates turn off
+                snapping, for example).
+        """
+        stitch_type = self._pattern.stitch_type
+        for rule in DESIGN_TYPE_RULES:
+            widget = getattr(self, rule.target)
+            if not isinstance(widget, QAction):
+                continue    # panels query _design_type_allows() themselves
+            available = stitch_type in rule.types
+            was_enabled = widget.isEnabled()
+            widget.setEnabled(available)
+            if available:
+                # Only a defaults run overrides the user's choice.
+                if reset_defaults and rule.restore is not None:
+                    widget.setChecked(rule.restore)
+            elif rule.force is not None:
+                widget.setChecked(rule.force)
+            if not available and was_enabled and rule.reset:
+                getattr(self, rule.reset)()
+        # Option states feed the canvas directly; setChecked() does not run the
+        # triggered handlers that normally push them across.
+        self._canvas.snap_normal_to_grid = self._act_std_stitch_align_grid.isChecked()
+        self._toggle_show_grid(self._act_show_grid.isChecked())
         # Machine — capabilities come from the model registry, not from the
         # pattern type alone, so re-evaluate them through that single path.
         self._update_machine_capability_actions()
@@ -1149,15 +1243,10 @@ class MainWindow(QMainWindow):
         self._update_palette_bar()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
-        if self._pattern.stitch_type in ("9mm", "MAXI"):
-            # Grid on
-            self._act_show_grid.setChecked(True)
-            self._act_show_grid_menu.setChecked(True)
-            self._canvas._show_grid = True
-            # Snap to grid: on for normal stitches, off for auto stitches
-            self._act_std_stitch_align_grid.setChecked(True)
-            self._canvas.snap_normal_to_grid = True
-            self._act_auto_stitch_align_grid.setChecked(False)
+        # Fresh document: type-dependent options start from their defaults
+        # (grid on, snap to grid on, auto-stitch snapping off).
+        self._apply_design_type_rules(reset_defaults=True)
+        if self._pattern.stitch_type in STITCH_DESIGN_TYPES:
             # Show stitch points and auto stitch points
             self._toggle_show_stitch_points(True)
             self._toggle_show_auto_stitch_points(True)
@@ -1267,7 +1356,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules()
         # For patterns loaded without auto stitches, apply the default max-dx rule
         if not self._pattern.has_auto_stitches and not self._is_hoop_type():
             self._recalculate_auto_if_active()
@@ -1918,7 +2007,7 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._update_pattern_type_actions()
+        self._apply_design_type_rules()
         self._update_palette_bar()
         self._recalculate_auto_if_active()
         self._act_pan.setChecked(True)
@@ -2436,8 +2525,8 @@ class MainWindow(QMainWindow):
             self._log_info("Embroidery color palette removed")
 
     def _update_palette_bar(self):
-        """Show/hide and populate the color palette bar based on the current pattern."""
-        if self._pattern.has_palette:
+        """Show/hide and populate the color palette bar based on the pattern type."""
+        if self._pattern.has_palette and self._design_type_allows("_palette_bar"):
             self._palette_bar.set_colors(self._pattern.colors)
             self._palette_bar.setVisible(True)
         else:
@@ -2467,8 +2556,9 @@ class MainWindow(QMainWindow):
         dlg = PreferencesDialog(self._config, parent=self)
         if dlg.exec_() == PreferencesDialog.Accepted:
             self._apply_display_settings()
-            # Re-evaluate machine actions — the model may have changed
-            self._update_machine_capability_actions()
+            # Display settings touch type-dependent options, and the machine
+            # model may have changed — re-evaluate both in one place.
+            self._apply_design_type_rules()
 
     def _apply_display_settings(self):
         d = self._config.get_display_preferences()
