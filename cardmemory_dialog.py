@@ -69,9 +69,12 @@ class CardMemoryDialog(QDialog):
     _cached_card_info = None
     _cached_card_previews = None
 
-    # Display scale applied to the raw preview pixmaps before use as icons.
-    # 9mm images are 24 px tall, 53 px wide; MAXI 48 x 53 px; Embroidery 48 x 48 px.
-    _ICON_SIZE = QSize(53, 48)
+    # Icon size large enough for the widest and tallest preview geometry in
+    # ``MachineComm.PREVIEW_SIZES`` (53 x 48 px as of writing).
+    _ICON_SIZE = QSize(
+        max(width for _height, width in MachineComm.PREVIEW_SIZES.values()),
+        max(height for height, _width in MachineComm.PREVIEW_SIZES.values()),
+    )
 
     _PROGRESS_BAR_HIDDEN_STYLE = (
         "QProgressBar { background: transparent; border: none; color: transparent; }"
@@ -700,9 +703,9 @@ class CardMemoryDialog(QDialog):
     def _build_pixmap(self, preview_hex: str, pattern_type: str, is_embroidery: bool):
         """Decode the raw preview hex payload into a QPixmap.
 
-        The preview is a column-major black-and-white bitmap.  Each column is
-        ``col_height // 8`` bytes tall, where ``col_height`` is 24 for 9mm and
-        48 for MAXI / Embroidery.  Within each byte, bit 7 (MSB) is the
+        The preview is a column-major black-and-white bitmap whose geometry is
+        declared in ``MachineComm.PREVIEW_SIZES``.  Each column is
+        ``height // 8`` bytes tall.  Within each byte, bit 7 (MSB) is the
         top-most pixel of that 8-pixel group; byte index 0 is the bottom-most
         group in the column.  Embroidery images are rotated 180° after decoding.
 
@@ -722,18 +725,22 @@ class CardMemoryDialog(QDialog):
         except ValueError:
             return None
 
-        col_height = 24 if pattern_type == "9mm" else 48
-        bytes_per_col = col_height // 8  # 3 for 9mm, 6 for MAXI/Embroidery
+        size = MachineComm.PREVIEW_SIZES.get(pattern_type)
+        if size is None:
+            return None
+        col_height, col_width = size
+        bytes_per_col = col_height // 8
 
-        if len(data) < bytes_per_col:
+        if len(data) < col_width * bytes_per_col:
             return None
 
-        num_cols = len(data) // bytes_per_col
-        img = QImage(num_cols, col_height, QImage.Format_RGB32)
+        img = QImage(col_width, col_height, QImage.Format_RGB32)
         img.fill(QColor(255, 255, 255).rgb())
         black = QColor(0, 0, 0).rgb()
 
-        for col in range(num_cols):
+        # Embroidery payloads hold one block per colour; the first block is the
+        # composite image, which is what a thumbnail should show.
+        for col in range(col_width):
             for byte_idx in range(bytes_per_col):
                 byte_val = data[col * bytes_per_col + byte_idx]
                 # byte_idx=0 is the bottom-most 8-pixel group;

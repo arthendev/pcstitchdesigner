@@ -82,10 +82,23 @@ class MachineComm:
     CTRL_NAK = 0x15 # Negative Acknowledge
     CTRL_ETB = 0x17 # End of Transmission Block
 
+    # Card-slot preview bitmaps, keyed by the protocol's pattern-type name:
+    # (height, width) in pixels.  Columns are stored bottom-to-top in
+    # ``height // 8`` bytes each, so one block occupies ``width * height / 8``
+    # bytes.
+    PREVIEW_SIZES = {
+        "9mm": (24, 53),
+        "MAXI": (48, 53),
+        "Embroidery": (48, 48),
+    }
+    # 48 * 48 / 8 = 288 bytes per embroidery preview block.
+    EMBROIDERY_PREVIEW_SIZE = (
+        PREVIEW_SIZES["Embroidery"][0] * PREVIEW_SIZES["Embroidery"][1] // 8
+    )
+
     # Embroidery (hoop) card encoding.  Canvas units are 1/6 mm, payload units
     # are ~1/10 mm; the conversion is a truncating scale, never a rounding.
     EMBROIDERY_SCALE = 256 / 153
-    EMBROIDERY_PREVIEW_SIZE = 288   # one 48x48 1-bit preview block
     EMBROIDERY_HOOPS = {
         # stitch_type: (header hoop byte, width, height) in payload units
         "small hoop": (1, 803, 803),
@@ -1866,7 +1879,8 @@ class MachineComm:
         """Generate a column-major 1-bit-per-pixel preview image for memory card.
 
         Draws line segments between consecutive stitch points, scaled and
-        centred within the type-specific preview dimensions:
+        centred within the preview dimensions declared in
+        :attr:`PREVIEW_SIZES`:
 
         =========== ====== ======
         Stitch type Height Width
@@ -1892,21 +1906,22 @@ class MachineComm:
 
         Returns:
             bytes: Encoded preview bitmap.
-                   Size: ``img_w * (img_h // 8)`` bytes.
+                   Size: ``img_w * img_h / 8`` bytes.
+
+        Raises:
+            MachineCommError: If ``pattern.stitch_type`` has no declared
+                preview geometry.
         """
         if pattern.stitch_type in MachineComm.EMBROIDERY_HOOPS:
             # Hoop designs need one block per colour; this helper keeps its
             # single-block contract by returning the composite block.
             return MachineComm.encode_card_previews_embroidery(pattern)[0]
 
-        stitch_type = pattern.stitch_type
-        if stitch_type == '9mm':
-            img_h, img_w = 24, 53
-        elif stitch_type == 'MAXI':
-            img_h, img_w = 48, 53
-        else:
-            img_h, img_w = 48, 48
+        if pattern.stitch_type not in MachineComm.PREVIEW_SIZES:
+            raise MachineCommError(
+                _tr("Unknown pattern type: {0}").format(repr(pattern.stitch_type)))
 
+        img_h, img_w = MachineComm.PREVIEW_SIZES[pattern.stitch_type]
         bytes_per_col = img_h // 8
         blank = bytes(img_w * bytes_per_col)
 
@@ -2367,16 +2382,18 @@ class MachineComm:
 
     @staticmethod
     def _rasterize_embroidery_preview(values, point_colours, only_colour=None):
-        """Pack one 288-byte 48x48 preview block from payload-space *values*.
+        """Pack one embroidery preview block from payload-space *values*.
 
         ``point_colours`` holds the 1-based colour number of each point.  With
         *only_colour* set, only points of that colour are plotted and a line is
         drawn only between two consecutive points of that colour.
 
-        The stored bitmap is the display image rotated by 180°, so a raster
-        pixel ``(px, py)`` in payload space goes to column *px*, bit
-        ``py % 8`` of byte ``py // 8``.
+        The block geometry comes from :attr:`PREVIEW_SIZES`.  The stored bitmap
+        is the display image rotated by 180°, so a raster pixel ``(px, py)`` in
+        payload space goes to column *px*, bit ``py % 8`` of byte ``py // 8``.
         """
+        height, width = MachineComm.PREVIEW_SIZES["Embroidery"]
+        bytes_per_col = height // 8
         block = bytearray(MachineComm.EMBROIDERY_PREVIEW_SIZE)
         if not values:
             return bytes(block)
@@ -2389,22 +2406,23 @@ class MachineComm:
 
         # One pixel margin per side; the same scale on both axes keeps the
         # thumbnail's aspect ratio.
-        available = 46.0
+        available_w = float(width - 2)
+        available_h = float(height - 2)
         if span_x == 0 and span_y == 0:
             scale = 1.0
         elif span_x == 0:
-            scale = available / span_y
+            scale = available_h / span_y
         elif span_y == 0:
-            scale = available / span_x
+            scale = available_w / span_x
         else:
-            scale = min(available / span_x, available / span_y)
+            scale = min(available_w / span_x, available_h / span_y)
 
-        off_x = (48 - span_x * scale) / 2.0 - min_x * scale
-        off_y = (48 - span_y * scale) / 2.0 - min_y * scale
+        off_x = (width - span_x * scale) / 2.0 - min_x * scale
+        off_y = (height - span_y * scale) / 2.0 - min_y * scale
 
         def put(px, py):
-            if 0 <= px < 48 and 0 <= py < 48:
-                block[px * 6 + py // 8] |= 1 << (py % 8)
+            if 0 <= px < width and 0 <= py < height:
+                block[px * bytes_per_col + py // 8] |= 1 << (py % 8)
 
         def draw_line(x0, y0, x1, y1):
             dx, dy = abs(x1 - x0), abs(y1 - y0)
