@@ -1,11 +1,12 @@
 """Tool classes for the stitch canvas."""
 
+import math
 import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap, QBrush, QPainter
 
 from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
-                   MoveManyPointsCommand, elem_has_coords,
+                   MoveManyPointsCommand, elem_has_coords, is_hoop_stitch_type,
                    ELEM_COLOR, ELEM_SECTION)
 
 
@@ -34,6 +35,57 @@ def find_nearest_coord_index(pattern, cx, cy, radius_canvas):
     if best_idx is not None and best_dist_sq <= radius_canvas ** 2:
         return best_idx
     return None
+
+
+def distance_to_segment(px, py, ax, ay, bx, by):
+    """Return the distance from (*px*, *py*) to the segment (ax, ay)-(bx, by)."""
+    dx, dy = bx - ax, by - ay
+    length_sq = dx * dx + dy * dy
+    if length_sq == 0:
+        return math.hypot(px - ax, py - ay)
+    # Projection of the point onto the line, clamped to the segment.
+    t = ((px - ax) * dx + (py - ay) * dy) / length_sq
+    t = max(0.0, min(1.0, t))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def find_nearest_section_hit(pattern, cx, cy, radius_canvas):
+    """Return the element index whose section is under (*cx*, *cy*).
+
+    Stitch points win over the lines joining them. A line hit reports its start
+    point, because that is the section the line is drawn in — the marker a line
+    ends on opens the *next* section. Lines are not drawn across a colour change
+    (the thread is cut there), so such a gap is not a hit either.
+
+    Args:
+        pattern: The StitchPattern to search.
+        cx, cy: Cursor position in canvas units.
+        radius_canvas: Hit radius in canvas units.
+
+    Returns:
+        The element index, or None when neither a point nor a line is close.
+    """
+    index = find_nearest_coord_index(pattern, cx, cy, radius_canvas)
+    if index is not None:
+        return index
+
+    best_idx = None
+    best_dist = radius_canvas
+    previous = None  # (index, x, y) of the previous coordinate element
+    for i, elem in enumerate(pattern.elements):
+        if elem[0] == ELEM_COLOR:
+            previous = None
+            continue
+        if not elem_has_coords(elem):
+            continue
+        if previous is not None:
+            dist = distance_to_segment(cx, cy, previous[1], previous[2],
+                                       elem[1], elem[2])
+            if dist <= best_dist:
+                best_dist = dist
+                best_idx = previous[0]
+        previous = (i, elem[1], elem[2])
+    return best_idx
 
 
 def highlight_color(color):
@@ -166,6 +218,10 @@ class SelectSectionTool(BaseTool):
     # opaque onto a small layer and composited once at this opacity, so
     # overlapping strokes cannot build up into a solid area.
     PREVIEW_ALPHA = 100
+    # 9 mm / MAXI designs carry no thread palette, so there is no colour identity
+    # to preserve: they get a bold, high-contrast cue instead of a tint.
+    STRONG_PREVIEW_ALPHA = 235
+    STRONG_PREVIEW_RGB = (255, 120, 0)   # vivid orange, unmistakable on the canvas
 
     def __init__(self):
         """Initialize the tool with a custom cursor from the icon."""
@@ -212,7 +268,7 @@ class SelectSectionTool(BaseTool):
     def mouse_move(self, canvas, event):
         """Track the section under the cursor so it can be previewed."""
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-        index = find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
+        index = find_nearest_section_hit(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
         bounds = self._section_range(canvas, index) if index is not None else None
         if bounds is not None and bounds == canvas.get_selection():
             # Already selected; its own highlight is enough.
@@ -251,6 +307,22 @@ class SelectSectionTool(BaseTool):
             return QColor(*pattern.colors[min(max(index, 0), len(pattern.colors) - 1)])
 
         # Collect the strokes: (screen point, tint, previous screen point).
+        strong = not is_hoop_stitch_type(pattern.stitch_type)
+        if strong:
+            alpha = self.STRONG_PREVIEW_ALPHA
+            line_width = canvas._line_width + 2
+            radius = canvas._point_radius + 1
+        else:
+            alpha = self.PREVIEW_ALPHA
+            line_width = canvas._line_width
+            radius = canvas._point_radius
+
+        def tint_for(index):
+            """Preview colour for the thread active at that point."""
+            if strong:
+                return QColor(*self.STRONG_PREVIEW_RGB)
+            return highlight_color(thread_color(index))
+
         strokes = []
         color_index = pattern.get_color_at(first) if pattern.has_palette else None
         previous = None
@@ -263,13 +335,11 @@ class SelectSectionTool(BaseTool):
             if not elem_has_coords(elem):
                 continue
             point = canvas.canvas_to_screen(elem[1], elem[2])
-            strokes.append((point, highlight_color(thread_color(color_index)), previous))
+            strokes.append((point, tint_for(color_index), previous))
             previous = point
         if not strokes:
             return
 
-        radius = canvas._point_radius
-        line_width = canvas._line_width
         margin = radius + line_width + 2
         xs = [point[0] for point, _tint, _prev in strokes]
         ys = [point[1] for point, _tint, _prev in strokes]
@@ -294,7 +364,7 @@ class SelectSectionTool(BaseTool):
         layer_painter.end()
 
         painter.save()
-        painter.setOpacity(self.PREVIEW_ALPHA / 255)
+        painter.setOpacity(alpha / 255)
         painter.drawPixmap(left, top, layer)
         painter.restore()
 
@@ -302,7 +372,7 @@ class SelectSectionTool(BaseTool):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-        index = find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
+        index = find_nearest_section_hit(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
         bounds = self._section_range(canvas, index) if index is not None else None
         self._preview = None
         if bounds is None:

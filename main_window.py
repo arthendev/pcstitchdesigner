@@ -14,7 +14,8 @@ from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
 from PyQt5.QtGui import QDesktopServices
 
-from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
+from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords,
+                   is_hoop_stitch_type)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
                    SelectPointTool, SelectSectionTool)
@@ -1036,7 +1037,7 @@ class MainWindow(QMainWindow):
 
     def _is_hoop_type(self):
         """Return True when the current stitch type is a hoop (embroidery) pattern."""
-        return self._pattern.stitch_type in ("small hoop", "large hoop")
+        return is_hoop_stitch_type(self._pattern.stitch_type)
 
     # ── Design-type dependent UI ──
 
@@ -2015,7 +2016,7 @@ class MainWindow(QMainWindow):
         elif new_pattern.stitch_type == "large hoop":
             self._act_large_hoop.setChecked(True)
 
-        is_hoop = new_pattern.stitch_type in ("small hoop", "large hoop")
+        is_hoop = is_hoop_stitch_type(new_pattern.stitch_type)
         if is_hoop:
             # A design read from the machine is already saved, so the freshly
             # loaded window must not claim unsaved changes.
