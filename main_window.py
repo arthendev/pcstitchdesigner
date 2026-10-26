@@ -77,9 +77,6 @@ DESIGN_TYPE_RULES = (
     DesignTypeRule("_act_auto_stitch_align_grid", STITCH_DESIGN_TYPES,
                    restore=False, force=False),
     # Stitch grid and sewing-direction view belong to the 9 mm / MAXI patterns.
-    DesignTypeRule("_act_show_grid", STITCH_DESIGN_TYPES, restore=True, force=False),
-    DesignTypeRule("_act_show_grid_menu", STITCH_DESIGN_TYPES,
-                   restore=True, force=False),
     DesignTypeRule("_act_orientation_sewing", STITCH_DESIGN_TYPES,
                    force=False, reset="_on_orientation_default"),
     DesignTypeRule("_act_toggle_orientation", STITCH_DESIGN_TYPES, force=False),
@@ -1243,8 +1240,10 @@ class MainWindow(QMainWindow):
         self._update_palette_bar()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
-        # Fresh document: type-dependent options start from their defaults
-        # (grid on, snap to grid on, auto-stitch snapping off).
+        # A fresh document starts from the display defaults — grid visibility,
+        # line width and point size come from the preferences — plus the
+        # design-type option defaults (snap to grid on, auto-stitch snapping off).
+        self._apply_display_settings()
         self._apply_design_type_rules(reset_defaults=True)
         if self._pattern.stitch_type in STITCH_DESIGN_TYPES:
             # Show stitch points and auto stitch points
@@ -2568,12 +2567,16 @@ class MainWindow(QMainWindow):
             grid_color = d["embroidery_grid_color"]
             show_stitch_points = d["embroidery_show_stitch_points"]
             show_grid = d["embroidery_show_grid"]
+            # Hoop coordinates are millimetres / 6, so a 1 mm grid is 6 units.
+            grid_step = round(1 / StitchPattern.STITCH_RES_MM)
         else:
             line_width = d["line_width"]
             point_size = d["point_size"]
             grid_color = d["grid_color"]
             show_stitch_points = d["show_stitch_points"]
             show_grid = d["show_grid"]
+            # One line per stitch unit (1/6 mm) as drawn by the machine grid.
+            grid_step = 1
         self._canvas.apply_display_settings(
             line_color=d["line_color"],
             line_width=line_width,
@@ -2582,6 +2585,7 @@ class MainWindow(QMainWindow):
             grid_color=grid_color,
             show_stitch_points=show_stitch_points,
             show_grid=show_grid,
+            grid_step=grid_step,
         )
         self._act_show_grid.setChecked(bool(show_grid))
         self._act_show_grid_menu.setChecked(bool(show_grid))

@@ -54,6 +54,7 @@ class StitchCanvas(QWidget):
         self._line_width = 2   # medium
         self._point_radius = 4  # medium
         self._show_grid = True
+        self._grid_step = 1   # grid spacing in canvas units (1 unit = 1/6 mm)
         self._show_stitch_points = True
         self._show_auto_stitch_points = True
         self.snap_normal_to_grid = True
@@ -676,7 +677,7 @@ class StitchCanvas(QWidget):
 
     def apply_display_settings(self, line_color, line_width, point_color,
                                point_size, grid_color, show_stitch_points,
-                               show_grid):
+                               show_grid, grid_step=1):
         """Apply display preferences and redraw.
 
         Args:
@@ -687,6 +688,8 @@ class StitchCanvas(QWidget):
             grid_color: Hex string.
             show_stitch_points: Whether stitch points are shown by default.
             show_grid: Whether grid is shown by default.
+            grid_step: Grid spacing in canvas units (1 unit = 1/6 mm), so the
+                default 1 draws a line per stitch unit and 6 draws 1 mm lines.
         """
         self._color_line = QColor(line_color)
         self._color_point = QColor(point_color)
@@ -695,6 +698,7 @@ class StitchCanvas(QWidget):
         self._point_radius = self.POINT_RADII.get(point_size, 3)
         self._show_stitch_points = bool(show_stitch_points)
         self._show_grid = bool(show_grid)
+        self._grid_step = max(1, int(grid_step))
         self.update()
 
     def get_selected_point(self):
@@ -796,15 +800,16 @@ class StitchCanvas(QWidget):
             painter.setOpacity(1.0)
             painter.restore()
 
-        # Grid lines (every integer unit)
+        # Grid lines every _grid_step canvas units (6 units = 1 mm)
         if self._show_grid:
+            step = max(1, int(self._grid_step))
             grid_pen = QPen(self._color_grid, 1)
             painter.setPen(grid_pen)
-            for x in range(self.pattern.CANVAS_WIDTH + 1):
+            for x in range(0, self.pattern.CANVAS_WIDTH + 1, step):
                 sx1, sy1 = self.canvas_to_screen(x, self.pattern.CANVAS_HEIGHT)
                 sx2, sy2 = self.canvas_to_screen(x, 0)
                 painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
-            for y in range(self.pattern.CANVAS_HEIGHT + 1):
+            for y in range(0, self.pattern.CANVAS_HEIGHT + 1, step):
                 sx1, sy1 = self.canvas_to_screen(0, y)
                 sx2, sy2 = self.canvas_to_screen(self.pattern.CANVAS_WIDTH, y)
                 painter.drawLine(int(sx1), int(sy1), int(sx2), int(sy2))
