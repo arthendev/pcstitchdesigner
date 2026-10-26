@@ -5,13 +5,23 @@ import time
 import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
-from model import elem_has_coords
+from model import elem_has_coords, ELEM_COLOR
 from app_logger import AppLogger
 
 
 def _tr(s):
     """Translate a string in the MachineComm context."""
     return QCoreApplication.translate("MachineComm", s)
+
+
+def _u16be(value):
+    """Return *value* as an unsigned big-endian 16-bit byte pair."""
+    return (value & 0xFFFF).to_bytes(2, "big")
+
+
+def _u16le(value):
+    """Return *value* as an unsigned little-endian 16-bit byte pair."""
+    return (value & 0xFFFF).to_bytes(2, "little")
 
 
 class MachineCommError(Exception):
@@ -71,6 +81,16 @@ class MachineComm:
     CTRL_BS  = 0x08 # Backspace
     CTRL_NAK = 0x15 # Negative Acknowledge
     CTRL_ETB = 0x17 # End of Transmission Block
+
+    # Embroidery (hoop) card encoding.  Canvas units are 1/6 mm, payload units
+    # are ~1/10 mm; the conversion is a truncating scale, never a rounding.
+    EMBROIDERY_SCALE = 256 / 153
+    EMBROIDERY_PREVIEW_SIZE = 288   # one 48x48 1-bit preview block
+    EMBROIDERY_HOOPS = {
+        # stitch_type: (header hoop byte, width, height) in payload units
+        "small hoop": (1, 803, 803),
+        "large hoop": (2, 1204, 1154),
+    }
 
     def __init__(self, logger=None):
         self._serial = None
@@ -1546,18 +1566,27 @@ class MachineComm:
         # Here we truncate to 32 chars which should be enough for most use cases
         filename_bytes = filename[:32].encode('latin-1', errors='replace') + b'\x00'
 
-        # ── Build preview image and encode pattern data (before connecting) ──
-        preview_bytes = self.encode_card_preview(pattern)
-
-        # Encode pattern data according to stitch type
+        # ── Build preview image(s), pattern data and header (before connecting) ──
         if stitch_type == '9mm':
+            preview_bytes = self.encode_card_preview(pattern)
             stitch_data, final_points = MachineComm.encode_card_pattern_9mm(pattern)
+            header = self.encode_card_header(
+                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes,
+                points=final_points)
         elif stitch_type == 'MAXI':
+            preview_bytes = self.encode_card_preview(pattern)
             stitch_data, final_points = MachineComm.encode_card_pattern_maxi(pattern)
+            header = self.encode_card_header(
+                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes,
+                points=final_points)
+        elif stitch_type in MachineComm.EMBROIDERY_HOOPS:
+            # Embroidery carries one extra preview block per colour.
+            preview_bytes = b"".join(MachineComm.encode_card_previews_embroidery(pattern))
+            stitch_data, _points = MachineComm.encode_card_pattern_embroidery(pattern)
+            header = MachineComm.encode_card_header_embroidery(
+                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes)
         else:
             raise MachineCommError(_tr("Unsupported stitch type for card writing: {0}").format(repr(stitch_type)))
-        
-        header = self.encode_card_header(pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes, points=final_points)
 
         cmd = (
             bytes([self.CTRL_ETX]) + b"KN" +
@@ -1854,7 +1883,9 @@ class MachineComm:
           (byte 0 = bottom-most 8-row group, last byte = top-most group).
         * Within each byte bit 7 (MSB) is the top-most pixel of that 8-row
           group; bit 0 (LSB) is the bottom-most.
-        * Embroidery images are rotated 180° before encoding.
+        * Embroidery (hoop) designs are delegated to
+          :meth:`encode_card_previews_embroidery`, which returns one block per
+          colour; this method returns only the composite block for them.
 
         Args:
             pattern: StitchPattern instance.
@@ -1863,12 +1894,17 @@ class MachineComm:
             bytes: Encoded preview bitmap.
                    Size: ``img_w * (img_h // 8)`` bytes.
         """
+        if pattern.stitch_type in MachineComm.EMBROIDERY_HOOPS:
+            # Hoop designs need one block per colour; this helper keeps its
+            # single-block contract by returning the composite block.
+            return MachineComm.encode_card_previews_embroidery(pattern)[0]
+
         stitch_type = pattern.stitch_type
         if stitch_type == '9mm':
             img_h, img_w = 24, 53
         elif stitch_type == 'MAXI':
             img_h, img_w = 48, 53
-        else:   # Embroidery
+        else:
             img_h, img_w = 48, 48
 
         bytes_per_col = img_h // 8
@@ -1946,16 +1982,6 @@ class MachineComm:
                 mirrored[(img_h - 1 - y) * img_w + x] = bitmap[y * img_w + x]
         bitmap = mirrored
 
-        # Rotate 180° for Embroidery
-        if stitch_type == 'Embroidery':
-            rotated = bytearray(img_w * img_h)
-            for y in range(img_h):
-                for x in range(img_w):
-                    rotated[(img_h - 1 - y) * img_w + (img_w - 1 - x)] = (
-                        bitmap[y * img_w + x]
-                    )
-            bitmap = rotated
-        
         # Encode: column-major, groups of 8 rows from bottom to top,
         # MSB = top-most pixel within each 8-row group.
         result = bytearray(img_w * bytes_per_col)
@@ -1971,13 +1997,17 @@ class MachineComm:
 
     @staticmethod
     def encode_card_header(pattern, card_no_bytes, preview_bytes, pattern_bytes, name_bytes, points=None):
+        """Build the 30-byte KN header for 9mm / MAXI card writes.
+
+        Embroidery (hoop) designs use :meth:`encode_card_header_embroidery`;
+        the caller picks the method from ``pattern.stitch_type``.
+        """
+        stitch_type = pattern.stitch_type
 
         if points is None:
             points = [(e[1], e[2]) for e in pattern.rounded_display_elements() if elem_has_coords(e)]
         if not points:
             raise MachineCommError(_tr("Cannot encode header for an empty pattern."))
-        
-        stitch_type = pattern.stitch_type
 
         xs = [x for x, y in points]
         ys = [y for x, y in points]
@@ -2168,6 +2198,354 @@ class MachineComm:
 
         encoded.append(0x8A)
         return bytes(encoded), translated_xy
+
+    # ── Embroidery (hoop) card encoding ──
+
+    @staticmethod
+    def _embroidery_design(pattern):
+        """Return ``(points, sections)`` for a hoop pattern.
+
+        ``points`` are ``(x, y)`` canvas-unit coordinates with the fractional
+        part intact — embroidery files carry roughly 1/10 mm resolution, so the
+        rounding done by the 9mm/MAXI encoders would visibly coarsen the design.
+        ``sections`` is ``[(first_point_index, colour_number), ...]`` with
+        1-based machine colour numbers (1..16); the first entry starts at 0.
+
+        A colour change with no stitch after it (an ``ELEM_COLOR`` at the end of
+        the element list) is ignored: the card format cannot represent it, and
+        PC-Designer never writes one.
+
+        Raises:
+            MachineCommError: If the design has no stitches or a colour index
+                lies outside the machine's 16-colour palette.
+        """
+        points = []
+        sections = [(0, 1)]
+        for elem in pattern.elements:
+            if elem[0] == ELEM_COLOR:
+                number = int(elem[1]) + 1
+                if not 1 <= number <= 16:
+                    raise MachineCommError(_tr(
+                        "Colour index {0} is outside the machine's 16-colour palette."
+                    ).format(int(elem[1])))
+                if not points:
+                    # Colour changes before the first stitch select the
+                    # initial thread colour.
+                    sections[0] = (0, number)
+                elif number != sections[-1][1]:
+                    sections.append((len(points), number))
+            elif elem_has_coords(elem):
+                points.append((float(elem[1]), float(elem[2])))
+
+        if not points:
+            raise MachineCommError(_tr("The embroidery design contains no stitches."))
+
+        # Entries recorded after the last stitch can never be sewn.
+        last_index = len(points) - 1
+        sections = [entry for entry in sections if entry[0] <= last_index]
+        return points, sections
+
+    @staticmethod
+    def _embroidery_values(points):
+        """Convert canvas-unit points to the card's distance-from-maximum values.
+
+        Returns ``(values, origin)``.  Every payload value is measured from the
+        design's axis maximum, so both components decrease as the canvas
+        coordinates increase; ``origin`` is that corner in payload units.
+        ``int()`` truncates toward zero, which is what the format uses.
+        """
+        scale = MachineComm.EMBROIDERY_SCALE
+        max_x = max(point[0] for point in points)
+        max_y = max(point[1] for point in points)
+        origin = (int(scale * max_x), int(scale * max_y))
+        values = [
+            (int(scale * (max_x - x)), int(scale * (max_y - y)))
+            for x, y in points
+        ]
+        return values, origin
+
+    @staticmethod
+    def _embroidery_colour_mask(colour_numbers):
+        """Return the 16-bit palette mask for 1-based machine colour *numbers*.
+
+        Bit *n-1* marks colour *n*; only colours actually used are set.
+        (PC-Designer sometimes writes 0x0080 / 0x0082 for one- and two-colour
+        designs; that is a bug in the original software and is not reproduced.)
+        """
+        mask = 0
+        for number in colour_numbers:
+            mask |= 1 << (number - 1)
+        return mask
+
+    @staticmethod
+    def _embroidery_colour_of_point(sections, point_count):
+        """Return the 1-based colour number of each point, derived from *sections*."""
+        colours = [sections[0][1]] * point_count
+        for position in range(1, len(sections)):
+            start = sections[position][0]
+            end = (sections[position + 1][0]
+                   if position + 1 < len(sections) else point_count)
+            for index in range(start, end):
+                colours[index] = sections[position][1]
+        return colours
+
+    @staticmethod
+    def _build_embroidery_payload(values, sections, origin, colours=None,
+                                  trailing_tieoffs=False):
+        """Build the Embroidery stitch stream from payload-space *values*.
+
+        Args:
+            values: ``[(vx, vy), ...]`` distances from the design's top-right
+                corner, as produced by :meth:`_embroidery_values`.
+            sections: ``[(first_point_index, colour_number), ...]``.
+            origin: ``(Ox, Oy)`` top-right corner in payload units.  It is sent
+                in the leading ``80 28 05`` group; without it the receiver
+                treats the distances as plain coordinates and draws the design
+                mirrored in both axes.
+            colours: 16-entry RGB palette, ``[(r, g, b), ...]``.  Shorter lists
+                are padded with black so the ``28 41 01`` table always carries
+                16 entries.  ``None`` omits the table.
+            trailing_tieoffs: Append one zero-length stitch per colour change
+                before the end marker.  PC-Designer card writes do not use
+                these, so the default is off.
+
+        The colour-change block *replaces* the ordinary record of the change
+        point (jump marker, absolute resync, tie-off, colour stitch).  That is
+        what real card slots contain; emitting it after the ordinary record
+        would add two bytes per change and does not match the format.
+        """
+        out = bytearray()
+
+        # Design origin: the corner every position is measured from.  y is
+        # written first, both words little-endian (unlike every other field).
+        out += bytes([0x80, 0x28, 0x05, 0x00])
+        out += _u16le(origin[1]) + _u16le(origin[0])
+        out += bytes([0x80])
+
+        # Thread-colour table: subtype 0x01 plus 16 x (R, G, B, pad).
+        if colours is not None:
+            table = [(int(r) & 0xFF, int(g) & 0xFF, int(b) & 0xFF)
+                     for r, g, b in list(colours)[:16]]
+            table += [(0, 0, 0)] * (16 - len(table))
+            out += bytes([0x80, 0x28, 0x41, 0x01])
+            for r, g, b in table:
+                out += bytes([r, g, b, 0x00])
+            out += bytes([0x80])
+
+        out += bytes([0x80, 0x2E])
+        out += _u16be(values[0][1]) + _u16be(values[0][0])
+        out += bytes([0x2F + sections[0][1], 0x80])
+
+        changes = {start: colour for start, colour in sections[1:]}
+        tie_offs = 0
+        prev = values[0]
+        for index in range(1, len(values)):
+            cur = values[index]
+            if index in changes:
+                tie_offs += 1
+                out += bytes([0x80, 0x20, 0x80])            # jump marker
+                out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
+                out += bytes([0x80])                        # resync to the change point
+                out += bytes([0x00, 0x00])                  # tie-off
+                out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
+                out += bytes([0x2F + changes[index], 0x80])  # new thread colour
+            else:
+                dy, dx = cur[1] - prev[1], cur[0] - prev[0]
+                if -127 <= dy <= 127 and -127 <= dx <= 127:
+                    out += bytes([dy & 0xFF, dx & 0xFF])
+                else:
+                    # Absolute resync.  0x80 can never start a plain record,
+                    # because a delta of -128 is never emitted.
+                    out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
+                    out += bytes([0x80])
+            prev = cur
+
+        if trailing_tieoffs:
+            out += bytes([0x00, 0x00]) * tie_offs
+        out += bytes([0x80, 0x2F, 0x80])
+        return bytes(out)
+
+    @staticmethod
+    def _rasterize_embroidery_preview(values, point_colours, only_colour=None):
+        """Pack one 288-byte 48x48 preview block from payload-space *values*.
+
+        ``point_colours`` holds the 1-based colour number of each point.  With
+        *only_colour* set, only points of that colour are plotted and a line is
+        drawn only between two consecutive points of that colour.
+
+        The stored bitmap is the display image rotated by 180°, so a raster
+        pixel ``(px, py)`` in payload space goes to column *px*, bit
+        ``py % 8`` of byte ``py // 8``.
+        """
+        block = bytearray(MachineComm.EMBROIDERY_PREVIEW_SIZE)
+        if not values:
+            return bytes(block)
+
+        xs = [value[0] for value in values]
+        ys = [value[1] for value in values]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        span_x, span_y = max_x - min_x, max_y - min_y
+
+        # One pixel margin per side; the same scale on both axes keeps the
+        # thumbnail's aspect ratio.
+        available = 46.0
+        if span_x == 0 and span_y == 0:
+            scale = 1.0
+        elif span_x == 0:
+            scale = available / span_y
+        elif span_y == 0:
+            scale = available / span_x
+        else:
+            scale = min(available / span_x, available / span_y)
+
+        off_x = (48 - span_x * scale) / 2.0 - min_x * scale
+        off_y = (48 - span_y * scale) / 2.0 - min_y * scale
+
+        def put(px, py):
+            if 0 <= px < 48 and 0 <= py < 48:
+                block[px * 6 + py // 8] |= 1 << (py % 8)
+
+        def draw_line(x0, y0, x1, y1):
+            dx, dy = abs(x1 - x0), abs(y1 - y0)
+            step_x = 1 if x0 < x1 else -1
+            step_y = 1 if y0 < y1 else -1
+            err = dx - dy
+            while True:
+                put(x0, y0)
+                if x0 == x1 and y0 == y1:
+                    break
+                err2 = 2 * err
+                if err2 > -dy:
+                    err -= dy
+                    x0 += step_x
+                if err2 < dx:
+                    err += dx
+                    y0 += step_y
+
+        pixels = [
+            (round(value[0] * scale + off_x), round(value[1] * scale + off_y))
+            for value in values
+        ]
+
+        for index, (px, py) in enumerate(pixels):
+            if only_colour is None or point_colours[index] == only_colour:
+                put(px, py)
+        for index in range(1, len(pixels)):
+            if only_colour is not None and (
+                point_colours[index - 1] != only_colour
+                or point_colours[index] != only_colour
+            ):
+                continue
+            draw_line(pixels[index - 1][0], pixels[index - 1][1],
+                      pixels[index][0], pixels[index][1])
+        return bytes(block)
+
+    @staticmethod
+    def encode_card_previews_embroidery(pattern):
+        """Return the Embroidery preview blocks for *pattern*.
+
+        Block 0 is the whole design.  With two or more colours, one further
+        block per distinct machine colour number follows, in ascending order.
+        A single-colour design has only the composite block, matching the
+        header's block-count field.
+        """
+        points, sections = MachineComm._embroidery_design(pattern)
+        values, _origin = MachineComm._embroidery_values(points)
+        point_colours = MachineComm._embroidery_colour_of_point(sections, len(points))
+
+        blocks = [MachineComm._rasterize_embroidery_preview(values, point_colours)]
+        colours = sorted({colour for _start, colour in sections})
+        if len(colours) > 1:
+            for colour in colours:
+                blocks.append(MachineComm._rasterize_embroidery_preview(
+                    values, point_colours, only_colour=colour))
+        return blocks
+
+    @staticmethod
+    def encode_card_pattern_embroidery(pattern):
+        """Encode a hoop design into the Embroidery memory-card payload.
+
+        Returns:
+            tuple[bytes, list]: ``(payload, points)``; *points* are the canvas
+            coordinates the payload was derived from.
+
+        Raises:
+            MachineCommError: If the design is empty, a colour index is outside
+                the 16-colour palette, or the payload exceeds 65535 bytes (the
+                KN header stores its size in 16 bits).
+        """
+        points, sections = MachineComm._embroidery_design(pattern)
+        values, origin = MachineComm._embroidery_values(points)
+        payload = MachineComm._build_embroidery_payload(
+            values, sections, origin,
+            colours=pattern.colors if pattern.colors else None,
+        )
+        if len(payload) > 0xFFFF:
+            raise MachineCommError(_tr(
+                "The encoded embroidery pattern is {0} bytes, but the memory card "
+                "format can hold at most 65535."
+            ).format(len(payload)))
+        return payload, points
+
+    @staticmethod
+    def encode_card_header_embroidery(pattern, card_no_bytes, preview_bytes,
+                                      pattern_bytes, name_bytes):
+        """Build the 30-byte KN header for an Embroidery card write.
+
+        Mirrors :meth:`encode_card_header` for hoop designs; the position fields
+        use the distance-from-maximum payload values instead of canvas units.
+
+        Layout (multi-byte fields big-endian)::
+
+            00 00 | card_no[2] | C0 00 03 | Vy0 | Vy_last | span_y
+            | Vx0 | span_x | colour mask | hoop | margin_y | margin_x
+            | preview size | block count | pattern size | filename length
+        """
+        stitch_type = pattern.stitch_type
+        points, sections = MachineComm._embroidery_design(pattern)
+        values, _origin = MachineComm._embroidery_values(points)
+        block_count = len(preview_bytes) // MachineComm.EMBROIDERY_PREVIEW_SIZE
+        pattern_size = len(pattern_bytes)
+        filename_len = len(name_bytes)
+
+        hoop_byte, hoop_width, hoop_height = MachineComm.EMBROIDERY_HOOPS[stitch_type]
+        vx = [value[0] for value in values]
+        vy = [value[1] for value in values]
+        span_x = max(vx) - min(vx)
+        span_y = max(vy) - min(vy)
+        if span_x > hoop_width or span_y > hoop_height:
+            raise MachineCommError(_tr(
+                "The embroidery design is larger than the selected hoop."
+            ))
+        if pattern_size > 0xFFFF:
+            raise MachineCommError(_tr(
+                "The encoded embroidery pattern is {0} bytes, but the memory card "
+                "format can hold at most 65535."
+            ).format(pattern_size))
+
+        colours = sorted({colour for _start, colour in sections})
+        expected_blocks = 1 if len(colours) == 1 else len(colours) + 1
+        if block_count != expected_blocks:
+            # The receiver derives the expected transfer size from this field;
+            # a wrong value makes it wait forever instead of committing.
+            raise MachineCommError(_tr(
+                "Internal error: {0} preview block(s) generated, but the header "
+                "expects {1}."
+            ).format(block_count, expected_blocks))
+
+        return (
+            bytes([0x00, 0x00]) + bytes(card_no_bytes) +
+            bytes([0xC0, 0x00, 0x03]) +
+            _u16be(vy[0]) + _u16be(vy[-1]) + _u16be(span_y) +
+            _u16be(vx[0]) + _u16be(span_x) +
+            _u16be(MachineComm._embroidery_colour_mask(colours)) +
+            bytes([hoop_byte]) +
+            _u16be((hoop_height - span_y) // 2) +
+            _u16be((hoop_width - span_x) // 2) +
+            _u16be(MachineComm.EMBROIDERY_PREVIEW_SIZE) +
+            bytes([block_count]) + _u16be(pattern_size) + bytes([filename_len])
+        )
 
     # ── P-Memory decoding/encoding ──
 
