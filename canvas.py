@@ -1174,6 +1174,12 @@ class StitchCanvas(QWidget):
         else:
             super().wheelEvent(event)
 
+    def leaveEvent(self, event):
+        """Let the active tool drop hover previews when the cursor leaves."""
+        if self._tool and hasattr(self._tool, "on_leave"):
+            self._tool.on_leave(self)
+        super().leaveEvent(event)
+
     def keyPressEvent(self, event):
         """Handle keyboard events for moving selected points or tool-specific actions."""
         # First, check if the current tool handles this key

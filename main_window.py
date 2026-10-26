@@ -16,7 +16,8 @@ from PyQt5.QtGui import QDesktopServices
 
 from model import StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords
 from canvas import StitchCanvas
-from tools import PanTool, AddPointTool, MovePointTool, DeletePointTool, SelectPointTool
+from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
+                   SelectPointTool, SelectSectionTool)
 import file_io
 from config import Config
 from version import APP_VERSION
@@ -134,6 +135,7 @@ class MainWindow(QMainWindow):
         # Tools
         self._pan_tool = PanTool()
         self._select_tool = SelectPointTool()
+        self._select_section_tool = SelectSectionTool()
         self._add_tool = AddPointTool()
         self._move_tool = MovePointTool()
         self._delete_tool = DeletePointTool()
@@ -372,6 +374,14 @@ class MainWindow(QMainWindow):
         self._act_select.setCheckable(True)
         self._act_select.triggered.connect(self._on_tool_select)
 
+        self._act_select_section = QAction(
+            QIcon(os.path.join(_icons, "select_section.svg")),
+            self.tr("Select Section"), self)
+        self._act_select_section.setCheckable(True)
+        self._act_select_section.setToolTip(
+            self.tr("Select all stitches between two section markers"))
+        self._act_select_section.triggered.connect(self._on_tool_select_section)
+
         self._act_add = QAction(QIcon(os.path.join(_icons, "add_point.svg")),
                                 self.tr("Add Stitch Points"), self)
         self._act_add.setCheckable(True)
@@ -391,6 +401,7 @@ class MainWindow(QMainWindow):
         self._tool_group.setExclusive(True)
         self._tool_group.addAction(self._act_pan)
         self._tool_group.addAction(self._act_select)
+        self._tool_group.addAction(self._act_select_section)
         self._tool_group.addAction(self._act_add)
         self._tool_group.addAction(self._act_move)
         self._tool_group.addAction(self._act_delete)
@@ -677,6 +688,7 @@ class MainWindow(QMainWindow):
         tools_menu = mb.addMenu(self.tr("&Tools"))
         tools_menu.addAction(self._act_pan)
         tools_menu.addAction(self._act_select)
+        tools_menu.addAction(self._act_select_section)
         tools_menu.addAction(self._act_add)
         tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
@@ -761,6 +773,7 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self._act_pan)
         tb.addAction(self._act_select)
+        tb.addAction(self._act_select_section)
         tb.addAction(self._act_add)
         tb.addAction(self._act_move)
         tb.addAction(self._act_delete)
@@ -825,6 +838,15 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_tool)
         self._tool_label.setText(self.tr("Tool: Select Stitch Points"))
+        self._selection_toolbar.setVisible(True)
+        self._selection_toolbar.setMaximumWidth(
+            self._selection_toolbar.sizeHint().width()
+        )
+
+    def _on_tool_select_section(self):
+        self._cancel_sel_xform_if_active()
+        self._canvas.set_tool(self._select_section_tool)
+        self._tool_label.setText(self.tr("Tool: Select Section"))
         self._selection_toolbar.setVisible(True)
         self._selection_toolbar.setMaximumWidth(
             self._selection_toolbar.sizeHint().width()

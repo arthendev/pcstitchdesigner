@@ -2,10 +2,68 @@
 
 import os
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap
+from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap, QBrush, QPainter
 
 from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
-                   MoveManyPointsCommand, elem_has_coords)
+                   MoveManyPointsCommand, elem_has_coords,
+                   ELEM_COLOR, ELEM_SECTION)
+
+
+def find_nearest_coord_index(pattern, cx, cy, radius_canvas):
+    """Return the index of the coordinate element nearest to (*cx*, *cy*).
+
+    Args:
+        pattern: The StitchPattern to search.
+        cx, cy: Click position in canvas units.
+        radius_canvas: Maximum distance in canvas units; farther points do not
+            count as a hit.
+
+    Returns:
+        The element index, or None when nothing is within the radius.
+    """
+    best_idx = None
+    best_dist_sq = float('inf')
+    for i, elem in enumerate(pattern.elements):
+        if not elem_has_coords(elem):
+            continue
+        px, py = elem[1], elem[2]
+        d = (px - cx) ** 2 + (py - cy) ** 2
+        if d < best_dist_sq:
+            best_dist_sq = d
+            best_idx = i
+    if best_idx is not None and best_dist_sq <= radius_canvas ** 2:
+        return best_idx
+    return None
+
+
+def highlight_color(color):
+    """Return a gently shifted version of *color* for hover previews.
+
+    The shift has to be noticeable without drowning out the design: dark colours
+    are lightened a little, bright colours darkened a little, and the saturation
+    is raised slightly so the tint stays recognisable. Colours without a hue
+    (black, white, grey) are tinted blue, because for them brightness alone
+    barely shows.
+
+    Args:
+        color: QColor whose RGB values are used; alpha is ignored.
+
+    Returns:
+        QColor suitable for the preview pen and brush.
+    """
+    hue, sat, value, _alpha = color.getHsv()
+    if value < 110:
+        # Dark thread: lighten it so the preview is visible on dark stitches.
+        value = min(255, value + 70)
+        sat = min(255, sat + 15)
+    else:
+        # Bright thread: darken it a little instead of glowing into the canvas.
+        value = max(0, value - 50)
+        sat = min(255, sat + 10)
+    if hue < 0:
+        # Achromatic colours have no hue to keep — give them one.
+        hue, sat = 210, max(sat, 140)
+    return QColor.fromHsv(hue, sat, value)
 
 
 class BaseTool:
@@ -54,19 +112,7 @@ class SelectPointTool(BaseTool):
 
     def _find_nearest(self, canvas, cx, cy):
         """Return element index of the nearest coord element within hit radius, or None."""
-        best_idx = None
-        best_dist_sq = float('inf')
-        for i, elem in enumerate(canvas.pattern.elements):
-            if not elem_has_coords(elem):
-                continue
-            px, py = elem[1], elem[2]
-            d = (px - cx) ** 2 + (py - cy) ** 2
-            if d < best_dist_sq:
-                best_dist_sq = d
-                best_idx = i
-        if best_idx is not None and best_dist_sq <= self.HIT_RADIUS_CANVAS ** 2:
-            return best_idx
-        return None
+        return find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
 
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
@@ -103,6 +149,167 @@ class SelectPointTool(BaseTool):
             return
         self._dragging = False
         self._drag_start_idx = None
+
+
+class SelectSectionTool(BaseTool):
+    """Select a whole section. Click near a stitch point to select its section.
+
+    A section runs between two ELEM_SECTION markers. Designs without section
+    markers use their colour changes as boundaries instead, and the start and
+    the end of the pattern always count as boundaries.
+    """
+
+    name = "Select Section"
+    cursor = Qt.CrossCursor
+    HIT_RADIUS_CANVAS = SelectPointTool.HIT_RADIUS_CANVAS  # same proximity as point selection
+    # The preview only tints the stitches instead of covering them. It is drawn
+    # opaque onto a small layer and composited once at this opacity, so
+    # overlapping strokes cannot build up into a solid area.
+    PREVIEW_ALPHA = 100
+
+    def __init__(self):
+        """Initialize the tool with a custom cursor from the icon."""
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", "select_section.svg")
+        pixmap = QPixmap(icon_path)
+        if not pixmap.isNull():
+            self.cursor = QCursor(pixmap, hotX=6, hotY=3)
+        else:
+            self.cursor = Qt.CrossCursor
+        self._preview = None  # (first, last) of the section under the cursor, or None
+
+    def _section_range(self, canvas, index):
+        """Return the ``(first, last)`` element indices of the section holding *index*.
+
+        Boundaries are ELEM_SECTION markers. A design without them falls back to
+        its colour changes, which stay outside the selection because a colour
+        change belongs to the section after it. Clicking a section marker takes
+        the section that marker opens — or, for the closing marker of the last
+        section, the one it closes.
+        """
+        elements = canvas.pattern.elements
+        count = len(elements)
+        if not 0 <= index < count:
+            return None
+
+        sectioned = any(e[0] == ELEM_SECTION for e in elements)
+        boundary = ELEM_SECTION if sectioned else ELEM_COLOR
+        markers = [i for i, e in enumerate(elements) if e[0] == boundary]
+        before = [i for i in markers if i <= index]
+        after = [i for i in markers if i > index]
+
+        if sectioned:
+            if before and before[-1] == index and not after:
+                before = before[:-1]
+            first = before[-1] if before else 0
+            last = after[0] if after else count - 1
+        else:
+            first = before[-1] + 1 if before else 0
+            last = after[0] - 1 if after else count - 1
+
+        # A section can be a single stitch; never return an empty range.
+        return max(0, min(first, index)), min(count - 1, max(last, index))
+
+    def mouse_move(self, canvas, event):
+        """Track the section under the cursor so it can be previewed."""
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        index = find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
+        bounds = self._section_range(canvas, index) if index is not None else None
+        if bounds is not None and bounds == canvas.get_selection():
+            # Already selected; its own highlight is enough.
+            bounds = None
+        if bounds == self._preview:
+            return
+        self._preview = bounds
+        canvas.update()
+
+    def on_deselect(self, canvas):
+        """Drop the preview when another tool takes over."""
+        self._preview = None
+        canvas.update()
+
+    def on_leave(self, canvas):
+        """Drop the preview when the cursor leaves the canvas."""
+        if self._preview is None:
+            return
+        self._preview = None
+        canvas.update()
+
+    def paint_overlay(self, canvas, painter):
+        """Draw the section that a click would select, as a soft tint."""
+        if self._preview is None:
+            return
+        pattern = canvas.pattern
+        elements = pattern.elements
+        first, last = self._preview
+        if not (0 <= first <= last < len(elements)):
+            return
+
+        def thread_color(index):
+            """QColor of palette entry *index*, or the canvas line colour."""
+            if index is None or not pattern.has_palette:
+                return canvas._color_line
+            return QColor(*pattern.colors[min(max(index, 0), len(pattern.colors) - 1)])
+
+        # Collect the strokes: (screen point, tint, previous screen point).
+        strokes = []
+        color_index = pattern.get_color_at(first) if pattern.has_palette else None
+        previous = None
+        for i in range(first, last + 1):
+            elem = elements[i]
+            if elem[0] == ELEM_COLOR:
+                color_index = elem[1]
+                previous = None  # a colour change cuts the thread
+                continue
+            if not elem_has_coords(elem):
+                continue
+            point = canvas.canvas_to_screen(elem[1], elem[2])
+            strokes.append((point, highlight_color(thread_color(color_index)), previous))
+            previous = point
+        if not strokes:
+            return
+
+        radius = canvas._point_radius
+        line_width = canvas._line_width
+        margin = radius + line_width + 2
+        xs = [point[0] for point, _tint, _prev in strokes]
+        ys = [point[1] for point, _tint, _prev in strokes]
+        left, top = int(min(xs) - margin), int(min(ys) - margin)
+        width = int(max(xs) - min(xs) + 2 * margin) + 1
+        height = int(max(ys) - min(ys) + 2 * margin) + 1
+
+        layer = QPixmap(width, height)
+        layer.fill(Qt.transparent)
+        layer_painter = QPainter(layer)
+        layer_painter.setRenderHint(QPainter.Antialiasing)
+        layer_painter.translate(-left, -top)
+        for point, tint, prev in strokes:
+            if prev is not None:
+                layer_painter.setPen(QPen(tint, line_width))
+                layer_painter.drawLine(int(prev[0]), int(prev[1]),
+                                       int(point[0]), int(point[1]))
+            layer_painter.setPen(Qt.NoPen)
+            layer_painter.setBrush(QBrush(tint))
+            layer_painter.drawEllipse(int(point[0] - radius), int(point[1] - radius),
+                                     radius * 2, radius * 2)
+        layer_painter.end()
+
+        painter.save()
+        painter.setOpacity(self.PREVIEW_ALPHA / 255)
+        painter.drawPixmap(left, top, layer)
+        painter.restore()
+
+    def mouse_press(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        index = find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
+        bounds = self._section_range(canvas, index) if index is not None else None
+        self._preview = None
+        if bounds is None:
+            canvas.set_selected_point(None)
+        else:
+            canvas.set_selection(*bounds)
+        canvas.update()
 
 
 class PanTool(BaseTool):
@@ -354,20 +561,8 @@ class MovePointTool(BaseTool):
 
     def _find_nearest(self, canvas, cx, cy):
         """Return element index of the nearest coord element within SNAP_RADIUS_PX, or None."""
-        radius_canvas = self.SNAP_RADIUS_PX / canvas.get_scale()
-        best_idx = None
-        best_dist_sq = float('inf')
-        for i, elem in enumerate(canvas.pattern.elements):
-            if not elem_has_coords(elem):
-                continue
-            px, py = elem[1], elem[2]
-            d = (px - cx) ** 2 + (py - cy) ** 2
-            if d < best_dist_sq:
-                best_dist_sq = d
-                best_idx = i
-        if best_idx is not None and best_dist_sq <= radius_canvas ** 2:
-            return best_idx
-        return None
+        return find_nearest_coord_index(
+            canvas.pattern, cx, cy, self.SNAP_RADIUS_PX / canvas.get_scale())
 
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
@@ -520,19 +715,7 @@ class DeletePointTool(BaseTool):
 
     def _find_nearest(self, canvas, cx, cy):
         """Return element index of the nearest coord element within hit radius, or None."""
-        best_idx = None
-        best_dist_sq = float('inf')
-        for i, elem in enumerate(canvas.pattern.elements):
-            if not elem_has_coords(elem):
-                continue
-            px, py = elem[1], elem[2]
-            d = (px - cx) ** 2 + (py - cy) ** 2
-            if d < best_dist_sq:
-                best_dist_sq = d
-                best_idx = i
-        if best_idx is not None and best_dist_sq <= self.HIT_RADIUS_CANVAS ** 2:
-            return best_idx
-        return None
+        return find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
 
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
