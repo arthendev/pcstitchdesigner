@@ -5,7 +5,7 @@ import time
 import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
-from model import elem_has_coords, ELEM_COLOR
+from model import StitchPattern, elem_has_coords, ELEM_COLOR, ELEM_STITCH
 from app_logger import AppLogger
 from machine_models import (
     PMEMORY_VARIANT_1475CD,
@@ -27,6 +27,16 @@ def _u16be(value):
 def _u16le(value):
     """Return *value* as an unsigned little-endian 16-bit byte pair."""
     return (value & 0xFFFF).to_bytes(2, "little")
+
+
+def _s8(value):
+    """Interpret *value* as a signed 8-bit number."""
+    return value - 256 if value >= 128 else value
+
+
+def _u16be_at(data, offset):
+    """Read a big-endian unsigned 16-bit value from *data* at *offset*."""
+    return int.from_bytes(data[offset:offset + 2], "big")
 
 
 class MachineCommError(Exception):
@@ -109,6 +119,51 @@ class MachineComm:
         "small hoop": (1, 803, 803),
         "large hoop": (2, 1204, 1154),
     }
+
+    # Embroidery payload opcodes.  A 0x80 byte opens a command group that runs
+    # to the next 0x80; any other byte pair is a plain relative step.  The writer
+    # emits these as literals (see _build_embroidery_payload); the reader names
+    # them so the walk stays readable.
+    EMBROIDERY_GROUP_MARK = 0x80
+    EMBROIDERY_CMD_ABS_POS = 0x2E
+    EMBROIDERY_CMD_REL_JUMP = 0x23
+    EMBROIDERY_CMD_TITLE = 0x27
+    EMBROIDERY_CMD_EXTRA = 0x28
+    EMBROIDERY_CMD_EXTRA16 = (0x2A, 0x2B)
+    EMBROIDERY_CMD_END = 0x2F
+    EMBROIDERY_CMD_COLOUR_MIN = 0x30
+    EMBROIDERY_CMD_COLOUR_MAX = 0x3F
+    # Sub-types of the 0x28 "extra data" command, selected by its first byte.
+    EMBROIDERY_EXTRA_ORIGIN = 0x00
+    EMBROIDERY_EXTRA_COLOUR_TABLE = 0x01
+    # Groups that carry neither a stitch nor data we keep: jump markers, applique
+    # stops, speed limits and the undocumented ones.
+    EMBROIDERY_IGNORED_COMMANDS = (
+        frozenset({0x20, 0x21, 0x24, 0x25, 0x26, 0x29, 0x2C, 0x2D})
+        | frozenset(range(0x01, 0x0F))
+        | frozenset(range(0x40, 0x44))
+    )
+
+    # Default thread palette for card patterns whose payload names colour numbers
+    # but carries no colour table.
+    DEFAULT_CARD_COLORS = (
+        (0, 0, 0),          # 1  black
+        (220, 0, 0),        # 2  red
+        (0, 150, 0),        # 3  green
+        (0, 0, 180),        # 4  blue
+        (230, 140, 0),      # 5  orange
+        (150, 0, 180),      # 6  purple
+        (0, 160, 160),      # 7  teal
+        (210, 0, 140),      # 8  magenta
+        (130, 90, 0),       # 9  brown
+        (100, 100, 100),    # 10 grey
+        (0, 120, 210),      # 11 azure
+        (120, 200, 0),      # 12 lime
+        (255, 150, 190),    # 13 pink
+        (0, 200, 140),      # 14 mint
+        (160, 120, 255),    # 15 violet
+        (0, 70, 130),       # 16 navy
+    )
 
     def __init__(self, logger=None):
         self._serial = None
@@ -992,9 +1047,13 @@ class MachineComm:
 
         *First chunk*::
 
-            CTRL_ACK + 4 unknown bytes + SIZE(2) + NAME_SIZE(1) + NAME
+            CTRL_ACK + <descriptor[4]> + SIZE(2) + NAME_SIZE(1) + NAME
             + PayloadSize(1) + Payload + PayloadSize(1) + CTRL_ETB
             + checksum
+
+        The descriptor is ``<colour count> + <colour mask BE16> + <hoop byte>``,
+        taken from the slot's write header; the hoop byte is 1 for the small and
+        2 for the large hoop, and 0 for the 9 mm / MAXI slots.
 
         *Following chunks*::
 
@@ -1019,6 +1078,8 @@ class MachineComm:
                 'pattern_type': str  - pattern type,
                 'slot':         int  - zero-based slot index,
                 'preview_hex':  str  - preview payload as a hex string,
+                'hoop':         str | None - 'small hoop' / 'large hoop' when the
+                                descriptor names one, else None,
             }
 
         Raises:
@@ -1057,6 +1118,7 @@ class MachineComm:
 
             name = ''
             size = 0
+            hoop = None
             all_payload = bytearray()
 
             # ── First chunk (CTRL_ACK) ────────────────────────────────────
@@ -1078,9 +1140,10 @@ class MachineComm:
                             f"{fb[0]:02X}")
                     )
 
-                unknown4 = self._serial.read(4)
-                if len(unknown4) < 4:
-                    raise MachineCommError(_tr("Timeout reading unknown bytes in first chunk."))
+                descriptor = self._serial.read(4)
+                if len(descriptor) < 4:
+                    raise MachineCommError(
+                        _tr("Timeout reading the pattern descriptor in first chunk."))
 
                 size_bytes = self._serial.read(2)
                 if len(size_bytes) < 2:
@@ -1116,7 +1179,7 @@ class MachineComm:
                 if len(cs_raw) < 2:
                     raise MachineCommError(_tr("Timeout reading checksum in first chunk."))
 
-                cs_data = (unknown4 + size_bytes + name_size_raw
+                cs_data = (descriptor + size_bytes + name_size_raw
                            + name_raw + ps_raw + chunk_payload + ps_repeat_raw)
                 received_cs = int(cs_raw.decode('ascii'), 16)
 
@@ -1125,6 +1188,7 @@ class MachineComm:
                 if received_cs == expected_cs:
                     name = name_raw.rstrip(b'\x00').decode('latin-1', errors='replace')
                     size = int.from_bytes(size_bytes, 'big')
+                    hoop = MachineComm._embroidery_hoop_type(descriptor[3])
                     all_payload.extend(chunk_payload)
                     self._serial.write(bytes([self.CTRL_ACK]))
                     break
@@ -1202,6 +1266,7 @@ class MachineComm:
                 'pattern_type': pattern_type,
                 'slot':         slot_index,
                 'preview_hex':  all_payload.hex(),
+                'hoop':         hoop,
             }
         finally:
             self._serial.timeout = saved_timeout
@@ -1868,6 +1933,247 @@ class MachineComm:
                 points = [(px, py - min_y) for px, py in points]
 
         return points
+
+    # ── Embroidery (hoop) card decoding ──
+
+    @staticmethod
+    def decode_card_pattern_embroidery(raw_bytes, hoop=None):
+        """Decode an Embroidery memory-card payload into canvas coordinates.
+
+        Reads the stitch stream written by
+        :meth:`encode_card_pattern_embroidery`: an optional title group, the
+        origin group (``80 28 05 00 <Oy LE16> <Ox LE16> 80``), the 16-entry
+        thread-colour table, then stitch groups and plain relative steps, ending
+        with ``80 2F 80``.
+
+        Positions are distances from the origin towards the bottom-left in
+        payload units (~1/10 mm), so a point is
+        ``(origin - V) / EMBROIDERY_SCALE`` in canvas units.  The design is then
+        centred in its hoop, which is where the machine's own header margins put
+        it; the fractional part is kept because embroidery resolution is finer
+        than one canvas unit.
+
+        A colour change is stored as a block of its own (jump marker, resync,
+        tie-off, colour stitch), so the decoded point list repeats the change
+        position three times — those are real stitches on the card, exactly as
+        the machine sews them.
+
+        Args:
+            raw_bytes (bytes): Pattern payload returned by
+                :meth:`load_card_slot` for an ``'Embroidery'`` slot.
+            hoop (str | None): ``'small hoop'`` or ``'large hoop'`` from the
+                card preview descriptor.  When it is missing or unknown the
+                smallest hoop that holds the design is used.
+
+        Returns:
+            dict: {
+                'points':      [(x, y), ...] canvas units,
+                'elements':    [(ELEM_STITCH, x, y) | (ELEM_COLOR, index), ...],
+                'colors':      [(r, g, b), ...] the full 16-entry palette; the
+                               payload's own table when it has one, otherwise
+                               :attr:`DEFAULT_CARD_COLORS`,
+                'stitch_type': 'small hoop' | 'large hoop',
+            }
+
+        Raises:
+            MachineCommError: If the payload holds no stitch the decoder
+                understands.
+        """
+        data = bytes(raw_bytes)
+        x = 0
+        y = 0
+        colour = 1                  # thread colour number in effect (1..16)
+        values = []                 # payload-space positions, as carried
+        colours_of_point = []
+        origin = None
+        colour_table = []
+
+        index = 0
+        while index < len(data):
+            if data[index] != MachineComm.EMBROIDERY_GROUP_MARK:
+                # Plain relative step: two signed bytes (dy, dx), one stitch.
+                # Only checked at step boundaries, so an 0x80 inside a delta
+                # byte is not mistaken for a group.
+                if index + 2 > len(data):
+                    break
+                y += _s8(data[index])
+                x += _s8(data[index + 1])
+                values.append((x, y))
+                colours_of_point.append(colour)
+                index += 2
+                continue
+
+            parsed = MachineComm._parse_embroidery_group(data, index)
+            if parsed is None:
+                # Unknown or truncated group: stop rather than invent stitches.
+                break
+            commands, index = parsed
+
+            group_colour = None
+            group_points = []
+            end_of_design = False
+            for marker, payload in commands:
+                if marker == MachineComm.EMBROIDERY_CMD_ABS_POS:
+                    y = _u16be_at(payload, 0)
+                    x = _u16be_at(payload, 2)
+                    group_points.append((x, y))
+                elif marker == MachineComm.EMBROIDERY_CMD_REL_JUMP:
+                    y += _s8(payload[0])
+                    x += _s8(payload[1])
+                    group_points.append((x, y))
+                elif (MachineComm.EMBROIDERY_CMD_COLOUR_MIN <= marker
+                      <= MachineComm.EMBROIDERY_CMD_COLOUR_MAX):
+                    group_colour = marker - 0x2F
+                elif marker == MachineComm.EMBROIDERY_CMD_EXTRA:
+                    if (len(payload) >= 5
+                            and payload[0] == MachineComm.EMBROIDERY_EXTRA_ORIGIN):
+                        origin = (int.from_bytes(payload[3:5], "little"),
+                                  int.from_bytes(payload[1:3], "little"))
+                    elif (len(payload) >= 65
+                          and payload[0] == MachineComm.EMBROIDERY_EXTRA_COLOUR_TABLE):
+                        entries = payload[1:65]
+                        colour_table = [tuple(entries[4 * i:4 * i + 3])
+                                        for i in range(16)]
+                elif marker == MachineComm.EMBROIDERY_CMD_END:
+                    end_of_design = True
+
+            # A colour command covers the stitches of its own group: the short
+            # form "80 2E P 3n 80" already places the first point of the new
+            # colour in the group, the long form has a group of its own.
+            if group_colour is not None:
+                colour = group_colour
+            for point in group_points:
+                values.append(point)
+                colours_of_point.append(colour)
+            if end_of_design:
+                break
+
+        if not values:
+            raise MachineCommError(
+                _tr("The card payload contains no embroidery stitches."))
+
+        # Without an origin group the values carry no reference point; using the
+        # extent maximum keeps the design at least unmirrored.
+        if origin is None:
+            origin = (max(value[0] for value in values),
+                      max(value[1] for value in values))
+
+        scale = MachineComm.EMBROIDERY_SCALE
+        points = [((origin[0] - vx) / scale, (origin[1] - vy) / scale)
+                  for vx, vy in values]
+
+        xs = [point[0] for point in points]
+        ys = [point[1] for point in points]
+        if hoop not in MachineComm.EMBROIDERY_HOOPS:
+            # Missing or unrecognised hoop byte: derive it from the design size.
+            hoop = MachineComm._embroidery_hoop_for(points)
+        canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[hoop]
+
+        offset_x = (canvas_w - (max(xs) - min(xs))) / 2.0 - min(xs)
+        offset_y = (canvas_h - (max(ys) - min(ys))) / 2.0 - min(ys)
+        points = [(px + offset_x, py + offset_y) for px, py in points]
+
+        elements = []
+        previous_colour = 1
+        for (px, py), number in zip(points, colours_of_point):
+            if number != previous_colour:
+                # ELEM_COLOR carries the palette index, i.e. the number - 1.
+                elements.append((ELEM_COLOR, number - 1))
+                previous_colour = number
+            elements.append((ELEM_STITCH, px, py))
+
+        # The colour numbers index the machine's 16 threads, so the palette is
+        # always 16 entries: the payload's table keeps all of it (PC-Designer
+        # pads short palettes with black), and without a table the stand-in
+        # palette shows which thread each section follows.
+        colors = list(colour_table) if colour_table else list(
+            MachineComm.DEFAULT_CARD_COLORS)
+
+        return {
+            'points': points,
+            'elements': elements,
+            'colors': colors,
+            'stitch_type': hoop,
+        }
+
+    @staticmethod
+    def _parse_embroidery_group(data, index):
+        """Parse one ``0x80 … 0x80`` command group that starts at *index*.
+
+        Returns ``(commands, next_index)`` where each command is
+        ``(marker, payload)`` and *next_index* points just past the closing
+        ``0x80``.  Returns ``None`` when the group is truncated or holds a
+        command the decoder does not know, so the caller stops instead of
+        inventing stitches.
+        """
+        index += 1                  # skip the opening 0x80
+        commands = []
+        while index < len(data):
+            marker = data[index]
+            if marker == MachineComm.EMBROIDERY_GROUP_MARK:
+                return commands, index + 1
+            if marker == MachineComm.EMBROIDERY_CMD_ABS_POS:
+                if index + 5 > len(data):
+                    return None
+                commands.append((marker, data[index + 1:index + 5]))
+                index += 5
+            elif marker == MachineComm.EMBROIDERY_CMD_REL_JUMP:
+                if index + 3 > len(data):
+                    return None
+                commands.append((marker, data[index + 1:index + 3]))
+                index += 3
+            elif marker in (MachineComm.EMBROIDERY_CMD_TITLE,
+                            MachineComm.EMBROIDERY_CMD_EXTRA):
+                if index + 2 > len(data):
+                    return None
+                end = index + 2 + data[index + 1]
+                if end > len(data):
+                    return None
+                commands.append((marker, data[index + 2:end]))
+                index = end
+            elif marker in MachineComm.EMBROIDERY_CMD_EXTRA16:
+                if index + 3 > len(data):
+                    return None
+                end = index + 3 + int.from_bytes(data[index + 1:index + 3], "big")
+                if end > len(data):
+                    return None
+                commands.append((marker, data[index + 3:end]))
+                index = end
+            elif (MachineComm.EMBROIDERY_CMD_COLOUR_MIN <= marker
+                  <= MachineComm.EMBROIDERY_CMD_COLOUR_MAX
+                  or marker == MachineComm.EMBROIDERY_CMD_END):
+                commands.append((marker, b""))
+                index += 1
+            elif marker in MachineComm.EMBROIDERY_IGNORED_COMMANDS:
+                index += 1
+            else:
+                return None
+        return None                 # the group never closed
+
+    @staticmethod
+    def _embroidery_hoop_type(hoop_byte):
+        """Return the stitch type for a header hoop byte, or ``None`` if unset."""
+        for stitch_type, entry in MachineComm.EMBROIDERY_HOOPS.items():
+            if entry[0] == hoop_byte:
+                return stitch_type
+        return None
+
+    @staticmethod
+    def _embroidery_hoop_for(points):
+        """Return the smallest hoop canvas that holds *points*.
+
+        A design that exceeds every hoop falls back to the largest one; the
+        machine refuses such writes, so this only affects third-party cards.
+        """
+        xs = [point[0] for point in points]
+        ys = [point[1] for point in points]
+        span_x = max(xs) - min(xs)
+        span_y = max(ys) - min(ys)
+        for stitch_type in ("small hoop", "large hoop"):
+            canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[stitch_type]
+            if span_x <= canvas_w and span_y <= canvas_h:
+                return stitch_type
+        return "large hoop"
 
     @staticmethod
     def encode_card_preview(pattern):

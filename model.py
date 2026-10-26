@@ -603,6 +603,24 @@ class StitchPattern:
         self.modified = True
         self._rebuild_display_no_auto()
 
+    def set_machine_elements(self, elements, colors, slot_type):
+        """Replace the pattern with pre-built elements received from a machine.
+
+        Embroidery card reads carry thread colours and colour-change positions,
+        which a plain point list would lose; this keeps them.
+
+        Args:
+            elements: list of ELEM_STITCH / ELEM_COLOR tuples.
+            colors: palette as [(r, g, b), ...]; may be empty.
+            slot_type: 'small hoop' or 'large hoop'.
+        """
+        self.stitch_type = slot_type
+        self.colors = list(colors)
+        self._load_elements(elements)
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self.modified = True
+
     def convert_auto_to_normal(self):
         """Promote all ELEM_AUTO elements from the display layer to base elements (undoable)."""
         if not self.has_auto_stitches:

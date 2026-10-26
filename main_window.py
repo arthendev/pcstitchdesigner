@@ -1880,10 +1880,23 @@ class MainWindow(QMainWindow):
 
         return info
 
-    def _apply_machine_pattern(self, points, slot_type, name=None):
-        """Replace the current pattern with points loaded from the machine."""
+    def _apply_machine_pattern(self, points, slot_type, name=None,
+                              elements=None, colors=None):
+        """Replace the current pattern with data loaded from the machine.
+
+        Args:
+            points: Stitch coordinates; used for P-Memory and for Insert.
+            slot_type: ``'9mm'``, ``'MAXI'``, ``'small hoop'`` or ``'large hoop'``.
+            name: Pattern name reported by the machine, if any.
+            elements: Full element list (Embroidery card reads).  When given it
+                replaces *points* so colour changes survive the load.
+            colors: Palette belonging to *elements*.
+        """
         new_pattern = StitchPattern()
-        new_pattern.set_machine_data(points, slot_type or self._pattern.stitch_type)
+        if elements is not None:
+            new_pattern.set_machine_elements(elements, colors, slot_type)
+        else:
+            new_pattern.set_machine_data(points, slot_type or self._pattern.stitch_type)
 
         self._pattern = new_pattern
         self._canvas.pattern = new_pattern
@@ -1906,6 +1919,10 @@ class MainWindow(QMainWindow):
             self._act_large_hoop.setChecked(True)
 
         is_hoop = new_pattern.stitch_type in ("small hoop", "large hoop")
+        if is_hoop:
+            # Hoop designs are read-only and cannot be saved, so a load must not
+            # leave the window claiming unsaved changes.
+            new_pattern.modified = False
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = not is_hoop
 
@@ -2172,7 +2189,9 @@ class MainWindow(QMainWindow):
 
         if action == CardMemoryDialog.ACTION_LOAD and result == QDialog.Accepted:
             if dlg.loaded_points is not None:
-                self._apply_machine_pattern(dlg.loaded_points, dlg.loaded_slot_type, dlg.loaded_name)
+                self._apply_machine_pattern(
+                    dlg.loaded_points, dlg.loaded_slot_type, dlg.loaded_name,
+                    elements=dlg.loaded_elements, colors=dlg.loaded_colors)
 
         if action == CardMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
             if dlg.loaded_points is not None:

@@ -94,6 +94,10 @@ class CardMemoryDialog(QDialog):
         self.loaded_points = None
         self.loaded_slot_type = None
         self.loaded_name = None
+        # Embroidery reads keep colour changes: base element list plus palette.
+        # Both stay None for 9 mm / MAXI, which load as plain point lists.
+        self.loaded_elements = None
+        self.loaded_colors = None
 
         # Guard to prevent closing the dialog while a pattern is being loaded
         self._loading = False
@@ -399,10 +403,6 @@ class CardMemoryDialog(QDialog):
             self._name_label.setText(self.tr("Name: {0}").format(p['name'] or '—'))
             self._size_label.setText(self.tr("Size: {0} bytes").format(p['size']))
             self._action_btn.setEnabled(True)
-            # Disable Load for Embroidery patterns (not yet supported)
-            # is_embr_load = (self._action == self.ACTION_LOAD
-            #                 and p.get('pattern_type') == 'Embroidery')
-            # self._action_btn.setEnabled(not is_embr_load)
         else:
             self._name_label.setText(self.tr("Name: —"))
             self._size_label.setText(self.tr("Size: —"))
@@ -410,15 +410,6 @@ class CardMemoryDialog(QDialog):
 
     def _on_item_double_clicked(self, _item):
         """Trigger the action on double-click when the button is enabled."""
-        p = self._selected_pattern()
-        if p is not None and self._action == self.ACTION_LOAD \
-                and p.get('pattern_type') == 'Embroidery':
-            QMessageBox.information(
-                self,
-                self.tr("Not Yet Implemented"),
-                self.tr("Loading Embroidery patterns from memory card is not yet supported."),
-            )
-            return
         if self._action_btn.isEnabled():
             self._action_btn.click()
 
@@ -426,15 +417,8 @@ class CardMemoryDialog(QDialog):
 
     def _on_action(self):
         p = self._selected_pattern()
-        if p is not None and self._action == self.ACTION_LOAD \
-                and p.get('pattern_type') == 'Embroidery':
-            QMessageBox.information(
-                self,
-                self.tr("Not Yet Implemented"),
-                self.tr("Loading Embroidery patterns from memory card is not yet supported."),
-            )
+        if p is None:
             return
-
         if self._action in (self.ACTION_LOAD, self.ACTION_INSERT):
             self._do_load(p)
         elif self._action == self.ACTION_DELETE:
@@ -446,9 +430,15 @@ class CardMemoryDialog(QDialog):
         Uses the absolute card slot stored in the pattern dict — the
         ``'slot'`` value returned by `MachineComm.query_card_preview`
         already includes the type offset — then calls
-        `MachineComm.load_card_slot`.  On success the raw payload is
-        stored in ``self.loaded_points`` / ``self.loaded_slot_type`` and the
-        dialog is accepted so the caller can retrieve the data.
+        `MachineComm.load_card_slot`.
+
+        On success the dialog is accepted with:
+
+        * ``loaded_points`` — stitch coordinates,
+        * ``loaded_slot_type`` — ``'9mm'``, ``'MAXI'`` or the hoop type,
+        * ``loaded_elements`` / ``loaded_colors`` — full element list and palette
+          for Embroidery reads (``None`` for 9 mm / MAXI),
+        * ``loaded_name`` — the name reported by the card.
         """
         ptype = pattern['pattern_type']
         card_slot = pattern['slot']
@@ -491,20 +481,21 @@ class CardMemoryDialog(QDialog):
         try:
             if ptype == '9mm':
                 points = MachineComm.decode_card_pattern_9mm(raw_data)
+                elements = None
+                colors = None
+                slot_type = ptype
             elif ptype == 'MAXI':
                 points = MachineComm.decode_card_pattern_maxi(raw_data)
+                elements = None
+                colors = None
+                slot_type = ptype
             else:
-                self._progress_bar.setValue(0)
-                self._progress_bar.setStyleSheet(self._PROGRESS_BAR_HIDDEN_STYLE)
-                self._action_btn.setEnabled(True)
-                self._loading = False
-                self._close_btn.setEnabled(True)
-                QMessageBox.information(
-                    self,
-                    self.tr("Not Yet Implemented"),
-                    self.tr("Loading {0} patterns from memory card is not yet supported.").format(ptype),
-                )
-                return
+                decoded = MachineComm.decode_card_pattern_embroidery(
+                    raw_data, hoop=pattern.get('hoop'))
+                points = decoded['points']
+                elements = decoded['elements']
+                colors = decoded['colors']
+                slot_type = decoded['stitch_type']
         except MachineCommError as exc:
             self._logger.log_error(str(exc))
             self._progress_bar.setValue(0)
@@ -526,7 +517,9 @@ class CardMemoryDialog(QDialog):
         self._loading = False
         self._close_btn.setEnabled(True)
         self.loaded_points    = points
-        self.loaded_slot_type = ptype
+        self.loaded_elements  = elements
+        self.loaded_colors    = colors
+        self.loaded_slot_type = slot_type
         self.loaded_name      = pattern['name']
         self._end_transmission()
         self.accept()
