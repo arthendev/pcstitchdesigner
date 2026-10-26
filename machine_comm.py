@@ -1052,8 +1052,10 @@ class MachineComm:
             + checksum
 
         The descriptor is ``<colour count> + <colour mask BE16> + <hoop byte>``,
-        taken from the slot's write header; the hoop byte is 1 for the small and
-        2 for the large hoop, and 0 for the 9 mm / MAXI slots.
+        taken from the slot's write header: the count is the number of thread
+        colours the design uses (1 for 9 mm / MAXI), the mask marks the palette
+        colours in use, and the hoop byte is 1 for the small and 2 for the large
+        hoop.
 
         *Following chunks*::
 
@@ -1080,6 +1082,8 @@ class MachineComm:
                 'preview_hex':  str  - preview payload as a hex string,
                 'hoop':         str | None - 'small hoop' / 'large hoop' when the
                                 descriptor names one, else None,
+                'colour_count': int  - thread colours the design uses,
+                'colour_mask':  int  - 16-bit mask of the palette colours in use,
             }
 
         Raises:
@@ -1118,6 +1122,8 @@ class MachineComm:
 
             name = ''
             size = 0
+            colour_count = 0
+            colour_mask = 0
             hoop = None
             all_payload = bytearray()
 
@@ -1188,7 +1194,8 @@ class MachineComm:
                 if received_cs == expected_cs:
                     name = name_raw.rstrip(b'\x00').decode('latin-1', errors='replace')
                     size = int.from_bytes(size_bytes, 'big')
-                    hoop = MachineComm._embroidery_hoop_type(descriptor[3])
+                    colour_count, colour_mask, hoop = (
+                        MachineComm._parse_card_preview_descriptor(descriptor))
                     all_payload.extend(chunk_payload)
                     self._serial.write(bytes([self.CTRL_ACK]))
                     break
@@ -1267,6 +1274,8 @@ class MachineComm:
                 'slot':         slot_index,
                 'preview_hex':  all_payload.hex(),
                 'hoop':         hoop,
+                'colour_count': colour_count,
+                'colour_mask':  colour_mask,
             }
         finally:
             self._serial.timeout = saved_timeout
@@ -2149,6 +2158,31 @@ class MachineComm:
             else:
                 return None
         return None                 # the group never closed
+
+    @staticmethod
+    def _parse_card_preview_descriptor(descriptor):
+        """Split the descriptor of the first KB chunk into its logical fields.
+
+        The four bytes mirror the slot's KN header: colour count, 16-bit colour
+        mask (big-endian) and the hoop byte.  The count is the number of thread
+        colours the design uses, which the machine derives from the header's
+        preview-block count by dropping the composite block (so a single-colour
+        design and a 9 mm / MAXI pattern both report 1).  The hoop byte is 1 for
+        the small and 2 for the large hoop, and 0 for designs without a hoop.
+
+        Args:
+            descriptor (bytes): The four descriptor bytes of the first chunk.
+
+        Returns:
+            tuple: ``(colour_count, colour_mask, hoop_type)``; *hoop_type* is
+            ``'small hoop'``, ``'large hoop'`` or ``None`` when the byte names
+            no hoop.
+        """
+        return (
+            descriptor[0],
+            int.from_bytes(descriptor[1:3], "big"),
+            MachineComm._embroidery_hoop_type(descriptor[3]),
+        )
 
     @staticmethod
     def _embroidery_hoop_type(hoop_byte):

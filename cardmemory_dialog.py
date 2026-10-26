@@ -11,6 +11,8 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor, QTransform
 
 from machine_comm import MachineComm, MachineCommError
+from machine_models import find_model
+from model import StitchPattern
 from app_logger import AppLogger
 
 
@@ -29,6 +31,8 @@ class CardMemoryDialog(QDialog):
         │ │ └──────────────────────────────────────────┘ │    │
         │ └──────────────────────────────────────────────┘    │
         │ Name: Rose  |  Size: 1024 bytes                     │
+        │ Colours: 4                                          │
+        │ Hoop: 80 x 80 mm                                    │
         ├─────────────────────────────────────────────────────┤
         │                           [Load / Insert / Delete]  │
         │                                            [Close]  │
@@ -64,6 +68,13 @@ class CardMemoryDialog(QDialog):
     ACTION_LOAD   = "load"
     ACTION_INSERT = "insert"
     ACTION_DELETE = "delete"
+
+    # Default window size; wide enough for the preview grid plus the details column.
+    _DEFAULT_SIZE = QSize(840, 500)
+    # Reserved width for the action button and the pattern details to its right,
+    # so long detail lines ("Hoop: 120 x 115 mm") are never squeezed when the
+    # list needs the space.
+    _DETAILS_WIDTH = 140
 
     # Class-level cache for preview images (card_no + counts → previews)
     _cached_card_info = None
@@ -111,7 +122,7 @@ class CardMemoryDialog(QDialog):
 
     def _setup_ui(self):
         self.setWindowTitle(self.tr("Memory Card"))
-        self.resize(640, 500)
+        self.resize(self._DEFAULT_SIZE)
 
         outer = QVBoxLayout(self)
         outer.setSpacing(6)
@@ -176,8 +187,10 @@ class CardMemoryDialog(QDialog):
         middle_row = QHBoxLayout()
         middle_row.addWidget(self._tabs, 1)
 
-        right_v = QVBoxLayout()
-        # Add some top padding so the action button sits lower from the top edge
+        details_panel = QWidget()
+        details_panel.setMinimumWidth(self._DETAILS_WIDTH)
+
+        right_v = QVBoxLayout(details_panel)
         right_v.setContentsMargins(0, 20, 0, 0)
         # Action button (moved to right side of window)
         if self._action == self.ACTION_LOAD:
@@ -195,15 +208,19 @@ class CardMemoryDialog(QDialog):
         self._action_btn.clicked.connect(self._on_action)
         right_v.addWidget(self._action_btn, 0, Qt.AlignTop)
 
-        # Name and size labels go below the action button
+        # Name, size and the colour/hoop details go below the action button
         self._name_label = QLabel(self.tr("Name: —"))
         self._size_label = QLabel(self.tr("Size: —"))
+        self._colors_label = QLabel()
+        self._hoop_label = QLabel()
         right_v.addSpacing(8)
         right_v.addWidget(self._name_label)
         right_v.addWidget(self._size_label)
+        right_v.addWidget(self._colors_label)
+        right_v.addWidget(self._hoop_label)
         right_v.addStretch()
 
-        middle_row.addLayout(right_v)
+        middle_row.addWidget(details_panel)
         outer.addLayout(middle_row, 1)
 
         # ── Bottom button row ─────────────────────────────────────────────
@@ -402,11 +419,45 @@ class CardMemoryDialog(QDialog):
         if p is not None:
             self._name_label.setText(self.tr("Name: {0}").format(p['name'] or '—'))
             self._size_label.setText(self.tr("Size: {0} bytes").format(p['size']))
+            colors_text, hoop_text = self._pattern_details(p)
+            self._colors_label.setText(colors_text)
+            self._hoop_label.setText(hoop_text)
             self._action_btn.setEnabled(True)
         else:
             self._name_label.setText(self.tr("Name: —"))
             self._size_label.setText(self.tr("Size: —"))
+            self._colors_label.clear()
+            self._hoop_label.clear()
             self._action_btn.setEnabled(False)
+
+    def _pattern_details(self, pattern):
+        """Return the colour and hoop lines shown for the highlighted *pattern*.
+
+        The values come from the descriptor that `MachineComm.query_card_preview`
+        reports, which the machine fills from the slot's write header.  The hoop
+        is shown as the physical size it offers, taken from the canvas geometry
+        in :attr:`StitchPattern.CANVAS_SIZES`.  9 mm and MAXI slots carry neither
+        thread colours nor a hoop, so they get no details.
+
+        Returns:
+            tuple[str, str]: The colour line and the hoop line, both empty for
+                patterns that have neither.
+        """
+        if pattern.get('pattern_type') != 'Embroidery':
+            return "", ""
+
+        colors_text = self.tr("Colours: {0}").format(
+            pattern.get('colour_count') or '—')
+
+        hoop = pattern.get('hoop')
+        if hoop in ('small hoop', 'large hoop'):
+            width, height = StitchPattern.CANVAS_SIZES[hoop]
+            hoop_text = self.tr("Hoop: {0} x {1} mm").format(
+                round(width * StitchPattern.STITCH_RES_MM),
+                round(height * StitchPattern.STITCH_RES_MM))
+        else:
+            hoop_text = self.tr("Hoop: unknown")
+        return colors_text, hoop_text
 
     def _on_item_double_clicked(self, _item):
         """Trigger the action on double-click when the button is enabled."""
