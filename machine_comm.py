@@ -7,6 +7,11 @@ import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
 from model import elem_has_coords, ELEM_COLOR
 from app_logger import AppLogger
+from machine_models import (
+    PMEMORY_VARIANT_1475CD,
+    find_model,
+    find_model_by_ident,
+)
 
 
 def _tr(s):
@@ -259,16 +264,6 @@ class MachineComm:
         re.IGNORECASE,
     )
 
-    # Maps substrings found in the ident response to canonical model names.
-    # Checked in order; first match wins.
-    _KNOWN_MACHINES = [
-        ("7570",   "PFAFF Creative 7570"),
-        ("7560",   "PFAFF Creative 7560"),
-        ("7550 CD","PFAFF Creative 7550"),
-        ("1475 CD","PFAFF Creative 1475 CD"),
-        ("1475A",  "PFAFF Creative 1475 CD"),
-    ]
-
     def query_machine(self, retries=15, retry_delay=0.05, timeout=1.0):
         """Query the machine for its identification string.
 
@@ -328,11 +323,7 @@ class MachineComm:
                         _tr("Unexpected identification response: {0}").format(repr(text))
                     )
 
-                canonical = None
-                for substring, name in self._KNOWN_MACHINES:
-                    if substring in text:
-                        canonical = name
-                        break
+                canonical = find_model_by_ident(text)
                 if canonical is None:
                     self._logger.log_error(f"Unrecognised machine model in response: {text!r}")
                     raise MachineCommError(
@@ -344,7 +335,7 @@ class MachineComm:
                     'raw':          text,
                     'machine_type': match.group(1).strip() if match else '',
                     'version':      match.group(2).strip() if match else '',
-                    'model':        canonical,
+                    'model':        canonical.name,
                 }
 
             # No response after all retries — signal the machine to abort
@@ -575,11 +566,15 @@ class MachineComm:
 
     def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None):
         """Dispatch to the appropriate send method based on machine_model.
+
+        The P-Memory framing is a capability of the model, so the registry in
+        :mod:`machine_models` decides which writer runs.
         """
 
         self._logger.log_info(f"send_pmemory_slot(slot_index={slot_index})")
 
-        if "1475" in machine_model:
+        model = self._require_model(machine_model)
+        if model.pmemory_variant == PMEMORY_VARIANT_1475CD:
             self.send_pmemory_slot_1475cd(slot_index, pattern,
                                           chunk_size=chunk_size, timeout=timeout,
                                           progress_callback=progress_callback)
@@ -2640,10 +2635,9 @@ class MachineComm:
                 _tr("Invalid slot count encoding: {0}").format(repr(text[0:2]))
             ) from exc
 
-        if "1475" in machine_model:
-            bytes_per_slot = 14
-        else:
-            bytes_per_slot = 10
+        # The 1475 CD sends four extra unknown characters per slot.
+        model = MachineComm._require_model(machine_model)
+        bytes_per_slot = 14 if model.pmemory_variant == PMEMORY_VARIANT_1475CD else 10
 
         expected_len = 2 + num_slots * bytes_per_slot + 4
         if len(text) != expected_len:
@@ -2687,7 +2681,10 @@ class MachineComm:
 
         # Original SW shows 1 byte less than machine reports on 75xx models, reason unknown.
         # The 1475 CD does not need this adjustment.
-        adjusted_free = free_memory if "1475" in machine_model else free_memory - 1
+        adjusted_free = (
+            free_memory if model.pmemory_variant == PMEMORY_VARIANT_1475CD
+            else free_memory - 1
+        )
 
         return {
             'num_slots': num_slots,
@@ -3154,6 +3151,25 @@ class MachineComm:
         return False
 
     # ── Internal helpers ──
+
+    @staticmethod
+    def _require_model(machine_model):
+        """Return the registered model for *machine_model*, or raise.
+
+        Args:
+            machine_model (str): Canonical model name from the configuration.
+
+        Returns:
+            machine_models.MachineModel: The matching registry entry.
+
+        Raises:
+            MachineCommError: If the name is not a registered model.
+        """
+        model = find_model(machine_model)
+        if model is None:
+            raise MachineCommError(
+                _tr("Unknown machine model: {0}").format(repr(machine_model)))
+        return model
 
     def _require_open(self):
         if not self.is_open:

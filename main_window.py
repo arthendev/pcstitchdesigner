@@ -21,6 +21,7 @@ from config import Config
 from version import APP_VERSION
 from preferences_dialog import PreferencesDialog
 from machine_comm import MachineComm, MachineCommError
+from machine_models import find_model
 from app_logger import AppLogger
 from pmemory_dialog import PMemoryDialog
 from cardmemory_dialog import CardMemoryDialog
@@ -55,6 +56,9 @@ class MainWindow(QMainWindow):
 
         # Machine communication
         self._machine_comm = MachineComm(logger=self._app_logger)
+        # Capabilities of the configured model; filled in by
+        # _update_machine_capability_actions() at the end of __init__.
+        self._machine_caps = None
 
         self._file_path = None
         self._file_info = None  # PatternFileInfo from the last loaded file
@@ -123,8 +127,8 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         # Apply saved display settings to canvas
         self._apply_display_settings()
-        # Enable/disable memory card actions based on configured machine model
-        self._update_machine_card_actions_state()
+        # Enable/disable machine actions based on the configured model's capabilities
+        self._update_machine_capability_actions()
         self._last_auto_stitch_length_mm = None
         self._last_auto_stitch_max_dx_active = True
 
@@ -969,9 +973,9 @@ class MainWindow(QMainWindow):
         # Tools
         self._act_add.setEnabled(enabled)
         self._act_delete.setEnabled(enabled)
-        # Machine
-        self._act_machine_send_pmem.setEnabled(enabled)
-        self._act_machine_insert_pmem.setEnabled(enabled)
+        # Machine — capabilities come from the model registry, not from the
+        # pattern type alone, so re-evaluate them through that single path.
+        self._update_machine_capability_actions()
         # Edit (selection-dependent ones are re-evaluated by _update_selection_action_state)
         self._act_copy.setEnabled(enabled and self._act_copy.isEnabled())
         self._act_cut.setEnabled(enabled and self._act_cut.isEnabled())
@@ -999,20 +1003,66 @@ class MainWindow(QMainWindow):
             self._act_pan.setChecked(True)
             self._on_tool_pan()
 
-    def _update_machine_card_actions_state(self):
-        """Enable card-related machine actions only when PFAFF 7570 is configured.
+    def _update_machine_capability_actions(self):
+        """Enable machine actions that the configured model actually supports.
 
-        This function reads the configured machine model from the persistent
-        `Config` and enables/disables the card actions accordingly. There is
-        a single definitive implementation and no fallback logic.
+        ``machine_models.MODELS`` is the single source of truth for what each
+        machine can do, so no action is gated on a model-name string.
         """
-        prefs = self._config.get_machine_preferences()
-        model = prefs.get("model", "")
-        enabled = model == "PFAFF Creative 7570"
-        self._act_machine_load_card.setEnabled(enabled)
-        self._act_machine_send_card.setEnabled(enabled)
-        self._act_machine_insert_card.setEnabled(enabled)
-        self._act_machine_delete_card.setEnabled(enabled)
+        self._machine_caps = find_model(
+            self._config.get_machine_preferences().get("model", ""))
+        caps = self._machine_caps
+        p_memory = caps is not None and caps.p_memory
+        cards = caps is not None and caps.memory_cards
+        writable = not self._is_hoop_type()
+
+        # Loading and deleting never modify the pattern, so only P-Memory
+        # support matters.  Sending and inserting also depend on the pattern
+        # type (hoop designs have no P-Memory representation).
+        self._act_machine_load_pmem.setEnabled(p_memory)
+        self._act_machine_delete_pmem.setEnabled(p_memory)
+        self._act_machine_send_pmem.setEnabled(p_memory and writable)
+        self._act_machine_insert_pmem.setEnabled(p_memory and writable)
+
+        self._act_machine_load_card.setEnabled(cards)
+        self._act_machine_insert_card.setEnabled(cards)
+        self._act_machine_delete_card.setEnabled(cards)
+        self._act_machine_send_card.setEnabled(self._card_write_supported())
+
+    def _card_write_supported(self):
+        """Return True when the model can store the current pattern on a card."""
+        caps = self._machine_caps
+        if caps is None or not caps.memory_cards:
+            return False
+        if self._is_hoop_type():
+            return caps.card_embroidery
+        return caps.card_p_muster
+
+    def _warn_card_write_unsupported(self):
+        """Explain why the current pattern cannot be written to a card.
+
+        Returns:
+            bool: True when the write may proceed.
+        """
+        if self._card_write_supported():
+            return True
+
+        caps = self._machine_caps
+        if caps is None:
+            message = (
+                self.tr("No supported machine model is configured.") + "\n" +
+                self.tr("Please check Settings - Preferences - Machine.")
+            )
+        elif self._is_hoop_type():
+            message = self.tr(
+                "{0} cannot store embroidery designs on a memory card."
+            ).format(caps.name)
+        else:
+            message = self.tr(
+                "{0} cannot store 9 mm or MAXI patterns on a memory card."
+            ).format(caps.name)
+        QMessageBox.warning(self, self.tr("Send Card Stitch"), message)
+        return False
 
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
@@ -2200,6 +2250,9 @@ class MainWindow(QMainWindow):
             )
             return
 
+        if not self._warn_card_write_unsupported():
+            return
+
         stitch_type = self._pattern.stitch_type
 
         # ── Determine filename ────────────────────────────────────────────
@@ -2365,8 +2418,8 @@ class MainWindow(QMainWindow):
         dlg = PreferencesDialog(self._config, parent=self)
         if dlg.exec_() == PreferencesDialog.Accepted:
             self._apply_display_settings()
-            # Re-evaluate machine-specific actions (memory card actions)
-            self._update_machine_card_actions_state()
+            # Re-evaluate machine actions — the model may have changed
+            self._update_machine_capability_actions()
 
     def _apply_display_settings(self):
         d = self._config.get_display_preferences()

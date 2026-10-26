@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
 )
 
 from machine_comm import MachineComm, MachineCommError
+from machine_models import MODEL_NAMES, find_model
 from PyQt5.QtGui import QColor, QPixmap, QIcon
 from PyQt5.QtCore import Qt
 
@@ -33,13 +34,6 @@ EMBROIDERY_DISPLAY_DEFAULTS = {
     "show_stitch_points": False,
     "show_grid": False,
 }
-
-MACHINE_MODELS = [
-    "PFAFF Creative 7570",
-    # "PFAFF Creative 7560",
-    "PFAFF Creative 7550",
-    "PFAFF Creative 1475 CD",
-]
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -150,9 +144,9 @@ class GeneralTab(QWidget):
 
         # Machine model
         self._model_combo = QComboBox()
-        for m in MACHINE_MODELS:
+        for m in MODEL_NAMES:
             self._model_combo.addItem(m)
-        idx = self._model_combo.findText(prefs.get("model", MACHINE_MODELS[0]))
+        idx = self._model_combo.findText(prefs.get("model", MODEL_NAMES[0]))
         if idx >= 0:
             self._model_combo.setCurrentIndex(idx)
         layout.addRow(self.tr("Machine Model:"), self._model_combo)
@@ -190,10 +184,12 @@ class GeneralTab(QWidget):
         outer.addStretch()
 
     def _on_model_changed(self):
-        is_1475 = self._model_combo.currentText() == "PFAFF Creative 1475 CD"
-        if is_1475:
+        """Apply the limits the selected model imposes on the machine options."""
+        model = find_model(self._model_combo.currentText())
+        high_speed = model is not None and model.high_speed
+        if not high_speed:
             self._high_speed_cb.setChecked(False)
-        self._high_speed_cb.setEnabled(not is_1475)
+        self._high_speed_cb.setEnabled(high_speed)
 
     def _test_connection(self):
         port = self._port_combo.currentData() or ""
