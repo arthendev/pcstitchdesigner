@@ -122,6 +122,20 @@ def _split_coordinate(value):
     return divmod(total, FRACTION_SCALE)
 
 
+def _drop_trailing_colour_changes(all_elems):
+    """Remove trailing colour-change records; return how many were dropped.
+
+    A colour change as the last record has no stitch to apply to.  PC-Designer
+    never writes one, so such records are ignored instead of becoming an
+    empty trailing section in the pattern.
+    """
+    dropped = 0
+    while all_elems and all_elems[-1][0] == ELEM_COLOR:
+        all_elems.pop()
+        dropped += 1
+    return dropped
+
+
 def save(path, pattern, info=None):
     """Save a StitchPattern in the PCD/PCQ/PCS binary format.
 
@@ -166,16 +180,22 @@ def save(path, pattern, info=None):
         for r, g, b in colors:
             f.write(struct.pack('BBBx', r, g, b))
 
+        # A colour change as the last record has no stitch to apply to and is
+        # not written; readers (and PC-Designer) do not expect one.
+        elements = list(pattern.display_elements)
+        while elements and elements[-1][0] == ELEM_COLOR:
+            elements.pop()
+
         # Element record count; the format excludes colour-change records
-        f.write(struct.pack('<H', sum(1 for e in pattern.display_elements if e[0] != ELEM_COLOR)))
+        f.write(struct.pack('<H', sum(1 for e in elements if e[0] != ELEM_COLOR)))
 
         # Element records. Stitch, auto and section records share the same
         # coordinate layout and differ only in the control byte.
         stitch_types = {ELEM_STITCH: 0x00, ELEM_AUTO: 0x02, ELEM_SECTION: 0x04}
-        for elem in pattern.display_elements:
+        for elem in elements:
             element_type = elem[0]
-            control_byte = stitch_types[element_type]
             if element_type in stitch_types:
+                control_byte = stitch_types[element_type]
                 x_int, c0 = _split_coordinate(elem[1])
                 y_int, c1 = _split_coordinate(elem[2])
                 f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'),
@@ -380,6 +400,7 @@ def load_v31(path):
     info.stitch_count = stitch_records
     info.has_color_palette = False # this format doesn't have a color palette
     info.color_count = len(pattern.colors)
+    extra_records -= _drop_trailing_colour_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 
@@ -633,6 +654,7 @@ def _load_standard(path):
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
     info.color_count = len(pattern.colors)
+    extra_records -= _drop_trailing_colour_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 
@@ -777,6 +799,7 @@ def _load_nonstandard(path):
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
     info.color_count = len(pattern.colors)
+    extra_records -= _drop_trailing_colour_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 
