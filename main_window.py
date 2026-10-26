@@ -951,8 +951,8 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self, self.tr("Embroidery Design"),
             self.tr(
-                "Embroidery designs can be loaded and viewed, "
-                "but editing and transfer to the sewing machine are not yet supported."
+                "Embroidery designs can be loaded, viewed and written to a memory card, "
+                "but editing is not yet supported."
             )
         )
 
@@ -2201,14 +2201,6 @@ class MainWindow(QMainWindow):
             return
 
         stitch_type = self._pattern.stitch_type
-        if stitch_type not in ('9mm', 'MAXI'):
-            QMessageBox.warning(
-                self, self.tr("Send Card Stitch"),
-                self.tr(
-                    "Sending embroidery patterns to memory card is not yet supported."
-                ),
-            )
-            return
 
         # ── Determine filename ────────────────────────────────────────────
         ext_prefs = self._config.get_extended_preferences()
@@ -2322,7 +2314,12 @@ class MainWindow(QMainWindow):
 
         self._machine_comm.end_transmission()
 
-        count_key_map = {'9mm': 'n_9mm', 'MAXI': 'n_maxi', 'Embroidery': 'n_embr'}
+        count_key_map = {
+            '9mm': 'n_9mm',
+            'MAXI': 'n_maxi',
+            'small hoop': 'n_embr',
+            'large hoop': 'n_embr',
+        }
         count_key  = count_key_map.get(stitch_type, '')
         other_keys = [k for k in ('n_9mm', 'n_maxi', 'n_embr') if k != count_key]
 
