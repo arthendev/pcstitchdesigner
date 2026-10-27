@@ -25,6 +25,7 @@ STITCH_DISPLAY_DEFAULTS = {
     "grid_color": "#dcdcdc",
     "show_stitch_points": True,
     "show_grid": True,
+    "background_color": "#ffffff",
 }
 
 EMBROIDERY_DISPLAY_DEFAULTS = {
@@ -33,6 +34,7 @@ EMBROIDERY_DISPLAY_DEFAULTS = {
     "grid_color": "#dcdcdc",
     "show_stitch_points": False,
     "show_grid": False,
+    "background_color": "#ffffff",
 }
 
 
@@ -341,6 +343,16 @@ class DisplayTab(QWidget):
         grid_row.addStretch()
         stitch_form.addRow(self.tr("Grid:"), grid_row)
 
+        # Workspace background
+        self._background_color_btn = ColorButton(
+            prefs.get("background_color", STITCH_DISPLAY_DEFAULTS["background_color"])
+        )
+        background_row = QHBoxLayout()
+        background_row.setSpacing(6)
+        background_row.addWidget(self._background_color_btn)
+        background_row.addStretch()
+        stitch_form.addRow(self.tr("Background:"), background_row)
+
         outer.addWidget(stitch_group)
 
         embroidery_group = QGroupBox(self.tr("Embroidery"))
@@ -407,6 +419,19 @@ class DisplayTab(QWidget):
         embroidery_grid_row.addStretch()
         embroidery_form.addRow(self.tr("Grid:"), embroidery_grid_row)
 
+        # Workspace background
+        self._embroidery_background_color_btn = ColorButton(
+            prefs.get(
+                "embroidery_background_color",
+                EMBROIDERY_DISPLAY_DEFAULTS["background_color"],
+            )
+        )
+        embroidery_background_row = QHBoxLayout()
+        embroidery_background_row.setSpacing(6)
+        embroidery_background_row.addWidget(self._embroidery_background_color_btn)
+        embroidery_background_row.addStretch()
+        embroidery_form.addRow(self.tr("Background:"), embroidery_background_row)
+
         outer.addWidget(embroidery_group)
 
         # Restore defaults button
@@ -433,6 +458,7 @@ class DisplayTab(QWidget):
         self._grid_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["grid_color"])
         self._show_stitch_points_cb.setChecked(STITCH_DISPLAY_DEFAULTS["show_stitch_points"])
         self._show_grid_cb.setChecked(STITCH_DISPLAY_DEFAULTS["show_grid"])
+        self._background_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["background_color"])
         self._select_combo(self._embroidery_line_width_combo, EMBROIDERY_DISPLAY_DEFAULTS["line_width"])
         self._select_combo(self._embroidery_point_size_combo, EMBROIDERY_DISPLAY_DEFAULTS["point_size"])
         self._embroidery_grid_color_btn.set_color(EMBROIDERY_DISPLAY_DEFAULTS["grid_color"])
@@ -440,6 +466,9 @@ class DisplayTab(QWidget):
             EMBROIDERY_DISPLAY_DEFAULTS["show_stitch_points"]
         )
         self._embroidery_show_grid_cb.setChecked(EMBROIDERY_DISPLAY_DEFAULTS["show_grid"])
+        self._embroidery_background_color_btn.set_color(
+            EMBROIDERY_DISPLAY_DEFAULTS["background_color"]
+        )
 
     def values(self) -> dict:
         return {
@@ -450,11 +479,13 @@ class DisplayTab(QWidget):
             "grid_color": self._grid_color_btn.color(),
             "show_stitch_points": self._show_stitch_points_cb.isChecked(),
             "show_grid": self._show_grid_cb.isChecked(),
+            "background_color": self._background_color_btn.color(),
             "embroidery_line_width": self._embroidery_line_width_combo.currentData(),
             "embroidery_point_size": self._embroidery_point_size_combo.currentData(),
             "embroidery_grid_color": self._embroidery_grid_color_btn.color(),
             "embroidery_show_stitch_points": self._embroidery_show_stitch_points_cb.isChecked(),
             "embroidery_show_grid": self._embroidery_show_grid_cb.isChecked(),
+            "embroidery_background_color": self._embroidery_background_color_btn.color(),
         }
 
 
@@ -574,6 +605,8 @@ class PreferencesDialog(QDialog):
             embroidery_grid_color=d["embroidery_grid_color"],
             embroidery_show_stitch_points=d["embroidery_show_stitch_points"],
             embroidery_show_grid=d["embroidery_show_grid"],
+            background_color=d["background_color"],
+            embroidery_background_color=d["embroidery_background_color"],
         )
         e = self._extended_tab.values()
         self._config.set_extended_preferences(

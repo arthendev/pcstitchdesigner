@@ -43,11 +43,13 @@ class Config:
             "stitch_grid_color": "#dcdcdc",
             "stitch_show_stitch_points": True,
             "stitch_show_grid": True,
+            "stitch_background_color": "#ffffff",
             "embroidery_line_width": "medium",
             "embroidery_point_size": "medium",
             "embroidery_grid_color": "#dcdcdc",
             "embroidery_show_stitch_points": False,
             "embroidery_show_grid": False,
+            "embroidery_background_color": "#ffffff",
             # General preferences
             "auto_update_check": "weekly",
             "last_update_check": "",
@@ -172,11 +174,15 @@ class Config:
             "grid_color": self._data.get("stitch_grid_color", "#dcdcdc"),
             "show_stitch_points": self._data.get("stitch_show_stitch_points", True),
             "show_grid": self._data.get("stitch_show_grid", True),
+            "background_color": self._data.get("stitch_background_color", "#ffffff"),
             "embroidery_line_width": self._data.get("embroidery_line_width", "medium"),
             "embroidery_point_size": self._data.get("embroidery_point_size", "medium"),
             "embroidery_grid_color": self._data.get("embroidery_grid_color", "#dcdcdc"),
             "embroidery_show_stitch_points": self._data.get("embroidery_show_stitch_points", False),
             "embroidery_show_grid": self._data.get("embroidery_show_grid", False),
+            "embroidery_background_color": self._data.get(
+                "embroidery_background_color", "#ffffff"
+            ),
         }
 
     def set_display_preferences(self, line_color, line_width, point_color,
@@ -184,7 +190,9 @@ class Config:
                                 show_grid, embroidery_line_width,
                                 embroidery_point_size, embroidery_grid_color,
                                 embroidery_show_stitch_points,
-                                embroidery_show_grid):
+                                embroidery_show_grid,
+                                background_color="#ffffff",
+                                embroidery_background_color="#ffffff"):
         """Persist display preferences."""
         self._data["stitch_line_color"] = line_color
         self._data["stitch_line_width"] = line_width
@@ -193,11 +201,13 @@ class Config:
         self._data["stitch_grid_color"] = grid_color
         self._data["stitch_show_stitch_points"] = bool(show_stitch_points)
         self._data["stitch_show_grid"] = bool(show_grid)
+        self._data["stitch_background_color"] = background_color
         self._data["embroidery_line_width"] = embroidery_line_width
         self._data["embroidery_point_size"] = embroidery_point_size
         self._data["embroidery_grid_color"] = embroidery_grid_color
         self._data["embroidery_show_stitch_points"] = bool(embroidery_show_stitch_points)
         self._data["embroidery_show_grid"] = bool(embroidery_show_grid)
+        self._data["embroidery_background_color"] = embroidery_background_color
 
     def get_general_preferences(self):
         """Return general preference values as a dict."""

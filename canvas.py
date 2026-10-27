@@ -54,6 +54,7 @@ class StitchCanvas(QWidget):
         self._color_grid = QColor(220, 220, 220)
         self._color_line = QColor(0, 0, 0)
         self._color_point = QColor(0, 0, 0)
+        self._color_bg = QColor(self.COLOR_BG)
         self._line_width = 2   # medium
         self._point_radius = 4  # medium
         self._show_grid = True
@@ -680,7 +681,7 @@ class StitchCanvas(QWidget):
 
     def apply_display_settings(self, line_color, line_width, point_color,
                                point_size, grid_color, show_stitch_points,
-                               show_grid, grid_step=1):
+                               show_grid, grid_step=1, background_color="#ffffff"):
         """Apply display preferences and redraw.
 
         Args:
@@ -693,10 +694,12 @@ class StitchCanvas(QWidget):
             show_grid: Whether grid is shown by default.
             grid_step: Grid spacing in canvas units (1 unit = 1/6 mm), so the
                 default 1 draws a line per stitch unit and 6 draws 1 mm lines.
+            background_color: Hex string used to fill the drawing area.
         """
         self._color_line = QColor(line_color)
         self._color_point = QColor(point_color)
         self._color_grid = QColor(grid_color)
+        self._color_bg = QColor(background_color)
         self._line_width = self.LINE_WIDTHS.get(line_width, 2)
         self._point_radius = self.POINT_RADII.get(point_size, 3)
         self._show_stitch_points = bool(show_stitch_points)
@@ -819,7 +822,7 @@ class StitchCanvas(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # Background
-        painter.fillRect(self.rect(), self.COLOR_BG)
+        painter.fillRect(self.rect(), self._color_bg)
 
         # Template underlay image (drawn before grid so it appears beneath everything)
         if self._template_image is not None and not self._template_image.isNull():
