@@ -15,7 +15,8 @@ from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QC
 from PyQt5.QtGui import QDesktopServices
 
 from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
-                   ELEM_COLOR, elem_has_coords, is_hoop_stitch_type)
+                   ELEM_COLOR, elem_has_coords, is_hoop_stitch_type,
+                   DEFAULT_PALETTE)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
                    SelectPointTool, SelectSectionTool, SelectAreaTool)
@@ -29,6 +30,7 @@ from app_logger import AppLogger
 from pmemory_dialog import PMemoryDialog
 from cardmemory_dialog import CardMemoryDialog
 from section_markers_dialog import SectionMarkersDialog
+from color_change_dialog import ColorChangeMarkersDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
@@ -84,8 +86,9 @@ DESIGN_TYPE_RULES = (
                    force=False, reset="_on_orientation_default"),
     DesignTypeRule("_act_toggle_orientation", STITCH_DESIGN_TYPES, force=False),
     # Embroidery designs are stitched in thread colors, so only they show the
-    # color palette bar.
+    # color palette bar and can have colour-change markers edited.
     DesignTypeRule("_palette_bar", EMBROIDERY_DESIGN_TYPES),
+    DesignTypeRule("_act_edit_color_markers", EMBROIDERY_DESIGN_TYPES),
 )
 
 
@@ -364,6 +367,14 @@ class MainWindow(QMainWindow):
             self.tr("&Edit section markers…"), self)
         self._act_edit_section_markers.triggered.connect(
             self._edit_section_markers)
+
+        # Enabled for embroidery designs only (DESIGN_TYPE_RULES); the default
+        # document is a 9 mm pattern.
+        self._act_edit_color_markers = QAction(
+            self.tr("&Edit color change markers…"), self)
+        self._act_edit_color_markers.setEnabled(False)
+        self._act_edit_color_markers.triggered.connect(
+            self._edit_color_change_markers)
 
         # Sel-xform toolbar OK/Cancel actions (icon-only)
         self._act_sel_xform_ok = QAction(
@@ -708,6 +719,8 @@ class MainWindow(QMainWindow):
         sections_submenu = edit_menu.addMenu(self.tr("S&ections"))
         sections_submenu.addAction(self._act_edit_section_markers)
         sections_submenu.addAction(self._act_remove_section_markers)
+        colors_submenu = edit_menu.addMenu(self.tr("&Colors"))
+        colors_submenu.addAction(self._act_edit_color_markers)
 
         tools_menu = mb.addMenu(self.tr("&Tools"))
         tools_menu.addAction(self._act_pan)
@@ -1493,8 +1506,60 @@ class MainWindow(QMainWindow):
             self.tr("This file format stores at most {0} characters, so the "
                     "note will be truncated when saving.").format(limit))
 
+    def _confirm_pcs_palette(self, path):
+        """Adjust the palette the embroidery file format requires, asking first.
+
+        An embroidery pattern file always stores exactly 16 thread colours, so a
+        design whose palette has a different size cannot be written as it is.
+        The user decides whether the palette may be reduced or padded with
+        default colours. Returns False when the save must be cancelled.
+        """
+        required = file_io.palette_size(path)
+        if required is None or not self._is_hoop_type():
+            return True
+        colors = list(self._pattern.colors)
+        if len(colors) == required:
+            return True
+
+        if len(colors) > required:
+            change = self.tr(
+                "The {0} additional thread colours will be dropped."
+            ).format(len(colors) - required)
+        else:
+            change = self.tr(
+                "The palette will be filled up with {0} default thread colours."
+            ).format(required - len(colors))
+        answer = QMessageBox.question(
+            self, self.tr("Thread Palette"),
+            self.tr("This file format always stores {0} thread colours, but the "
+                    "design has {1}.").format(required, len(colors)) + "\n\n" +
+            change + "\n\n" +
+            self.tr("Do you want to adjust the palette and continue saving?"),
+            QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok,
+        )
+        if answer != QMessageBox.Ok:
+            return False
+
+        if len(colors) > required:
+            del colors[required:]
+        else:
+            # Cycle through the default palette when more entries are missing
+            # than it holds, so any required size can be filled.
+            colors.extend(
+                DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)]
+                for i in range(len(colors), required)
+            )
+        self._pattern.set_palette(colors)
+        self._update_palette_bar()
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._log_info(f"Thread palette adjusted to {required} colours for saving")
+        return True
+
     def _file_save(self):
         if self._file_path:
+            if not self._confirm_pcs_palette(self._file_path):
+                return False
             self._warn_if_note_truncated(self._file_path)
             self._log_info(f"File saved: {self._file_path}")
             try:
@@ -1556,10 +1621,15 @@ class MainWindow(QMainWindow):
             elif default_ext:
                 path += default_ext
         
+        previous_path = self._file_path
         self._file_path = path
         result = self._file_save()
         if result:
             self._add_recent_file(path)
+        else:
+            # A cancelled save must not leave the window pointing at a file
+            # that was never written.
+            self._file_path = previous_path
         return result
 
     def _add_recent_file(self, path):
@@ -1748,6 +1818,22 @@ class MainWindow(QMainWindow):
             return
         dlg = SectionMarkersDialog(self._pattern, parent=self)
         if dlg.exec_() == QDialog.Accepted:
+            self._canvas.update()
+            self._on_pattern_changed()
+
+    def _edit_color_change_markers(self):
+        """Open the colour-change editor; Apply is one undo step."""
+        if not any(elem_has_coords(e) for e in self._pattern.elements):
+            QMessageBox.information(
+                self, self.tr("Edit Color Change Markers"),
+                self.tr("The stitch pattern is empty. Add stitch points first."),
+            )
+            return
+        dlg = ColorChangeMarkersDialog(self._pattern, parent=self)
+        if dlg.exec_() == QDialog.Accepted:
+            # The editor inserts and removes records, so the index-based canvas
+            # selection can no longer point at the same elements.
+            self._canvas.set_selection(None, None)
             self._canvas.update()
             self._on_pattern_changed()
 
