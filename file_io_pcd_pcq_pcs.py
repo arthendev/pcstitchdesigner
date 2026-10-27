@@ -47,7 +47,10 @@ Notes:
 
   PCD and PCQ files written by the machine software carry no palette: every native
   sample file has a colour count of 0, no colour block and no colour-change records.
-  Only .pcs files might hold a palette, so the writer saves the colour block only for .pcs.
+  An embroidery file (stitch type 0x02/0x03) always stores exactly PALETTE_SIZE (16)
+  thread colours, which the writer enforces; reading a colour change that names an
+  index beyond that palette replaces the index with the colour that follows the
+  previous one, so every loaded ELEM_COLOR stays inside 0..15.
 """
 
 import os
@@ -66,6 +69,10 @@ POINT_FMT = '<B3sB3sB'  # c0(1) + x(3, LE) + c1(1) + y(3, LE) + control_byte(1) 
 FRACTION_SCALE = 256
 
 BG_BLOCK_SIZE = 13  # fixed size of the optional BMP template-image name block
+
+# Every embroidery file stores exactly this many thread colours; colour-change
+# records reference the palette by a 0-based index below it.
+PALETTE_SIZE = 16
 
 NOTE_MAX_LENGTH = 250  # longest note the format stores; a 0x00 terminator follows
 
@@ -100,6 +107,20 @@ def _parse_text_block(block, allow_empty=False):
     if any(byte < 32 for byte in text):
         return None
     return text.decode("latin-1")
+
+
+def _colour_index_from_record(raw_index, previous_index):
+    """Return a valid palette index for a colour-change record.
+
+    Files written by other tools sometimes carry an index beyond the palette.
+    Such an index cannot name a thread, so the colour that follows
+    *previous_index* is used instead: the change still switches to another
+    colour and stays inside the palette, wrapping back to the first colour
+    after the last one.
+    """
+    if 0 <= raw_index < PALETTE_SIZE:
+        return raw_index
+    return (previous_index + 1) % PALETTE_SIZE
 
 
 def _split_coordinate(value):
@@ -139,9 +160,9 @@ def _drop_trailing_colour_changes(all_elems):
 def save(path, pattern, info=None):
     """Save a StitchPattern in the PCD/PCQ/PCS binary format.
 
-    PCD and PCQ are the machine's own formats and carry no thread palette: every
-    native sample file stores a colour count of 0. The colour block is therefore
-    written only for PCS files.
+    9 mm and MAXI patterns never carry a palette, whatever the pattern holds.
+    Embroidery patterns (hoop stitch types) always store exactly PALETTE_SIZE
+    colours, so their palette has to match before saving.
 
     *info* supplies the note, which the format limits to NOTE_MAX_LENGTH
     characters; longer notes are truncated (the file cannot hold more).
@@ -157,8 +178,14 @@ def save(path, pattern, info=None):
     else:
         raise ValueError(_tr("Invalid/unsupported stitch type"))
 
-    uses_palette = os.path.splitext(path)[1].lower() == ".pcs"
-    colors = list(pattern.colors) if uses_palette else []
+    if stitch_type_byte in (0x00, 0x01):
+        colors = []
+    else:
+        colors = list(pattern.colors)
+        if len(colors) != PALETTE_SIZE:
+            raise ValueError(_tr(
+                "An embroidery file stores exactly {0} thread colours, but this "
+                "pattern has {1}").format(PALETTE_SIZE, len(colors)))
 
     note = (info.note or "") if info is not None else ""
     if len(note) > NOTE_MAX_LENGTH:
@@ -172,6 +199,22 @@ def save(path, pattern, info=None):
         raise ValueError(_tr(
             "The note contains characters that cannot be stored in this file format"))
 
+    # A colour change as the last record has no stitch to apply to and is
+    # not written
+    elements = list(pattern.display_elements)
+    while elements and elements[-1][0] == ELEM_COLOR:
+        elements.pop()
+
+    # Validate before the file is opened, so a rejected pattern never leaves a
+    # half-written file behind. Only embroidery files store colour changes; the
+    # 9 mm / MAXI writer drops them (see below), so their indices do not matter.
+    if stitch_type_byte > 0x01:
+        for elem in elements:
+            if elem[0] == ELEM_COLOR and not 0 <= elem[1] < PALETTE_SIZE:
+                raise ValueError(_tr(
+                    "A colour change refers to palette index {0}, but the palette "
+                    "only holds indices 0 to {1}").format(elem[1], PALETTE_SIZE - 1))
+
     with open(path, 'wb') as f:
         # Header: magic, stitch_type, color_count
         f.write(struct.pack(HEADER_FMT, 0x32, stitch_type_byte, len(colors)))
@@ -179,12 +222,6 @@ def save(path, pattern, info=None):
         # Colors
         for r, g, b in colors:
             f.write(struct.pack('BBBx', r, g, b))
-
-        # A colour change as the last record has no stitch to apply to and is
-        # not written; readers (and PC-Designer) do not expect one.
-        elements = list(pattern.display_elements)
-        while elements and elements[-1][0] == ELEM_COLOR:
-            elements.pop()
 
         # Element record count; the format excludes colour-change records
         f.write(struct.pack('<H', sum(1 for e in elements if e[0] != ELEM_COLOR)))
@@ -200,7 +237,9 @@ def save(path, pattern, info=None):
                 y_int, c1 = _split_coordinate(elem[2])
                 f.write(struct.pack(POINT_FMT, c0, x_int.to_bytes(3, 'little'),
                                     c1, y_int.to_bytes(3, 'little'), control_byte))
-            elif element_type == ELEM_COLOR:
+            elif element_type == ELEM_COLOR and stitch_type_byte > 0x01:
+                # 9 mm / MAXI files (0x00/0x01) have no colour block, so a
+                # colour change there would reference nothing and is skipped.
                 color_idx = elem[1]
                 f.write(struct.pack(POINT_FMT, color_idx, (0).to_bytes(3, 'little'), 0, (0).to_bytes(3, 'little'), 0x03))
         # Optional trailer: an empty template-image name block (no template
@@ -273,6 +312,7 @@ def load_v31(path):
         all_elems = []
         stitch_records = 0  # parsed records that count towards the header's stitch count
         sections = 0
+        colour_index = 0  # palette index the last colour change switched to
         truncated = False
 
         # for i in range(stitch_count):
@@ -326,8 +366,10 @@ def load_v31(path):
                 all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
                 stitch_records += 1
             elif control_byte == 0x03:
-                # Color change: palette index in c0
-                all_elems.append((ELEM_COLOR, c0))
+                # Color change: palette index in c0. An index beyond the palette
+                # cannot name a thread, so the next colour in range is stored.
+                colour_index = _colour_index_from_record(c0, colour_index)
+                all_elems.append((ELEM_COLOR, colour_index))
                 extra_records += 1 # color change records don't correspond to actual stitches, so we need to read extra records until we get stitch_count stitch points
             elif control_byte == 0x04:
                 # Treat as normal stitch point; section markers are not transmitted to the machine, but we want to preserve them in the pattern (e.g. for selection of a single section)
@@ -552,6 +594,7 @@ def _load_standard(path):
         all_elems = []
         stitch_records = 0  # parsed records that count towards the header's stitch count
         sections = 0
+        colour_index = 0  # palette index the last colour change switched to
         truncated = False
 
         # for i in range(stitch_count):
@@ -609,8 +652,10 @@ def _load_standard(path):
                     all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
                 stitch_records += 1
             elif control_byte == 0x03:
-                # Color change: palette index in c0
-                all_elems.append((ELEM_COLOR, c0))
+                # Color change: palette index in c0. An index beyond the palette
+                # cannot name a thread, so the next colour in range is stored.
+                colour_index = _colour_index_from_record(c0, colour_index)
+                all_elems.append((ELEM_COLOR, colour_index))
                 extra_records += 1 # color change records don't correspond to actual stitches, so we need to read extra records until we get stitch_count stitch points
             elif control_byte == 0x04:
                 # Treat as normal stitch point; section markers are not transmitted to the machine, but we want to preserve them in the pattern (e.g. for selection of a single section)
@@ -667,10 +712,12 @@ def _load_nonstandard(path):
 
     Unlike the standard parser this ignores the header's record count: records
     are read until the stream itself signals its end — an unknown control byte,
-    a colour index outside the 16-colour palette, coordinates outside the canvas
-    of the file's stitch type, an all-zero record (null trailer), or only the
-    template-image name block remaining. The record that triggers the stop is
-    discarded. The optional trailer is not parsed here.
+    coordinates outside the canvas of the file's stitch type, an all-zero record
+    (null trailer), or only the template-image name block remaining. The record
+    that triggers the stop is discarded. Colour changes kept their
+    ``control_byte == 0x03`` meaning, but an index beyond the palette is
+    replaced here as well, so such files cannot be recognised by that index.
+    The optional trailer is not parsed here.
     """
     pattern = StitchPattern()
     file_format = os.path.splitext(path)[1].lstrip(".").upper()
@@ -728,6 +775,7 @@ def _load_nonstandard(path):
         stitch_records = 0  # parsed records that count towards the stitch count
         sections = 0
         extra_records = 0  # parsed colour-change records
+        colour_index = 0  # palette index the last colour change switched to
 
         file_size = os.fstat(f.fileno()).st_size
         i = 0  # record index, used by the debug output only
@@ -745,10 +793,8 @@ def _load_nonstandard(path):
             if control_byte > 0x04:
                 # Unknown record type; not part of the stitch data.
                 break
-            if control_byte == 0x03 and c0 > 15:
-                # Colour indices above the 16-colour palette cannot be real
-                # colour changes, so this record is not stitch data either.
-                break
+            # An out-of-range colour index is no end-of-data signal: the record
+            # is still a colour change, see _colour_index_from_record().
             # if control_byte == 0x00 and c0 == 0 and x == 0 and c1 == 0 and y == 0:
             #     # A completely zero record means probably trailer is reached.
             #     break
@@ -786,8 +832,10 @@ def _load_nonstandard(path):
                     all_elems.append((ELEM_AUTO, x + c0 / 256, y + c1 / 256)) # include fractional parts; user can control this later
                 stitch_records += 1
             elif control_byte == 0x03:
-                # Color change: palette index in c0
-                all_elems.append((ELEM_COLOR, c0))
+                # Color change: palette index in c0. An index beyond the palette
+                # cannot name a thread, so the next colour in range is stored.
+                colour_index = _colour_index_from_record(c0, colour_index)
+                all_elems.append((ELEM_COLOR, colour_index))
                 extra_records += 1
             elif control_byte == 0x04:
                 # Section marker; preserved so single sections can be selected

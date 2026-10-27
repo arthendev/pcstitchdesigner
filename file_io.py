@@ -121,3 +121,19 @@ def note_max_length(path):
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         return file_io_vcsm_9mm_max.NOTE_MAX_LENGTH
     return file_io_pcd_pcq_pcs.NOTE_MAX_LENGTH
+
+
+def palette_size(path):
+    """Return the exact number of palette entries *path*'s format stores.
+
+    Embroidery files hold a fixed thread palette, so a pattern with a
+    different number of colors cannot be written before the palette is
+    adjusted. The VCSM formats (.9mm/.max) store one thread color and no
+    palette, so they impose no size; this returns None for them.
+    """
+    import file_io_pcd_pcq_pcs
+    import file_io_vcsm_9mm_max
+
+    if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
+        return None
+    return file_io_pcd_pcq_pcs.PALETTE_SIZE
