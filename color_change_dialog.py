@@ -1,11 +1,11 @@
 """Dialog for editing the colour-change markers of an embroidery pattern."""
 
-from PyQt5.QtCore import QSize, Qt, QTimer
+from PyQt5.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt5.QtWidgets import (
-    QButtonGroup, QCheckBox, QDialog, QDialogButtonBox, QGridLayout,
-    QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton,
-    QScrollArea, QSizePolicy, QVBoxLayout,
+    QButtonGroup, QCheckBox, QColorDialog, QDialog, QDialogButtonBox,
+    QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QPushButton, QScrollArea, QSizePolicy, QVBoxLayout,
 )
 
 from model import (DEFAULT_PALETTE, ELEM_COLOR, ELEM_SECTION, ELEM_STITCH,
@@ -13,11 +13,27 @@ from model import (DEFAULT_PALETTE, ELEM_COLOR, ELEM_SECTION, ELEM_STITCH,
 from section_markers_dialog import StitchPreviewCanvas
 
 
+class _PaletteSwatch(QPushButton):
+    """Palette swatch that also reports double clicks.
+
+    QPushButton has no double-click signal, and a double click has to stay
+    distinct from the single click that only selects the swatch.
+    """
+
+    double_clicked = pyqtSignal()
+
+    def mouseDoubleClickEvent(self, event):
+        self.double_clicked.emit()
+        super().mouseDoubleClickEvent(event)
+
+
 class PaletteColorDialog(QDialog):
     """Pick one of the pattern's 16 thread colours.
 
     A plain swatch grid: the palette index is what the colour-change record
-    stores, so free RGB values would not be usable.
+    stores, so free RGB values would not be usable. Double-clicking a swatch
+    opens a colour picker for that palette entry; the changes are reported
+    through :attr:`edited_colors` and only touch this dialog's copy.
     """
 
     COLUMNS = 8
@@ -26,46 +42,87 @@ class PaletteColorDialog(QDialog):
     def __init__(self, colors, current_index=0, parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Select Color"))
-        self._colors = list(colors)
+        self._colors = [tuple(color) for color in colors]
         self._selected_index = max(0, min(int(current_index), len(self._colors) - 1))
+        self._swatches = []   # one button per entry, so an edit can update it
+        self._edited = {}     # palette index -> new (r, g, b)
 
         grid = QGridLayout()
         grid.setSpacing(4)
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
         for index, (r, g, b) in enumerate(self._colors):
-            button = QPushButton()
+            button = _PaletteSwatch()
             button.setCheckable(True)
             button.setFixedSize(self.SWATCH_SIZE, self.SWATCH_SIZE)
-            button.setToolTip(self.tr("Color {0}: RGB({1}, {2}, {3})").format(
-                index + 1, r, g, b))
-            button.setStyleSheet(
-                f"QPushButton {{ background-color: rgb({r},{g},{b});"
-                f" border: 1px solid #808080; }}"
-                f"QPushButton:checked {{ border: 3px solid #1a73e8; }}")
+            button.setToolTip(self._swatch_tooltip(index))
+            button.setStyleSheet(self._swatch_style(r, g, b))
             button.setChecked(index == self._selected_index)
             button.clicked.connect(
                 lambda _checked=False, i=index: self._select(i))
+            button.double_clicked.connect(
+                lambda i=index: self._edit_color(i))
             self._group.addButton(button, index)
+            self._swatches.append(button)
             grid.addWidget(button, index // self.COLUMNS, index % self.COLUMNS)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
+        hint = QLabel(self.tr("Double-click a color to change it."))
+        hint.setStyleSheet("color: gray;")
+
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(self.tr("Available thread colors")))
         layout.addLayout(grid)
+        layout.addWidget(hint)
         layout.addWidget(buttons)
+
+    @staticmethod
+    def _swatch_style(r, g, b):
+        """Return the style sheet that draws one swatch in *r*, *g*, *b*."""
+        return (
+            f"QPushButton {{ background-color: rgb({r},{g},{b});"
+            f" border: 1px solid #808080; }}"
+            f"QPushButton:checked {{ border: 3px solid #1a73e8; }}")
+
+    def _swatch_tooltip(self, index):
+        """Return the tooltip naming colour *index* and its RGB values."""
+        r, g, b = self._colors[index]
+        return self.tr("Color {0}: RGB({1}, {2}, {3})").format(
+            index + 1, r, g, b)
 
     def _select(self, index):
         """Remember the clicked swatch; OK confirms the choice."""
         self._selected_index = index
 
+    def _edit_color(self, index):
+        """Open a colour picker for palette entry *index* (double click)."""
+        if not 0 <= index < len(self._colors):
+            return
+        chosen = QColorDialog.getColor(
+            QColor(*self._colors[index]), self,
+            self.tr("Change Color {0}").format(index + 1))
+        if not chosen.isValid():
+            return
+        rgb = (chosen.red(), chosen.green(), chosen.blue())
+        if rgb == self._colors[index]:
+            return
+        self._colors[index] = rgb
+        self._edited[index] = rgb
+        self._swatches[index].setStyleSheet(self._swatch_style(*rgb))
+        self._swatches[index].setToolTip(self._swatch_tooltip(index))
+
     @property
     def selected_index(self):
         """Return the palette index the user chose."""
         return self._selected_index
+
+    @property
+    def edited_colors(self):
+        """Return ``{index: (r, g, b)}`` for the entries changed here."""
+        return dict(self._edited)
 
 
 class ColorChangeMarkersDialog(QDialog):
@@ -92,6 +149,7 @@ class ColorChangeMarkersDialog(QDialog):
         self._colors = list(pattern.colors) or list(DEFAULT_PALETTE)
         self._current_index = None   # anchor stitch that Add/Remove act on
         self._marker_index = None    # selected ELEM_COLOR element
+        self._palette_edits = {}     # palette index -> (r, g, b), applied with Apply
         self._did_fit = False
 
         # ── Left: colour changes with Add / Remove / Edit ──
@@ -348,8 +406,8 @@ class ColorChangeMarkersDialog(QDialog):
         self._apply_button.setEnabled(self._has_changes())
 
     def _has_changes(self):
-        """True when the working copy differs from the pattern's elements."""
-        return self._elements != self._pattern.elements
+        """True when the working copy differs from the pattern."""
+        return bool(self._palette_edits) or self._elements != self._pattern.elements
 
     def _scroll_preview_to(self, index):
         """Centre the preview on the point at *index* (when Auto-center is on)."""
@@ -476,7 +534,31 @@ class ColorChangeMarkersDialog(QDialog):
         dlg = PaletteColorDialog(self._colors, current, self)
         if dlg.exec_() != QDialog.Accepted:
             return
+        self._stage_palette_edits(dlg.edited_colors)
         self._apply_marker_color(marker, dlg.selected_index)
+
+    def _stage_palette_edits(self, edits):
+        """Keep palette colours changed in the picker until Apply.
+
+        The preview paints from this dialog's palette copy, so the entries are
+        updated right away; the pattern receives them together with the element
+        edits, which keeps Cancel a full discard.
+
+        Returns:
+            bool: True when at least one entry changed here.
+        """
+        changed = False
+        for index, rgb in edits.items():
+            if 0 <= index < len(self._colors):
+                self._colors[index] = rgb
+                self._palette_edits[index] = rgb
+                changed = True
+        if changed:
+            # A palette colour is not part of the element list, so the list
+            # icons, the preview and the Apply state need their own refresh.
+            self._refresh_views()
+            self._preview.update()
+        return changed
 
     def _apply_marker_color(self, marker_index, color_index):
         """Set the palette entry of the colour-change record at *marker_index*."""
@@ -493,5 +575,13 @@ class ColorChangeMarkersDialog(QDialog):
 
     def _apply(self):
         """Replace the pattern's element list as one undo step and close."""
+        self._apply_palette_edits()
         self._pattern.replace_elements(self._elements)
         self.accept()
+
+    def _apply_palette_edits(self):
+        """Store the staged palette colours on the pattern, one undo step each."""
+        for index, rgb in sorted(self._palette_edits.items()):
+            if index < len(self._pattern.colors):
+                self._pattern.set_palette_color(index, rgb)
+        self._palette_edits.clear()

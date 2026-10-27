@@ -1835,6 +1835,8 @@ class MainWindow(QMainWindow):
             # selection can no longer point at the same elements.
             self._canvas.set_selection(None, None)
             self._canvas.update()
+            # Apply can also store palette colours picked in the colour dialog.
+            self._update_palette_bar()
             self._on_pattern_changed()
 
     def _edit_invert_selected(self):
