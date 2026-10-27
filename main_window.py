@@ -349,6 +349,12 @@ class MainWindow(QMainWindow):
         self._act_sel_tb_extend.setEnabled(False)
         self._act_sel_tb_extend.triggered.connect(self._edit_sel_extend)
 
+        self._act_sel_tb_move_first = QAction(
+            QIcon(os.path.join(_icons, "selection_first.svg")),
+            self.tr("Move selection to beginning"), self)
+        self._act_sel_tb_move_first.setEnabled(False)
+        self._act_sel_tb_move_first.triggered.connect(self._edit_sel_move_to_beginning)
+
         self._act_sel_tb_move_backward = QAction(
             QIcon(os.path.join(_icons, "selection_left.svg")),
             self.tr("Move selection by 1 stitch towards beginning"), self)
@@ -360,6 +366,12 @@ class MainWindow(QMainWindow):
             self.tr("Move selection by 1 stitch towards end"), self)
         self._act_sel_tb_move_forward.setEnabled(False)
         self._act_sel_tb_move_forward.triggered.connect(self._edit_sel_move_forward)
+
+        self._act_sel_tb_move_last = QAction(
+            QIcon(os.path.join(_icons, "selection_last.svg")),
+            self.tr("Move selection to end"), self)
+        self._act_sel_tb_move_last.setEnabled(False)
+        self._act_sel_tb_move_last.triggered.connect(self._edit_sel_move_to_end)
 
         # Edit – Resize/Rotate selection
         self._act_sel_xform = QAction(self.tr("Resize/Rotate"), self)
@@ -855,8 +867,10 @@ class MainWindow(QMainWindow):
         self._selection_toolbar.setMovable(False)
         self._selection_toolbar.addAction(self._act_sel_tb_reduce)
         self._selection_toolbar.addAction(self._act_sel_tb_extend)
+        self._selection_toolbar.addAction(self._act_sel_tb_move_first)
         self._selection_toolbar.addAction(self._act_sel_tb_move_backward)
         self._selection_toolbar.addAction(self._act_sel_tb_move_forward)
+        self._selection_toolbar.addAction(self._act_sel_tb_move_last)
         self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
         self._selection_toolbar.setVisible(False)
 
@@ -1304,8 +1318,10 @@ class MainWindow(QMainWindow):
         # Mirror state to the toolbar actions
         self._act_sel_tb_extend.setEnabled(range_ops and end < n - 1)
         self._act_sel_tb_reduce.setEnabled(range_ops and has_multiple_selection)
+        self._act_sel_tb_move_first.setEnabled(range_ops and start > 0)
         self._act_sel_tb_move_backward.setEnabled(range_ops and start > 0)
         self._act_sel_tb_move_forward.setEnabled(range_ops and end < n - 1)
+        self._act_sel_tb_move_last.setEnabled(range_ops and end < n - 1)
         # Resize/Rotate enabled when 2+ points are selected
         can_xform = has_multiple_selection and not self._canvas._sel_xform_active
         self._act_sel_xform.setEnabled(can_xform)
@@ -1819,6 +1835,25 @@ class MainWindow(QMainWindow):
             return
         if end < len(self._pattern.elements) - 1:
             self._canvas.set_selection(start + 1, end + 1)
+        self._canvas.update()
+        self._update_selection_action_state()
+
+    def _edit_sel_move_to_beginning(self):
+        """Move the selected range to the first element, keeping its length."""
+        start, end = self._canvas.get_selection()
+        if start is None or end is None or start == 0:
+            return
+        self._canvas.set_selection(0, end - start)
+        self._canvas.update()
+        self._update_selection_action_state()
+
+    def _edit_sel_move_to_end(self):
+        """Move the selected range to the last element, keeping its length."""
+        start, end = self._canvas.get_selection()
+        n = len(self._pattern.elements)
+        if start is None or end is None or end >= n - 1:
+            return
+        self._canvas.set_selection(n - 1 - (end - start), n - 1)
         self._canvas.update()
         self._update_selection_action_state()
 
