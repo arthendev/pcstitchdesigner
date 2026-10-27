@@ -15,7 +15,7 @@ from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QC
 from PyQt5.QtGui import QDesktopServices
 
 from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
-                   elem_has_coords, is_hoop_stitch_type)
+                   ELEM_COLOR, elem_has_coords, is_hoop_stitch_type)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
                    SelectPointTool, SelectSectionTool, SelectAreaTool)
@@ -1225,7 +1225,7 @@ class MainWindow(QMainWindow):
         n = len(self._pattern.elements)
         self._act_copy.setEnabled(has_multiple_selection)
         self._act_cut.setEnabled(has_multiple_selection)
-        self._act_paste.setEnabled(self._clipboard is not None and not sparse)
+        self._act_paste.setEnabled(self._clipboard_has_pasteable() and not sparse)
         self._act_clear_selection.setEnabled(has_selection)
         self._act_delete_selected.setEnabled(has_selection)
         self._act_invert_selected.setEnabled(has_multiple_selection and not sparse)
@@ -1606,13 +1606,24 @@ class MainWindow(QMainWindow):
         """Copy the selected elements to the internal clipboard.
 
         Full elements are copied, so section markers stay section markers and
-        colour changes are kept, not flattened into plain stitch points.
+        colour changes are kept, not flattened into plain stitch points. Paste
+        drops the colour changes again (the local colour continues), but keeping
+        them here means Cut and its undo restore the pattern unchanged.
         """
         indices = self._canvas.get_selected_indices()
         if len(indices) < 2:
             return
         self._clipboard = [self._pattern.elements[i] for i in indices]
-        self._act_paste.setEnabled(True)
+        self._act_paste.setEnabled(self._clipboard_has_pasteable())
+
+    def _clipboard_has_pasteable(self):
+        """True when the clipboard holds something Paste can actually insert.
+
+        Colour records are filtered out by `_edit_paste()`, so a clipboard made
+        up of nothing but colour changes has nothing to paste.
+        """
+        return bool(self._clipboard) and any(
+            e[0] != ELEM_COLOR for e in self._clipboard)
 
     def _edit_cut(self):
         """Cut the selected elements: copy to clipboard then delete in one undo step."""
@@ -1625,15 +1636,22 @@ class MainWindow(QMainWindow):
         self._canvas._update_size()
         self._canvas.update()
         self._on_pattern_changed()
-        self._act_paste.setEnabled(True)
+        self._act_paste.setEnabled(self._clipboard_has_pasteable())
         self._recalculate_auto_if_active()
 
     def _edit_paste(self):
-        """Paste the clipboard elements using the same logic as Insert P-Memory."""
-        if not self._clipboard or self._canvas.has_index_selection():
-            # An area selection has no contiguous range to paste over.
+        """Paste the clipboard elements using the same logic as Insert P-Memory.
+
+        Colour changes are not pasted: the colour already in effect at the paste
+        position continues into the pasted block, so a copy of a multi-colour
+        section does not re-colour everything that follows it. Section markers
+        are still pasted.
+        """
+        if not self._clipboard_has_pasteable() or self._canvas.has_index_selection():
+            # Nothing insertable, or an area selection with no range to paste over.
             return
-        self._apply_insert_pattern(self._clipboard, None)
+        pasted = [e for e in self._clipboard if e[0] != ELEM_COLOR]
+        self._apply_insert_pattern(pasted, None)
 
     def _edit_select_all(self):
         """Select all stitch points in the pattern."""
@@ -2116,9 +2134,10 @@ class MainWindow(QMainWindow):
         """Replace the currently selected range with *elements*.
 
         *elements* are pattern elements (ELEM_STITCH / ELEM_AUTO / ELEM_SECTION /
-        ELEM_COLOR), so a pasted block keeps its section markers and colour
-        changes. Machine inserts wrap their plain points as ELEM_STITCH tuples at
-        the call site.
+        ELEM_COLOR), so a pasted block keeps its section markers. Machine inserts
+        wrap their plain points as ELEM_STITCH tuples at the call site.
+        `_edit_paste()` drops colour changes before calling in, so the colour in
+        effect at the insertion point continues.
 
         If no elements are selected and *append_on_no_selection* is False (the
         default), the last pattern point is used as the single-point selection
