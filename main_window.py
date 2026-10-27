@@ -353,6 +353,14 @@ class MainWindow(QMainWindow):
         self._act_sel_xform.setEnabled(False)
         self._act_sel_xform.triggered.connect(self._edit_sel_xform_activate)
 
+        self._act_remove_section_markers = QAction(
+            self.tr("Remove all section markers"), self)
+        self._act_remove_section_markers.setEnabled(False)
+        self._act_remove_section_markers.setToolTip(
+            self.tr("Turn every section marker into a normal stitch"))
+        self._act_remove_section_markers.triggered.connect(
+            self._edit_remove_section_markers)
+
         # Sel-xform toolbar OK/Cancel actions (icon-only)
         self._act_sel_xform_ok = QAction(
             QIcon(os.path.join(_icons, "ok_green.svg")), "", self)
@@ -685,19 +693,23 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_paste)
         edit_menu.addAction(self._act_delete_selected)
         edit_menu.addSeparator()
-        edit_menu.addAction(self._act_select_all)
+        transform_submenu = edit_menu.addMenu(self.tr("&Transform"))
+        transform_submenu.addAction(self._act_invert_selected)
+        transform_submenu.addAction(self._act_mirror_vertical)
+        transform_submenu.addAction(self._act_mirror_horizontal)
+        transform_submenu.addAction(self._act_sel_xform)
+        edit_menu.addSeparator()
         sel_submenu = edit_menu.addMenu(self.tr("&Selection"))
         sel_submenu.addAction(self._act_sel_extend)
         sel_submenu.addAction(self._act_sel_reduce)
         sel_submenu.addSeparator()
         sel_submenu.addAction(self._act_sel_move_forward)
         sel_submenu.addAction(self._act_sel_move_backward)
+        edit_menu.addAction(self._act_select_all)
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
-        edit_menu.addAction(self._act_invert_selected)
-        edit_menu.addAction(self._act_mirror_vertical)
-        edit_menu.addAction(self._act_mirror_horizontal)
-        edit_menu.addAction(self._act_sel_xform)
+        sections_submenu = edit_menu.addMenu(self.tr("S&ections"))
+        sections_submenu.addAction(self._act_remove_section_markers)
 
         tools_menu = mb.addMenu(self.tr("&Tools"))
         tools_menu.addAction(self._act_pan)
@@ -1206,11 +1218,17 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
+        self._update_section_action_state()
 
     def _update_undo_redo_state(self):
         """Enable/disable undo and redo actions based on stack availability."""
         self._act_undo.setEnabled(len(self._pattern._undo_stack) > 0)
         self._act_redo.setEnabled(len(self._pattern._redo_stack) > 0)
+
+    def _update_section_action_state(self):
+        """Enable the section actions that need markers in the pattern."""
+        has_markers = any(e[0] == ELEM_SECTION for e in self._pattern.elements)
+        self._act_remove_section_markers.setEnabled(has_markers)
 
     def _update_selection_action_state(self):
         """Enable/disable selection-dependent actions based on whether points are selected."""
@@ -1710,6 +1728,14 @@ class MainWindow(QMainWindow):
 
         # Clear selection and update
         self._canvas.set_selection(None, None)
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._recalculate_auto_if_active()
+
+    def _edit_remove_section_markers(self):
+        """Turn every section marker into a normal stitch (one undo step)."""
+        if not self._pattern.remove_section_markers():
+            return
         self._canvas.update()
         self._on_pattern_changed()
         self._recalculate_auto_if_active()

@@ -330,6 +330,29 @@ class ConvertAutoStitchesCommand(Command):
             pattern._display_base_map = self._old_map
 
 
+class RemoveSectionMarkersCommand(Command):
+    """Turns every ELEM_SECTION marker into a normal stitch.
+
+    Keeps the old records so undo can put the markers back where they were; the
+    element count and all indices stay unchanged.
+    """
+
+    def __init__(self):
+        self.changed = None  # [(index, (ELEM_SECTION, x, y)), ...]
+
+    def redo(self, pattern):
+        self.changed = [(i, e) for i, e in enumerate(pattern.elements)
+                        if e[0] == ELEM_SECTION]
+        for index, element in self.changed:
+            pattern.elements[index] = (ELEM_STITCH, element[1], element[2])
+
+    def undo(self, pattern):
+        if self.changed is None:
+            return
+        for index, element in self.changed:
+            pattern.elements[index] = element
+
+
 class SetPaletteColorCommand(Command):
     """Replaces one entry of the thread palette, keeping the old RGB for undo.
 
@@ -590,6 +613,23 @@ class StitchPattern:
         self._redo_stack.clear()
         self.modified = True
         self._rebuild_display_no_auto()
+
+    def remove_section_markers(self):
+        """Turn every section marker into a normal stitch, undoably.
+
+        Used by Edit → Sections → Remove all section markers, e.g. to let
+        Select Section fall back to the colour changes of a design whose section
+        markers are no longer wanted.
+
+        Returns:
+            int: number of markers converted; 0 (and no undo step) when the
+            pattern carries none.
+        """
+        count = sum(1 for e in self.elements if e[0] == ELEM_SECTION)
+        if count == 0:
+            return 0
+        self._exec(RemoveSectionMarkersCommand())
+        return count
 
     # ── Element movement ──
 
