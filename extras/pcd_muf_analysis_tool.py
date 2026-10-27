@@ -1328,9 +1328,16 @@ class HexFileBrowser(QDialog):
 HEADER_FMT = '<BBH'       # magic(1) + stitch_type(1) + color_count(2) = 4 bytes
 POINT_FMT = '<B3sB3sB'    # c0(1) + x(3 LE) + c1(1) + y(3 LE) + control(1) = 9 bytes
 
+CTRL_STITCH = 0x00        # ELEM_STITCH — normal stitch point
+CTRL_SECTION = 0x04       # ELEM_SECTION — section marker (start/end)
+
 
 def save_pattern_binary(path, points, stitch_type):
     """Save absolute (x,y) integer points as a PCD/PCQ binary file.
+
+    The first and last record are written as ELEM_SECTION markers (control byte
+    0x04), matching what PC-Designer produces for a pattern that consists of a
+    single section. They still carry the coordinates of the first/last stitch.
 
     Args:
         path: output file path.
@@ -1350,14 +1357,17 @@ def save_pattern_binary(path, points, stitch_type):
         # No colors written (color_count == 0)
         # Element record count
         f.write(struct.pack('<H', len(points)))
-        # Element records — all ELEM_STITCH (control_byte 0x00)
-        for x, y in points:
+        # Element records — first and last are section markers, the rest are
+        # ELEM_STITCH (control_byte 0x00).
+        last_index = len(points) - 1
+        for index, (x, y) in enumerate(points):
             x_int, y_int = int(x), int(y)
+            control = CTRL_SECTION if index in (0, last_index) else CTRL_STITCH
             # Coordinates are integers, so fractional c0/c1 are zero
             f.write(struct.pack(POINT_FMT,
                                 0, x_int.to_bytes(3, 'little'),
                                 0, y_int.to_bytes(3, 'little'),
-                                0x00))
+                                control))
 
 
 def _compute_absolute_points(dxdy_bytes, pattern_y0):
