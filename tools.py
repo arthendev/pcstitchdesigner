@@ -10,6 +10,14 @@ from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
                    MoveManyPointsCommand, elem_has_coords, is_hoop_stitch_type,
                    ELEM_COLOR, ELEM_SECTION)
 
+# Hit radius, in screen pixels, for grabbing stitch points to move. Screen based
+# so the grab area feels the same at every zoom level.
+MOVE_SNAP_RADIUS_PX = 16
+
+# How far the cursor has to travel before a press counts as a drag. A click that
+# stays inside this radius keeps the tool's own click behaviour.
+DRAG_START_PX = 4
+
 
 def find_nearest_coord_index(pattern, cx, cy, radius_canvas):
     """Return the index of the coordinate element nearest to (*cx*, *cy*).
@@ -113,6 +121,53 @@ def find_nearest_section_hit(pattern, cx, cy, radius_canvas):
     return best_idx
 
 
+def find_nearest_selected_hit(canvas, cx, cy, radius_canvas):
+    """Return the selected element that is nearest to (*cx*, *cy*), or None.
+
+    This is the grab test for moving a selection: a press inside the radius
+    picks the selection up. Selected points win over the lines joining them, and
+    only lines between two *consecutive* selected points count, so a gap the
+    selection does not span is not a hit.
+
+    Args:
+        canvas: The StitchCanvas holding the selection.
+        cx, cy: Cursor position in canvas units.
+        radius_canvas: Hit radius in canvas units.
+
+    Returns:
+        The element index, or None when nothing selected is that close.
+    """
+    selected = canvas.get_selected_indices()
+    if not selected:
+        return None
+
+    elements = canvas.pattern.elements
+    best_idx = None
+    best_dist = radius_canvas
+    for idx in selected:
+        elem = elements[idx]
+        if not elem_has_coords(elem):
+            continue
+        dist = math.hypot(elem[1] - cx, elem[2] - cy)
+        if dist <= best_dist:
+            best_dist = dist
+            best_idx = idx
+    if best_idx is not None:
+        return best_idx
+
+    for previous, current in zip(selected, selected[1:]):
+        if current != previous + 1:
+            continue  # the selection skips an element, so no line is drawn
+        start, end = elements[previous], elements[current]
+        if not (elem_has_coords(start) and elem_has_coords(end)):
+            continue
+        dist = distance_to_segment(cx, cy, start[1], start[2], end[1], end[2])
+        if dist <= best_dist:
+            best_dist = dist
+            best_idx = previous
+    return best_idx
+
+
 def highlight_color(color):
     """Return a gently shifted version of *color* for hover previews.
 
@@ -166,7 +221,184 @@ class BaseTool:
         pass
 
 
-class SelectPointTool(BaseTool):
+class PointDragMixin:
+    """Shared "drag points to move them" mechanics.
+
+    Holds the dragged indices and their original elements, previews the moved
+    positions on the canvas, and commits the whole move as one undoable command
+    when the button is released. The Move Stitch Point tool and the selection
+    tools share it, so dragging behaves the same way everywhere.
+
+    Only coordinate elements are moved; colour changes, and section markers
+    without coordinates, stay where they are.
+    """
+
+    def _init_point_drag(self):
+        self._drag_indices = []        # element indices being dragged
+        self._drag_originals = []      # their elements before the drag
+        self._drag_anchor = None       # element index the cursor grabbed
+        self._drag_offset = (0.0, 0.0)  # canvas-space move applied so far
+
+    @property
+    def _is_dragging(self):
+        """True while stitch points are being dragged."""
+        return bool(self._drag_indices)
+
+    def _begin_point_drag(self, canvas, anchor_index):
+        """Start dragging the selection, anchored at *anchor_index*.
+
+        When *anchor_index* is not part of the selection, only that point is
+        dragged — the Move Stitch Point tool relies on this after it selects a
+        point the user grabbed outside the selection.
+        """
+        indices = canvas.get_selected_indices()
+        if anchor_index not in indices:
+            indices = [anchor_index]
+        self._drag_indices = list(indices)
+        self._drag_originals = [canvas.pattern.elements[i] for i in self._drag_indices]
+        self._drag_anchor = anchor_index
+        self._drag_offset = (0.0, 0.0)
+
+    def _cursor_canvas_pos(self, canvas, event):
+        """Clipped, optionally grid-snapped canvas position of the cursor."""
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        width, height = canvas.pattern.CANVAS_WIDTH, canvas.pattern.CANVAS_HEIGHT
+        if canvas.snap_normal_to_grid:
+            return (max(0, min(width, int(round(cx)))),
+                    max(0, min(height, int(round(cy)))))
+        return (max(0.0, min(float(width), cx)),
+                max(0.0, min(float(height), cy)))
+
+    def _update_point_drag(self, canvas, event):
+        """Move the dragged points so the grabbed point follows the cursor."""
+        cx, cy = self._cursor_canvas_pos(canvas, event)
+        anchor = self._drag_originals[self._drag_indices.index(self._drag_anchor)]
+        self._drag_offset = (cx - anchor[1], cy - anchor[2])
+        width, height = canvas.pattern.CANVAS_WIDTH, canvas.pattern.CANVAS_HEIGHT
+        for index, original in zip(self._drag_indices, self._drag_originals):
+            if not elem_has_coords(original):
+                continue
+            canvas.pattern.elements[index] = (
+                original[0],
+                max(0, min(width, original[1] + self._drag_offset[0])),
+                max(0, min(height, original[2] + self._drag_offset[1])),
+            )
+        canvas.pattern._rebuild_display_no_auto()
+        canvas.update()
+
+    def _restore_dragged_points(self, canvas):
+        """Put the original elements back, undoing the live preview."""
+        for index, original in zip(self._drag_indices, self._drag_originals):
+            canvas.pattern.elements[index] = original
+        self._init_point_drag()
+
+    def _finish_point_drag(self, canvas):
+        """Commit the dragged positions as one undoable step."""
+        moves = [(index, (original[1] + self._drag_offset[0],
+                          original[2] + self._drag_offset[1]))
+                 for index, original in zip(self._drag_indices, self._drag_originals)
+                 if elem_has_coords(original)]
+        # The preview edited `elements` directly, so restore the originals first:
+        # the model then records the move and undo has a clean "before" state.
+        self._restore_dragged_points(canvas)
+        if len(moves) == 1:
+            index, (x, y) = moves[0]
+            canvas.pattern.move_point(index, x, y, snap=canvas.snap_normal_to_grid)
+        elif moves:
+            canvas.pattern.move_points([index for index, _ in moves],
+                                       [position for _, position in moves],
+                                       snap=canvas.snap_normal_to_grid)
+        canvas.pattern._rebuild_display_no_auto()
+        canvas.update()
+        canvas.notify_change()
+        canvas.drag_finished.emit()
+
+    def _cancel_point_drag(self, canvas):
+        """Drop a drag without committing it."""
+        if not self._is_dragging:
+            return
+        self._restore_dragged_points(canvas)
+        canvas.pattern._rebuild_display_no_auto()
+        canvas.update()
+
+
+class SelectionMoveMixin(PointDragMixin):
+    """Move the current selection by dragging near it, from a selection tool.
+
+    The press has to prove itself a drag before it becomes a move, because a
+    plain click still means "select" for every selection tool. So the press only
+    remembers a candidate anchor and the move starts once the cursor has
+    travelled DRAG_START_PX. The active tool and its cursor are left alone: the
+    point is to move the selection without switching to the Move Stitch Point
+    tool.
+    """
+
+    def _init_selection_move(self):
+        self._init_point_drag()
+        self._pending_anchor = None       # candidate element index, or None
+        self._pending_click = None        # canvas position of the pending press
+        self._pending_press_screen = None  # screen position of the pending press
+
+    def _selection_move_press(self, canvas, event, cx, cy):
+        """Remember a press that may become a selection move. True when it did."""
+        self._clear_selection_move()
+        if not canvas.get_selected_indices():
+            return False
+        anchor = find_nearest_selected_hit(
+            canvas, cx, cy, MOVE_SNAP_RADIUS_PX / canvas.get_scale())
+        if anchor is None:
+            return False
+        self._pending_anchor = anchor
+        self._pending_click = (cx, cy)
+        self._pending_press_screen = (event.x(), event.y())
+        return True
+
+    def _selection_move_drag(self, canvas, event):
+        """Advance a pending or running move. True when the move owns the event."""
+        if not self._is_dragging:
+            if self._pending_anchor is None:
+                return False
+            dx = event.x() - self._pending_press_screen[0]
+            dy = event.y() - self._pending_press_screen[1]
+            if dx * dx + dy * dy <= DRAG_START_PX ** 2:
+                # Still a click: keep the tool's own mouse-move handling out.
+                return True
+            self._begin_point_drag(canvas, self._pending_anchor)
+        self._update_point_drag(canvas, event)
+        return True
+
+    def _selection_move_release(self, canvas):
+        """Commit a running move, or replay the click it turned out to be."""
+        if self._is_dragging:
+            self._finish_point_drag(canvas)
+            # The pending press has to go too: leaving it armed would let the
+            # next cursor move (button already released) start a new drag.
+            self._clear_selection_move()
+            return True
+        if self._pending_anchor is None:
+            return False
+        cx, cy = self._pending_click
+        self._clear_selection_move()
+        self._on_selection_click(canvas, cx, cy)
+        return True
+
+    def _selection_move_cancel(self, canvas):
+        """Abandon a pending move or an uncommitted drag."""
+        self._cancel_point_drag(canvas)
+        self._clear_selection_move()
+
+    def _clear_selection_move(self):
+        """Forget the pending press."""
+        self._pending_anchor = None
+        self._pending_click = None
+        self._pending_press_screen = None
+
+    def _on_selection_click(self, canvas, cx, cy):
+        """Handle a press that never became a drag — the tool's own click."""
+        raise NotImplementedError
+
+
+class SelectPointTool(SelectionMoveMixin, BaseTool):
     """Select stitch points. Click to select single point. Click and drag to select range."""
 
     name = "Select Stitch Point"
@@ -186,27 +418,38 @@ class SelectPointTool(BaseTool):
         
         self._dragging = False
         self._drag_start_idx = None  # Index of point where drag started
+        self._init_selection_move()
 
     def _find_nearest(self, canvas, cx, cy):
         """Return element index of the nearest coord element within hit radius, or None."""
         return find_nearest_coord_index(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
 
+    def _select_point_at(self, canvas, cx, cy):
+        """Select the nearest point, or deselect. Returns the index, or None."""
+        idx = self._find_nearest(canvas, cx, cy)
+        canvas.set_selected_point(idx)
+        canvas.update()
+        return idx
+
+    def _on_selection_click(self, canvas, cx, cy):
+        """The press near the selection never dragged, so it was just a click."""
+        self._select_point_at(canvas, cx, cy)
+
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-        idx = self._find_nearest(canvas, cx, cy)
+        if self._selection_move_press(canvas, event, cx, cy):
+            return
+        idx = self._select_point_at(canvas, cx, cy)
         if idx is not None:
             # Start drag from this point
             self._dragging = True
             self._drag_start_idx = idx
-            canvas.set_selected_point(idx)
-        else:
-            # Clicked on empty space, deselect
-            canvas.set_selected_point(None)
-        canvas.update()
 
     def mouse_move(self, canvas, event):
+        if self._selection_move_drag(canvas, event):
+            return
         if not self._dragging or self._drag_start_idx is None:
             return
 
@@ -226,9 +469,16 @@ class SelectPointTool(BaseTool):
             return
         self._dragging = False
         self._drag_start_idx = None
+        self._selection_move_release(canvas)
+
+    def on_deselect(self, canvas):
+        """Drop a pending or running selection move when another tool takes over."""
+        self._dragging = False
+        self._drag_start_idx = None
+        self._selection_move_cancel(canvas)
 
 
-class SelectSectionTool(BaseTool):
+class SelectSectionTool(SelectionMoveMixin, BaseTool):
     """Select a whole section. Click near a stitch point to select its section.
 
     A section runs between two ELEM_SECTION markers. Designs without section
@@ -257,6 +507,7 @@ class SelectSectionTool(BaseTool):
         else:
             self.cursor = Qt.CrossCursor
         self._preview = None  # (first, last) of the section under the cursor, or None
+        self._init_selection_move()
 
     def _section_range(self, canvas, index):
         """Return the ``(first, last)`` element indices of the section holding *index*.
@@ -292,6 +543,8 @@ class SelectSectionTool(BaseTool):
 
     def mouse_move(self, canvas, event):
         """Track the section under the cursor so it can be previewed."""
+        if self._selection_move_drag(canvas, event):
+            return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         index = find_nearest_section_hit(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
         bounds = self._section_range(canvas, index) if index is not None else None
@@ -305,6 +558,7 @@ class SelectSectionTool(BaseTool):
 
     def on_deselect(self, canvas):
         """Drop the preview when another tool takes over."""
+        self._selection_move_cancel(canvas)
         self._preview = None
         canvas.update()
 
@@ -397,6 +651,17 @@ class SelectSectionTool(BaseTool):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        if self._selection_move_press(canvas, event, cx, cy):
+            return
+        self._select_section_at(canvas, cx, cy)
+
+    def mouse_release(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        self._selection_move_release(canvas)
+
+    def _select_section_at(self, canvas, cx, cy):
+        """Select the section under (*cx*, *cy*), or deselect when there is none."""
         index = find_nearest_section_hit(canvas.pattern, cx, cy, self.HIT_RADIUS_CANVAS)
         bounds = self._section_range(canvas, index) if index is not None else None
         self._preview = None
@@ -406,8 +671,12 @@ class SelectSectionTool(BaseTool):
             canvas.set_selection(*bounds)
         canvas.update()
 
+    def _on_selection_click(self, canvas, cx, cy):
+        """The press near the selection never dragged, so it was just a click."""
+        self._select_section_at(canvas, cx, cy)
 
-class SelectAreaTool(BaseTool):
+
+class SelectAreaTool(SelectionMoveMixin, BaseTool):
     """Select the stitch points inside a freehand drawn area.
 
     Press the left button and draw an outline; when it is released every stitch
@@ -426,18 +695,25 @@ class SelectAreaTool(BaseTool):
         icon_path = os.path.join(os.path.dirname(__file__), "icons", "select_area.svg")
         pixmap = QPixmap(icon_path)
         if not pixmap.isNull():
-            self.cursor = QCursor(pixmap, hotX=6, hotY=3)
+            # Hot spot is the arrow tip in the icon (12,8 in its 24x24 viewBox).
+            self.cursor = QCursor(pixmap, hotX=12, hotY=8)
         else:
             self.cursor = Qt.CrossCursor
         self._outline = []  # canvas-space points of the outline being drawn
+        self._init_selection_move()
 
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
-        self._outline = [canvas.screen_to_canvas(event.x(), event.y())]
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        if self._selection_move_press(canvas, event, cx, cy):
+            return
+        self._outline = [(cx, cy)]
         canvas.update()
 
     def mouse_move(self, canvas, event):
+        if self._selection_move_drag(canvas, event):
+            return
         if not self._outline:
             return
         point = canvas.screen_to_canvas(event.x(), event.y())
@@ -448,14 +724,26 @@ class SelectAreaTool(BaseTool):
         canvas.update()
 
     def mouse_release(self, canvas, event):
-        if event.button() != Qt.LeftButton or not self._outline:
+        if event.button() != Qt.LeftButton:
             return
+        if self._selection_move_release(canvas):
+            return
+        self._finish_outline(canvas)
+
+    def _finish_outline(self, canvas):
+        """Select the stitch points inside the outline that was drawn."""
         outline, self._outline = self._outline, []
         canvas.set_selection_indices(self.indices_in_area(canvas.pattern, outline))
         canvas.update()
 
+    def _on_selection_click(self, canvas, cx, cy):
+        """The press near the selection never dragged, so it was just a click."""
+        self._outline = [(cx, cy)]
+        self._finish_outline(canvas)
+
     def on_deselect(self, canvas):
         """Abandon a half-drawn outline when another tool takes over."""
+        self._selection_move_cancel(canvas)
         if not self._outline:
             return
         self._outline = []
@@ -654,19 +942,15 @@ class AddPointTool(BaseTool):
         painter.drawEllipse(int(sx - r), int(sy - r), 2 * r, 2 * r)
 
 
-class MovePointTool(BaseTool):
+class MovePointTool(PointDragMixin, BaseTool):
     """Click and drag to move existing stitch point(s)."""
 
     name = "Move Stitch Point"
     cursor = Qt.CrossCursor
-    SNAP_RADIUS_PX = 16  # screen pixels for hit detection (zoom-independent)
+    SNAP_RADIUS_PX = MOVE_SNAP_RADIUS_PX
 
     def __init__(self):
-        self._dragging_indices = []  # List of indices being dragged
-        self._orig_positions = []    # Original positions of dragged points
-        self._clicked_idx = None     # Index of the point that was clicked
-        self._offset_x = 0
-        self._offset_y = 0
+        self._init_point_drag()
         self._empty_click = False    # True when press landed far from any point
         self._press_screen_pos = None  # Screen pos of last empty-space press
 
@@ -740,69 +1024,26 @@ class MovePointTool(BaseTool):
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
-        if idx is not None:
-            self._empty_click = False
-            # Store the clicked point index
-            self._clicked_idx = idx
-            # Check if clicked point is in current selection
-            if canvas.is_point_selected(idx):
-                # Clicked point is in selection: drag all selected points
-                self._dragging_indices = canvas.get_selected_indices()
-            else:
-                # Clicked point is not in selection: select only this point and drag it
-                canvas.set_selected_point(idx)
-                self._dragging_indices = [idx]
-            
-            # Store original elements (full tuples)
-            self._orig_positions = [canvas.pattern.elements[i] for i in self._dragging_indices]
-            self._offset_x = 0
-            self._offset_y = 0
-            canvas.setCursor(Qt.CrossCursor)
-        else:
+        if idx is None:
             self._empty_click = True
             self._press_screen_pos = (event.x(), event.y())
+            return
+        self._empty_click = False
+        if not canvas.is_point_selected(idx):
+            # Grabbing a point outside the selection drags just that point.
+            canvas.set_selected_point(idx)
+        self._begin_point_drag(canvas, idx)
+        canvas.setCursor(Qt.CrossCursor)
 
     def mouse_move(self, canvas, event):
         if self._empty_click and self._press_screen_pos is not None:
             dx = event.x() - self._press_screen_pos[0]
             dy = event.y() - self._press_screen_pos[1]
-            if dx * dx + dy * dy > 16:  # 4 px threshold
+            if dx * dx + dy * dy > DRAG_START_PX ** 2:
                 self._empty_click = False
                 self._press_screen_pos = None
-        if self._dragging_indices:
-            cx, cy = canvas.screen_to_canvas(event.x(), event.y())
-            if canvas.snap_normal_to_grid:
-                cx = max(0, min(canvas.pattern.CANVAS_WIDTH, int(round(cx))))
-                cy = max(0, min(canvas.pattern.CANVAS_HEIGHT, int(round(cy))))
-            else:
-                cx = max(0.0, min(float(canvas.pattern.CANVAS_WIDTH), cx))
-                cy = max(0.0, min(float(canvas.pattern.CANVAS_HEIGHT), cy))
-            
-            # Calculate offset from the clicked point's original position
-            if self._clicked_idx is not None:
-                try:
-                    clicked_pos_idx = self._dragging_indices.index(self._clicked_idx)
-                    clicked_orig = self._orig_positions[clicked_pos_idx]
-                    clicked_orig_xy = (clicked_orig[1], clicked_orig[2]) if elem_has_coords(clicked_orig) else (0, 0)
-                except (ValueError, IndexError):
-                    clicked_orig_xy = (self._orig_positions[0][1], self._orig_positions[0][2]) if self._orig_positions and elem_has_coords(self._orig_positions[0]) else (0, 0)
-            else:
-                clicked_orig_xy = (self._orig_positions[0][1], self._orig_positions[0][2]) if self._orig_positions and elem_has_coords(self._orig_positions[0]) else (0, 0)
-
-            self._offset_x = cx - clicked_orig_xy[0]
-            self._offset_y = cy - clicked_orig_xy[1]
-
-            # Live preview: temporarily update positions (preserve element type)
-            for i, idx in enumerate(self._dragging_indices):
-                orig = self._orig_positions[i]
-                if not elem_has_coords(orig):
-                    continue
-                orig_x, orig_y = orig[1], orig[2]
-                new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
-                new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
-                canvas.pattern.elements[idx] = (orig[0], new_x, new_y)
-            canvas.pattern._rebuild_display_no_auto()
-            canvas.update()
+        if self._is_dragging:
+            self._update_point_drag(canvas, event)
 
     def mouse_release(self, canvas, event):
         if event.button() != Qt.LeftButton:
@@ -813,43 +1054,9 @@ class MovePointTool(BaseTool):
             canvas.set_selection(None, None)
             canvas.update()
             return
-        if self._dragging_indices:
-            # Restore live-preview positions to originals, then commit moves.
-            for i, idx in enumerate(self._dragging_indices):
-                canvas.pattern.elements[idx] = self._orig_positions[i]
-
-            new_positions = []
-            for i, idx in enumerate(self._dragging_indices):
-                orig = self._orig_positions[i]
-                if not elem_has_coords(orig):
-                    new_positions.append(None)
-                    continue
-                orig_x, orig_y = orig[1], orig[2]
-                new_x = max(0, min(canvas.pattern.CANVAS_WIDTH, orig_x + self._offset_x))
-                new_y = max(0, min(canvas.pattern.CANVAS_HEIGHT, orig_y + self._offset_y))
-                new_positions.append((new_x, new_y))
-
-            # Filter to only coord elements
-            coord_moves = [(idx, pos) for idx, pos in zip(self._dragging_indices, new_positions)
-                           if pos is not None]
-
-            if len(coord_moves) == 1:
-                idx, (new_x, new_y) = coord_moves[0]
-                canvas.pattern.move_point(idx, new_x, new_y, snap=canvas.snap_normal_to_grid)
-            elif coord_moves:
-                indices = [idx for idx, _ in coord_moves]
-                positions = [pos for _, pos in coord_moves]
-                canvas.pattern.move_points(indices, positions, snap=canvas.snap_normal_to_grid)
-            
-            self._dragging_indices = []
-            self._orig_positions = []
-            self._clicked_idx = None
-            self._offset_x = 0
-            self._offset_y = 0
+        if self._is_dragging:
+            self._finish_point_drag(canvas)
             canvas.setCursor(self.cursor)
-            canvas.update()
-            canvas.notify_change()
-            canvas.drag_finished.emit()
 
 
 class DeletePointTool(BaseTool):

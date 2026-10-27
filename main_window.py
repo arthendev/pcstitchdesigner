@@ -356,8 +356,6 @@ class MainWindow(QMainWindow):
         self._act_remove_section_markers = QAction(
             self.tr("Remove all section markers"), self)
         self._act_remove_section_markers.setEnabled(False)
-        self._act_remove_section_markers.setToolTip(
-            self.tr("Turn every section marker into a normal stitch"))
         self._act_remove_section_markers.triggered.connect(
             self._edit_remove_section_markers)
 
@@ -388,16 +386,12 @@ class MainWindow(QMainWindow):
             QIcon(os.path.join(_icons, "select_section.svg")),
             self.tr("Select Section"), self)
         self._act_select_section.setCheckable(True)
-        self._act_select_section.setToolTip(
-            self.tr("Select all stitches between two section markers"))
         self._act_select_section.triggered.connect(self._on_tool_select_section)
 
         self._act_select_area = QAction(
             QIcon(os.path.join(_icons, "select_area.svg")),
             self.tr("Select Area"), self)
         self._act_select_area.setCheckable(True)
-        self._act_select_area.setToolTip(
-            self.tr("Draw an area to select all stitch points inside it"))
         self._act_select_area.triggered.connect(self._on_tool_select_area)
 
         self._act_add = QAction(QIcon(os.path.join(_icons, "add_point.svg")),
@@ -507,9 +501,6 @@ class MainWindow(QMainWindow):
             self.tr("Toggle Orientation"), self
         )
         self._act_toggle_orientation.setCheckable(True)
-        self._act_toggle_orientation.setToolTip(
-            self.tr("Toggle view orientation: Default / Sewing Direction")
-        )
         self._act_toggle_orientation.triggered.connect(self._on_toggle_orientation)
 
         # View orientation
