@@ -387,6 +387,31 @@ class SetSectionMarkersCommand(Command):
                 pattern.elements[index] = element
 
 
+class ReplaceElementsCommand(Command):
+    """Replaces the whole base element list in one atomic step.
+
+    An editor that inserts or removes records shifts every following index, so
+    a chain of index-based commands would not undo as one coherent action.
+    Keeping both lists lets such an edit be a single undo entry.
+
+    Args:
+        new_elements: The complete base element list the pattern should hold.
+    """
+
+    def __init__(self, new_elements):
+        self.new_elements = list(new_elements)
+        self._old_elements = None
+
+    def redo(self, pattern):
+        if self._old_elements is None:
+            self._old_elements = list(pattern.elements)
+        pattern.elements = list(self.new_elements)
+
+    def undo(self, pattern):
+        if self._old_elements is not None:
+            pattern.elements = list(self._old_elements)
+
+
 class SetPaletteColorCommand(Command):
     """Replaces one entry of the thread palette, keeping the old RGB for undo.
 
@@ -406,6 +431,27 @@ class SetPaletteColorCommand(Command):
     def undo(self, pattern):
         if 0 <= self.index < len(pattern.colors):
             pattern.colors[self.index] = self.old_rgb
+
+
+class SetPaletteCommand(Command):
+    """Replaces the whole thread palette, keeping the old colors for undo.
+
+    Used when a file format requires a fixed palette size, so missing entries
+    have to be added or surplus ones dropped before saving.  ELEM_COLOR records
+    are not touched: every index they use stays valid in the new palette.
+    """
+
+    def __init__(self, new_colors):
+        self.new_colors = [tuple(c) for c in new_colors]
+        self.old_colors = None
+
+    def redo(self, pattern):
+        self.old_colors = list(pattern.colors)
+        pattern.colors = list(self.new_colors)
+
+    def undo(self, pattern):
+        if self.old_colors is not None:
+            pattern.colors = self.old_colors
 
 
 class StitchPattern:
@@ -515,6 +561,14 @@ class StitchPattern:
                 f"(0..{len(self.colors) - 1})"
             )
         self._exec(SetPaletteColorCommand(index, self.colors[index], rgb))
+
+    def set_palette(self, colors):
+        """Replace the whole thread palette, undoably.
+
+        Args:
+            colors: complete palette as ``[(r, g, b), ...]``.
+        """
+        self._exec(SetPaletteCommand(colors))
 
     def ensure_palette(self, colors=None):
         """Give the pattern a thread palette when it has none yet.
@@ -685,6 +739,27 @@ class StitchPattern:
             return 0
         self._exec(SetSectionMarkersCommand(edits))
         return len(edits)
+
+    def replace_elements(self, elements):
+        """Replace the whole base element list as one undo step.
+
+        Used by record editors that insert or remove elements (colour-change
+        markers), where per-index commands would shift and stop matching.
+
+        Args:
+            elements: Complete list of base elements; ``ELEM_AUTO`` must not be
+                included, because the display layer is derived from it.
+
+        Returns:
+            int: number of elements added (positive) or removed (negative);
+            0 (and no undo step) when the list is unchanged.
+        """
+        new_elements = list(elements)
+        if new_elements == self.elements:
+            return 0
+        delta = len(new_elements) - len(self.elements)
+        self._exec(ReplaceElementsCommand(new_elements))
+        return delta
 
     # ── Element movement ──
 
