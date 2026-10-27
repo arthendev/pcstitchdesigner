@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
-    QLineEdit, QProgressDialog, QApplication, QColorDialog,
+    QLineEdit, QSpinBox, QProgressDialog, QApplication, QColorDialog,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
@@ -871,6 +871,30 @@ class MainWindow(QMainWindow):
         self._selection_toolbar.addAction(self._act_sel_tb_move_backward)
         self._selection_toolbar.addAction(self._act_sel_tb_move_forward)
         self._selection_toolbar.addAction(self._act_sel_tb_move_last)
+
+        # Selection indices. The numbers are 1-based (the way stitch points are
+        # counted in the UI). A single selected point gets one box; a range shows
+        # "<start> to <end>".
+        self._sel_spins_syncing = False
+        self._sel_start_spin = self._make_selection_spin(
+            self.tr("First selected stitch point"))
+        self._sel_to_label = QLabel(self.tr("to"))
+        self._sel_end_spin = self._make_selection_spin(
+            self.tr("Last selected stitch point"))
+        self._selection_toolbar.addSeparator()
+        self._sel_start_spin_action = self._selection_toolbar.addWidget(
+            self._sel_start_spin)
+        self._sel_to_label_action = self._selection_toolbar.addWidget(
+            self._sel_to_label)
+        self._sel_end_spin_action = self._selection_toolbar.addWidget(
+            self._sel_end_spin)
+        for widget in (self._sel_start_spin, self._sel_to_label,
+                       self._sel_end_spin):
+            widget.setEnabled(False)
+        self._sel_to_label_action.setVisible(False)
+        self._sel_end_spin_action.setVisible(False)
+        self._sel_range_shown = False
+
         self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
         self._selection_toolbar.setVisible(False)
 
@@ -881,6 +905,33 @@ class MainWindow(QMainWindow):
         self._sel_xform_toolbar.addAction(self._act_sel_xform_cancel)
         self.addToolBar(Qt.TopToolBarArea, self._sel_xform_toolbar)
         self._sel_xform_toolbar.setVisible(False)
+
+    def _make_selection_spin(self, tooltip):
+        """Create a spin box that edits one end of the canvas selection."""
+        spin = QSpinBox()
+        spin.setRange(1, 1)
+        spin.setFixedWidth(70)
+        spin.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # Apply a typed number only when editing is done, not on every keystroke.
+        spin.setKeyboardTracking(False)
+        spin.setToolTip(tooltip)
+        spin.valueChanged.connect(self._on_selection_spin_changed)
+        return spin
+
+    def _on_selection_spin_changed(self, _value):
+        """Select the stitch points named by the index spin boxes."""
+        if self._sel_spins_syncing:
+            return
+        start, end = self._canvas.get_selection()
+        if start is not None and start == end:
+            # A single selected point has only one box on screen, so either box
+            # moves that point instead of growing it into a range.
+            index = self.sender().value() - 1
+            self._canvas.set_selection(index, index)
+            return
+        self._canvas.set_selection(
+            self._sel_start_spin.value() - 1,
+            self._sel_end_spin.value() - 1)
 
     # ── Tool selection ──
 
@@ -901,27 +952,31 @@ class MainWindow(QMainWindow):
         self._canvas.set_tool(self._select_tool)
         self._tool_label.setText(self.tr("Tool: Select Stitch Points"))
         self._selection_toolbar.setVisible(True)
-        self._selection_toolbar.setMaximumWidth(
-            self._selection_toolbar.sizeHint().width()
-        )
+        self._update_selection_toolbar_width()
 
     def _on_tool_select_section(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_section_tool)
         self._tool_label.setText(self.tr("Tool: Select Section"))
         self._selection_toolbar.setVisible(True)
-        self._selection_toolbar.setMaximumWidth(
-            self._selection_toolbar.sizeHint().width()
-        )
+        self._update_selection_toolbar_width()
 
     def _on_tool_select_area(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_area_tool)
         self._tool_label.setText(self.tr("Tool: Select Area"))
         self._selection_toolbar.setVisible(True)
+        self._update_selection_toolbar_width()
+
+    def _update_selection_toolbar_width(self):
+        """Keep the compact toolbar wide enough for its visible items.
+
+        The range editors appear and disappear with the selection, so a maximum
+        width captured once would clip them later.
+        """
+        self._selection_toolbar.updateGeometry()
         self._selection_toolbar.setMaximumWidth(
-            self._selection_toolbar.sizeHint().width()
-        )
+            self._selection_toolbar.sizeHint().width())
 
     def _on_tool_add(self):
         self._cancel_sel_xform_if_active()
@@ -1325,6 +1380,34 @@ class MainWindow(QMainWindow):
         # Resize/Rotate enabled when 2+ points are selected
         can_xform = has_multiple_selection and not self._canvas._sel_xform_active
         self._act_sel_xform.setEnabled(can_xform)
+
+        # Index spin boxes mirror the selection (1-based). An area selection is
+        # an explicit set, so a range editor cannot represent it; leave it off.
+        spins_enabled = has_selection and not sparse
+        is_range = (spins_enabled and start is not None and end is not None
+                    and end > start)
+        self._sel_spins_syncing = True
+        try:
+            limit = max(1, n)
+            # The range ends must never cross: From stops at To, To stops at
+            # From, so a value can only shrink the range or grow it outwards.
+            self._sel_start_spin.setMaximum(end + 1 if is_range else limit)
+            self._sel_start_spin.setMinimum(1)
+            self._sel_end_spin.setMaximum(limit)
+            self._sel_end_spin.setMinimum(start + 1 if is_range else 1)
+            self._sel_start_spin.setValue(start + 1 if start is not None else 1)
+            self._sel_end_spin.setValue(end + 1 if end is not None else 1)
+        finally:
+            self._sel_spins_syncing = False
+        for widget in (self._sel_start_spin, self._sel_to_label,
+                       self._sel_end_spin):
+            widget.setEnabled(spins_enabled)
+        self._sel_to_label_action.setVisible(is_range)
+        self._sel_end_spin_action.setVisible(is_range)
+        if is_range != self._sel_range_shown:
+            self._sel_range_shown = is_range
+            if self._selection_toolbar.isVisible():
+                self._update_selection_toolbar_width()
 
     def _update_title(self):
         if self._file_path:
@@ -1966,8 +2049,7 @@ class MainWindow(QMainWindow):
         self._sel_xform_toolbar.setVisible(False)
         if self._canvas._tool is self._select_tool:
             self._selection_toolbar.setVisible(True)
-            self._selection_toolbar.setMaximumWidth(
-                self._selection_toolbar.sizeHint().width())
+            self._update_selection_toolbar_width()
         if results:
             indices = [idx for idx, nx, ny in results]
             new_positions = [(nx, ny) for idx, nx, ny in results]
@@ -1982,8 +2064,7 @@ class MainWindow(QMainWindow):
         self._sel_xform_toolbar.setVisible(False)
         if self._canvas._tool is self._select_tool:
             self._selection_toolbar.setVisible(True)
-            self._selection_toolbar.setMaximumWidth(
-                self._selection_toolbar.sizeHint().width())
+            self._update_selection_toolbar_width()
         self._update_selection_action_state()
 
     # ── Zoom actions ──
