@@ -13,7 +13,7 @@ from model import (ELEM_COLOR, ELEM_SECTION, ELEM_STITCH, elem_has_coords,
                    is_hoop_stitch_type)
 
 
-class SectionPreviewCanvas(QWidget):
+class StitchPreviewCanvas(QWidget):
     """Read-only stitch preview with click-to-select and Ctrl+wheel zoom.
 
     The widget reads the dialog's working element list live, so changing that
@@ -222,17 +222,21 @@ class SectionPreviewCanvas(QWidget):
                     continue
                 self._draw_segment(painter, previous, current)
 
-        if self._show_stitch_points:
-            for index, x, y, color_index in entries:
-                sx, sy = self.canvas_to_screen(x, y)
-                kind = self._elements[index][0]
-                radius = self._radius_for(kind)
-                if span is not None and span[0] <= index <= span[1]:
-                    self._draw_point(painter, sx, sy, kind,
-                                     self.COLOR_HIGHLIGHT, radius + 2)
-                else:
-                    self._draw_point(painter, sx, sy, kind,
-                                     self._point_color(index, color_index), radius)
+        for index, x, y, color_index in entries:
+            highlighted = span is not None and span[0] <= index <= span[1]
+            # The selection stays visible even in the plain thread view, so the
+            # current stitch can always be found.
+            if not (self._show_stitch_points or highlighted):
+                continue
+            sx, sy = self.canvas_to_screen(x, y)
+            kind = self._elements[index][0]
+            radius = self._radius_for(kind)
+            if highlighted:
+                self._draw_point(painter, sx, sy, kind,
+                                 self.COLOR_HIGHLIGHT, radius + 2)
+            else:
+                self._draw_point(painter, sx, sy, kind,
+                                 self._point_color(index, color_index), radius)
 
         # Ring around the current stitch so it stands out even in a range.
         if self._current_index is not None:
@@ -273,8 +277,8 @@ class SectionPreviewCanvas(QWidget):
 
     @staticmethod
     def _radius_for(kind):
-        return (SectionPreviewCanvas.SECTION_RADIUS if kind == ELEM_SECTION
-                else SectionPreviewCanvas.POINT_RADIUS)
+        return (StitchPreviewCanvas.SECTION_RADIUS if kind == ELEM_SECTION
+                else StitchPreviewCanvas.POINT_RADIUS)
 
     def _draw_segment(self, painter, previous, current):
         px0, py0 = self.canvas_to_screen(previous[1], previous[2])
@@ -354,7 +358,7 @@ class SectionMarkersDialog(QDialog):
         left_layout.addLayout(section_buttons)
 
         # ── Right: preview with navigation ──
-        self._preview = SectionPreviewCanvas(
+        self._preview = StitchPreviewCanvas(
             self._elements, pattern.colors,
             pattern.CANVAS_WIDTH, pattern.CANVAS_HEIGHT)
         self._preview.point_clicked.connect(self._on_canvas_point_clicked)
@@ -373,6 +377,11 @@ class SectionMarkersDialog(QDialog):
         self._show_points_check.setChecked(not is_hoop_stitch_type(pattern.stitch_type))
         self._show_points_check.toggled.connect(self._preview.set_show_stitch_points)
         self._preview.set_show_stitch_points(self._show_points_check.isChecked())
+
+        self._auto_center_check = QCheckBox(self.tr("Auto-center"))
+        self._auto_center_check.setChecked(True)
+        self._auto_center_check.setToolTip(
+            self.tr("Scroll the preview so the selected stitch stays centred."))
 
         hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it."))
         hint.setStyleSheet("color: gray;")
@@ -393,6 +402,7 @@ class SectionMarkersDialog(QDialog):
         nav_layout.addWidget(self._next_button)
         nav_layout.addWidget(self._last_button)
         nav_layout.addWidget(self._show_points_check)
+        nav_layout.addWidget(self._auto_center_check)
         nav_layout.addStretch(1)
         nav_layout.addWidget(hint)
 
@@ -520,7 +530,9 @@ class SectionMarkersDialog(QDialog):
                    zip(self._elements, self._pattern.elements))
 
     def _scroll_preview_to(self, index):
-        """Centre the preview on the point at *index*."""
+        """Centre the preview on the point at *index* (when Auto-center is on)."""
+        if not self._auto_center_check.isChecked():
+            return
         if not 0 <= index < len(self._elements):
             return
         elem = self._elements[index]
