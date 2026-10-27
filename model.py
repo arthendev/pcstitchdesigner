@@ -353,6 +353,40 @@ class RemoveSectionMarkersCommand(Command):
             pattern.elements[index] = element
 
 
+class SetSectionMarkersCommand(Command):
+    """Changes coordinate elements between stitch (ELEM_STITCH) and section marker.
+
+    Because only the element kind changes, the element count and every index
+    stay the same; the old records are kept so undo can restore them.
+
+    Args:
+        edits: ``[(index, element), ...]`` with the new element tuples, built by
+            the caller from the existing coordinates.
+    """
+
+    def __init__(self, edits):
+        self.edits = list(edits)
+        self._old_elements = None
+
+    def redo(self, pattern):
+        if self._old_elements is None:
+            self._old_elements = {
+                index: pattern.elements[index]
+                for index, _element in self.edits
+                if 0 <= index < len(pattern.elements)
+            }
+        for index, element in self.edits:
+            if 0 <= index < len(pattern.elements):
+                pattern.elements[index] = element
+
+    def undo(self, pattern):
+        if self._old_elements is None:
+            return
+        for index, element in self._old_elements.items():
+            if 0 <= index < len(pattern.elements):
+                pattern.elements[index] = element
+
+
 class SetPaletteColorCommand(Command):
     """Replaces one entry of the thread palette, keeping the old RGB for undo.
 
@@ -630,6 +664,27 @@ class StitchPattern:
             return 0
         self._exec(RemoveSectionMarkersCommand())
         return count
+
+    def set_section_markers(self, edits):
+        """Change individual stitch points into section markers or back, undoably.
+
+        Used by Edit → Sections → Edit section markers, where the user edits a
+        working copy and applies the result in one step.
+
+        Args:
+            edits: ``[(index, element), ...]`` where *element* is the new
+                ``(ELEM_SECTION, x, y)`` or ``(ELEM_STITCH, x, y)`` record for
+                the element at *index*.  Coordinates are the caller's
+                responsibility, so fractional hoop positions survive.
+
+        Returns:
+            int: number of elements changed; 0 (and no undo step) for an empty
+            edit list.
+        """
+        if not edits:
+            return 0
+        self._exec(SetSectionMarkersCommand(edits))
+        return len(edits)
 
     # ── Element movement ──
 

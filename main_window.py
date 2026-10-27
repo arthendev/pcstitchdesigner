@@ -28,6 +28,7 @@ from machine_models import find_model
 from app_logger import AppLogger
 from pmemory_dialog import PMemoryDialog
 from cardmemory_dialog import CardMemoryDialog
+from section_markers_dialog import SectionMarkersDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
@@ -358,6 +359,11 @@ class MainWindow(QMainWindow):
         self._act_remove_section_markers.setEnabled(False)
         self._act_remove_section_markers.triggered.connect(
             self._edit_remove_section_markers)
+
+        self._act_edit_section_markers = QAction(
+            self.tr("&Edit section markers…"), self)
+        self._act_edit_section_markers.triggered.connect(
+            self._edit_section_markers)
 
         # Sel-xform toolbar OK/Cancel actions (icon-only)
         self._act_sel_xform_ok = QAction(
@@ -700,6 +706,7 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(self._act_clear_selection)
         edit_menu.addSeparator()
         sections_submenu = edit_menu.addMenu(self.tr("S&ections"))
+        sections_submenu.addAction(self._act_edit_section_markers)
         sections_submenu.addAction(self._act_remove_section_markers)
 
         tools_menu = mb.addMenu(self.tr("&Tools"))
@@ -1730,6 +1737,19 @@ class MainWindow(QMainWindow):
         self._canvas.update()
         self._on_pattern_changed()
         self._recalculate_auto_if_active()
+
+    def _edit_section_markers(self):
+        """Open the section-marker editor; Apply is pushed as one undo step."""
+        if not any(elem_has_coords(e) for e in self._pattern.elements):
+            QMessageBox.information(
+                self, self.tr("Edit Section Markers"),
+                self.tr("The stitch pattern is empty. Add stitch points first."),
+            )
+            return
+        dlg = SectionMarkersDialog(self._pattern, parent=self)
+        if dlg.exec_() == QDialog.Accepted:
+            self._canvas.update()
+            self._on_pattern_changed()
 
     def _edit_invert_selected(self):
         """Invert the order of selected stitch points."""
