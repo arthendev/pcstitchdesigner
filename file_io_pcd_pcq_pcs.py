@@ -793,11 +793,11 @@ def _load_nonstandard(path):
             if control_byte > 0x04:
                 # Unknown record type; not part of the stitch data.
                 break
-            # An out-of-range colour index is no end-of-data signal: the record
-            # is still a colour change, see _colour_index_from_record().
-            # if control_byte == 0x00 and c0 == 0 and x == 0 and c1 == 0 and y == 0:
-            #     # A completely zero record means probably trailer is reached.
-            #     break
+            
+            if remaining < 100 and control_byte == 0x00 and c0 == 0 and x == 0 and c1 == 0 and y == 0:
+                # A completely zero record means probably trailer is reached.
+                break
+
             if control_byte in (0x00, 0x01, 0x02, 0x04) and (x > canvas_w or y > canvas_h):
                 # Coordinates outside the canvas for this stitch type: not a
                 # stitch record.
