@@ -695,8 +695,8 @@ class SelectAreaTool(SelectionMoveMixin, BaseTool):
         icon_path = os.path.join(os.path.dirname(__file__), "icons", "select_area.svg")
         pixmap = QPixmap(icon_path)
         if not pixmap.isNull():
-            # Hot spot is the arrow tip in the icon (12,8 in its 24x24 viewBox).
-            self.cursor = QCursor(pixmap, hotX=12, hotY=8)
+            # Hot spot is the arrow tip in the icon (12,9 in its 24x24 viewBox).
+            self.cursor = QCursor(pixmap, hotX=12, hotY=9)
         else:
             self.cursor = Qt.CrossCursor
         self._outline = []  # canvas-space points of the outline being drawn
