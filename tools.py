@@ -2,8 +2,9 @@
 
 import math
 import os
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPen, QColor, QCursor, QPixmap, QBrush, QPainter
+from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtGui import (QPen, QColor, QCursor, QPixmap, QBrush, QPainter,
+                         QPolygon)
 
 from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
                    MoveManyPointsCommand, elem_has_coords, is_hoop_stitch_type,
@@ -35,6 +36,30 @@ def find_nearest_coord_index(pattern, cx, cy, radius_canvas):
     if best_idx is not None and best_dist_sq <= radius_canvas ** 2:
         return best_idx
     return None
+
+
+def point_in_polygon(px, py, polygon):
+    """Return True when the point (*px*, *py*) lies inside the closed *polygon*.
+
+    Standard ray casting: count the polygon edges crossed by the horizontal ray
+    going right from the point; an odd count means inside. The polygon is closed
+    implicitly (last vertex joins the first).
+
+    Args:
+        px, py: Point to test.
+        polygon: Sequence of ``(x, y)`` vertices.
+    """
+    if len(polygon) < 3:
+        return False
+    inside = False
+    xj, yj = polygon[-1]
+    for xi, yi in polygon:
+        if (yi > py) != (yj > py):
+            x_cross = (xj - xi) * (py - yi) / (yj - yi) + xi
+            if px < x_cross:
+                inside = not inside
+        xj, yj = xi, yi
+    return inside
 
 
 def distance_to_segment(px, py, ax, ay, bx, by):
@@ -382,6 +407,82 @@ class SelectSectionTool(BaseTool):
         canvas.update()
 
 
+class SelectAreaTool(BaseTool):
+    """Select the stitch points inside a freehand drawn area.
+
+    Press the left button and draw an outline; when it is released every stitch
+    point inside the outline is selected. The result is an explicit index set, so
+    it can pick points that do not form a continuous chain — for example both the
+    outbound and the return pass where a shape is filled back and forth.
+    """
+
+    name = "Select Area"
+    cursor = Qt.CrossCursor
+    MIN_STEP_CANVAS = 0.5   # ignore outline samples closer than this (canvas units)
+    MIN_OUTLINE_POINTS = 3  # fewer samples than this do not enclose an area
+
+    def __init__(self):
+        """Initialize the tool with a custom cursor from the icon."""
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", "select_area.svg")
+        pixmap = QPixmap(icon_path)
+        if not pixmap.isNull():
+            self.cursor = QCursor(pixmap, hotX=6, hotY=3)
+        else:
+            self.cursor = Qt.CrossCursor
+        self._outline = []  # canvas-space points of the outline being drawn
+
+    def mouse_press(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        self._outline = [canvas.screen_to_canvas(event.x(), event.y())]
+        canvas.update()
+
+    def mouse_move(self, canvas, event):
+        if not self._outline:
+            return
+        point = canvas.screen_to_canvas(event.x(), event.y())
+        last_x, last_y = self._outline[-1]
+        if math.hypot(point[0] - last_x, point[1] - last_y) < self.MIN_STEP_CANVAS:
+            return
+        self._outline.append(point)
+        canvas.update()
+
+    def mouse_release(self, canvas, event):
+        if event.button() != Qt.LeftButton or not self._outline:
+            return
+        outline, self._outline = self._outline, []
+        canvas.set_selection_indices(self.indices_in_area(canvas.pattern, outline))
+        canvas.update()
+
+    def on_deselect(self, canvas):
+        """Abandon a half-drawn outline when another tool takes over."""
+        if not self._outline:
+            return
+        self._outline = []
+        canvas.update()
+
+    def indices_in_area(self, pattern, outline):
+        """Return the indices of the stitch points inside *outline*."""
+        if len(outline) < self.MIN_OUTLINE_POINTS:
+            return []
+        return [i for i, elem in enumerate(pattern.elements)
+                if elem_has_coords(elem) and point_in_polygon(elem[1], elem[2], outline)]
+
+    def paint_overlay(self, canvas, painter):
+        """Draw the outline while the user is dragging."""
+        if len(self._outline) < 2:
+            return
+        pen = QPen(QColor(0, 80, 200), 1)
+        pen.setDashPattern([4, 4])
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+        polygon = QPolygon([
+            QPoint(int(sx), int(sy))
+            for sx, sy in (canvas.canvas_to_screen(x, y) for x, y in self._outline)
+        ])
+        painter.drawPolygon(polygon)
+
+
 class PanTool(BaseTool):
     """Pan/move the canvas view."""
 
@@ -644,8 +745,7 @@ class MovePointTool(BaseTool):
             # Store the clicked point index
             self._clicked_idx = idx
             # Check if clicked point is in current selection
-            start, end = canvas.get_selection()
-            if start is not None and start <= idx <= end:
+            if canvas.is_point_selected(idx):
                 # Clicked point is in selection: drag all selected points
                 self._dragging_indices = canvas.get_selected_indices()
             else:

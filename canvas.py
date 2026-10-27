@@ -46,6 +46,9 @@ class StitchCanvas(QWidget):
         self._tool = None
         self._selection_start = None  # Start index of selection range
         self._selection_end = None    # End index of selection range (inclusive)
+        # Explicit index set used by the area selection; None means the
+        # contiguous range above is authoritative.
+        self._selection_indices = None
         self._view_orientation = "default"  # "default" or "sewing_direction"
         # Display settings (instance-level, updated via apply_display_settings)
         self._color_grid = QColor(220, 220, 220)
@@ -72,8 +75,8 @@ class StitchCanvas(QWidget):
         self._tpl_drag_start_mouse_angle = None  # degrees, for rotation drag
         # Selection resize/rotate transform state
         self._sel_xform_active = False
-        self._sel_xform_start = None       # base element index range start
-        self._sel_xform_end = None         # base element index range end
+        self._sel_xform_start = None       # first selected base index (bounding)
+        self._sel_xform_end = None         # last selected base index (bounding)
         # Normalized screen coords = (screen_px - MARGIN) / scale, survives zoom
         self._sel_xform_cx_n = 0.0         # current center x (normalized)
         self._sel_xform_cy_n = 0.0         # current center y (normalized)
@@ -360,12 +363,12 @@ class StitchCanvas(QWidget):
 
     def enter_sel_xform_mode(self):
         """Enter resize/rotate mode for the current selection."""
-        start, end = self._selection_start, self._selection_end
-        if start is None or end is None or end - start < 1:
+        selected = self.get_selected_indices()
+        if len(selected) < 2:
             return
-        # Collect all coord elements in range, in normalized screen coords
+        # Collect the selected coord elements, in normalized screen coords
         orig_n = []
-        for i in range(start, end + 1):
+        for i in selected:
             if i >= len(self.pattern.elements):
                 continue
             e = self.pattern.elements[i]
@@ -384,8 +387,8 @@ class StitchCanvas(QWidget):
         nhh = max((max(nys) - min(nys)) / 2.0, 0.5)
 
         self._sel_xform_active = True
-        self._sel_xform_start = start
-        self._sel_xform_end = end
+        self._sel_xform_start = selected[0]
+        self._sel_xform_end = selected[-1]
         self._sel_xform_orig_n = orig_n
         self._sel_xform_orig_ncx = ncx
         self._sel_xform_orig_ncy = ncy
@@ -707,6 +710,7 @@ class StitchCanvas(QWidget):
 
     def set_selected_point(self, index):
         """Set selection to a single point. Pass None to deselect."""
+        self._selection_indices = None
         if index is None:
             self._selection_start = None
             self._selection_end = None
@@ -722,6 +726,7 @@ class StitchCanvas(QWidget):
 
     def set_selection(self, start, end):
         """Set selection range. Swap if start > end. Pass (None, None) to deselect."""
+        self._selection_indices = None
         if start is None or end is None:
             self._selection_start = None
             self._selection_end = None
@@ -732,14 +737,43 @@ class StitchCanvas(QWidget):
         self.update()
         self.selection_changed.emit()
 
+    def set_selection_indices(self, indices):
+        """Select an explicit set of element indices, which may be non-contiguous.
+
+        Used by the area selection. An empty *indices* clears the selection and
+        returns to range mode.
+        """
+        clean = sorted({int(i) for i in indices
+                        if 0 <= int(i) < len(self.pattern.elements)})
+        if not clean:
+            self._selection_indices = None
+            self._selection_start = None
+            self._selection_end = None
+        else:
+            self._selection_indices = set(clean)
+            # Keep the range fields meaningful for code that reports them; they
+            # are the bounding range, not the selection itself.
+            self._selection_start = clean[0]
+            self._selection_end = clean[-1]
+        self.update()
+        self.selection_changed.emit()
+
+    def has_index_selection(self):
+        """True when the selection is an explicit set instead of a range."""
+        return self._selection_indices is not None
+
     def is_point_selected(self, idx):
-        """Check if a point index is within the selection range."""
+        """Check if a point index is part of the selection."""
+        if self._selection_indices is not None:
+            return idx in self._selection_indices
         if self._selection_start is None or self._selection_end is None:
             return False
         return self._selection_start <= idx <= self._selection_end
 
     def get_selected_indices(self):
         """Get list of all selected point indices."""
+        if self._selection_indices is not None:
+            return sorted(self._selection_indices)
         if self._selection_start is None or self._selection_end is None:
             return []
         return list(range(self._selection_start, self._selection_end + 1))
@@ -869,14 +903,24 @@ class StitchCanvas(QWidget):
                         start_base = display_map[last_display_idx]
                         if start_base is None:
                             start_base = last_eff_base_idx
-                        is_in_selection = (
-                            self._selection_start is not None
-                            and self._selection_end is not None
-                            and self._selection_end - self._selection_start >= 1
-                            and start_base is not None
-                            and start_base >= self._selection_start
-                            and start_base < self._selection_end
-                        )
+                        if self._selection_indices is not None:
+                            # Explicit selection: a segment is highlighted when
+                            # both of its ends are selected.
+                            is_in_selection = (
+                                start_base is not None
+                                and curr_base_idx is not None
+                                and start_base in self._selection_indices
+                                and curr_base_idx in self._selection_indices
+                            )
+                        else:
+                            is_in_selection = (
+                                self._selection_start is not None
+                                and self._selection_end is not None
+                                and self._selection_end - self._selection_start >= 1
+                                and start_base is not None
+                                and start_base >= self._selection_start
+                                and start_base < self._selection_end
+                            )
                         if is_in_selection:
                             dashed_pen = QPen(QColor(0, 80, 200), 2)
                             dashed_pen.setDashPattern([4, 4])
@@ -912,6 +956,12 @@ class StitchCanvas(QWidget):
                     if base_idx is not None:
                         sel_idx = base_idx
                         last_auto_sel_idx = base_idx
+                    elif self._selection_indices is not None:
+                        # Area selection: an auto-stitch follows its preceding
+                        # stitch point only when that point is selected.
+                        sel_idx = (last_auto_sel_idx
+                                   if self.is_point_selected(last_auto_sel_idx)
+                                   else -1)
                     else:
                         # Auto-stitch: inherit the preceding base index so that
                         # is_point_selected() returns True when the segment is selected.

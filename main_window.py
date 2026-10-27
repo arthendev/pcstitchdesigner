@@ -14,11 +14,11 @@ from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
 from PyQt5.QtGui import QDesktopServices
 
-from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, elem_has_coords,
-                   is_hoop_stitch_type)
+from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
+                   elem_has_coords, is_hoop_stitch_type)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
-                   SelectPointTool, SelectSectionTool)
+                   SelectPointTool, SelectSectionTool, SelectAreaTool)
 import file_io
 from config import Config
 from version import APP_VERSION
@@ -119,7 +119,7 @@ class MainWindow(QMainWindow):
         self._file_path = None
         self._file_info = None  # PatternFileInfo from the last loaded file
         self._machine_pattern_name = None  # Name from machine when no file path is known
-        self._clipboard = None  # List of (x, y) tuples copied from selection
+        self._clipboard = None  # List of elements copied from the selection
         self._pattern = StitchPattern()
         self._canvas = StitchCanvas(self._pattern)
         self._canvas.changed.connect(self._on_pattern_changed)
@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
         self._pan_tool = PanTool()
         self._select_tool = SelectPointTool()
         self._select_section_tool = SelectSectionTool()
+        self._select_area_tool = SelectAreaTool()
         self._add_tool = AddPointTool()
         self._move_tool = MovePointTool()
         self._delete_tool = DeletePointTool()
@@ -383,6 +384,14 @@ class MainWindow(QMainWindow):
             self.tr("Select all stitches between two section markers"))
         self._act_select_section.triggered.connect(self._on_tool_select_section)
 
+        self._act_select_area = QAction(
+            QIcon(os.path.join(_icons, "select_area.svg")),
+            self.tr("Select Area"), self)
+        self._act_select_area.setCheckable(True)
+        self._act_select_area.setToolTip(
+            self.tr("Draw an area to select all stitch points inside it"))
+        self._act_select_area.triggered.connect(self._on_tool_select_area)
+
         self._act_add = QAction(QIcon(os.path.join(_icons, "add_point.svg")),
                                 self.tr("Add Stitch Points"), self)
         self._act_add.setCheckable(True)
@@ -403,6 +412,7 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_pan)
         self._tool_group.addAction(self._act_select)
         self._tool_group.addAction(self._act_select_section)
+        self._tool_group.addAction(self._act_select_area)
         self._tool_group.addAction(self._act_add)
         self._tool_group.addAction(self._act_move)
         self._tool_group.addAction(self._act_delete)
@@ -654,6 +664,9 @@ class MainWindow(QMainWindow):
         
         # Open Recent submenu
         self._recent_menu = QMenu(self.tr("Open &Recent"), self)
+        # Qt hides action tooltips in menus unless explicitly enabled; the
+        # entries only show the file name, so the tooltip carries the full path.
+        self._recent_menu.setToolTipsVisible(True)
         file_menu.addMenu(self._recent_menu)
         self._update_recent_files_menu()
         
@@ -690,6 +703,7 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self._act_pan)
         tools_menu.addAction(self._act_select)
         tools_menu.addAction(self._act_select_section)
+        tools_menu.addAction(self._act_select_area)
         tools_menu.addAction(self._act_add)
         tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
@@ -775,6 +789,7 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_pan)
         tb.addAction(self._act_select)
         tb.addAction(self._act_select_section)
+        tb.addAction(self._act_select_area)
         tb.addAction(self._act_add)
         tb.addAction(self._act_move)
         tb.addAction(self._act_delete)
@@ -848,6 +863,15 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_section_tool)
         self._tool_label.setText(self.tr("Tool: Select Section"))
+        self._selection_toolbar.setVisible(True)
+        self._selection_toolbar.setMaximumWidth(
+            self._selection_toolbar.sizeHint().width()
+        )
+
+    def _on_tool_select_area(self):
+        self._cancel_sel_xform_if_active()
+        self._canvas.set_tool(self._select_area_tool)
+        self._tool_label.setText(self.tr("Tool: Select Area"))
         self._selection_toolbar.setVisible(True)
         self._selection_toolbar.setMaximumWidth(
             self._selection_toolbar.sizeHint().width()
@@ -1190,29 +1214,34 @@ class MainWindow(QMainWindow):
 
     def _update_selection_action_state(self):
         """Enable/disable selection-dependent actions based on whether points are selected."""
+        indices = self._canvas.get_selected_indices()
+        has_selection = bool(indices)
+        has_multiple_selection = len(indices) >= 2
+        # An area selection is an explicit set, so the range-only operations
+        # (extend/reduce/shift, invert, paste over the range) stay off.
+        sparse = self._canvas.has_index_selection()
         start, end = self._canvas.get_selection()
-        has_selection = start is not None and end is not None
-        has_multiple_selection = has_selection and end > start
 
         n = len(self._pattern.elements)
         self._act_copy.setEnabled(has_multiple_selection)
         self._act_cut.setEnabled(has_multiple_selection)
-        self._act_paste.setEnabled(self._clipboard is not None)
+        self._act_paste.setEnabled(self._clipboard is not None and not sparse)
         self._act_clear_selection.setEnabled(has_selection)
         self._act_delete_selected.setEnabled(has_selection)
-        self._act_invert_selected.setEnabled(has_multiple_selection)
+        self._act_invert_selected.setEnabled(has_multiple_selection and not sparse)
         self._act_mirror_vertical.setEnabled(has_multiple_selection)
         self._act_mirror_horizontal.setEnabled(has_multiple_selection)
-        self._act_sel_extend.setEnabled(has_selection and end < n - 1)
-        self._act_sel_reduce.setEnabled(has_multiple_selection)
-        self._act_sel_move_backward.setEnabled(has_selection and start > 0)
-        self._act_sel_move_forward.setEnabled(has_selection and end < n - 1)
+        range_ops = has_selection and not sparse
+        self._act_sel_extend.setEnabled(range_ops and end < n - 1)
+        self._act_sel_reduce.setEnabled(range_ops and has_multiple_selection)
+        self._act_sel_move_backward.setEnabled(range_ops and start > 0)
+        self._act_sel_move_forward.setEnabled(range_ops and end < n - 1)
         # Mirror state to the toolbar actions
-        self._act_sel_tb_extend.setEnabled(has_selection and end < n - 1)
-        self._act_sel_tb_reduce.setEnabled(has_multiple_selection)
-        self._act_sel_tb_move_backward.setEnabled(has_selection and start > 0)
-        self._act_sel_tb_move_forward.setEnabled(has_selection and end < n - 1)
-        # Resize/Rotate enabled when 2+ coord points are selected
+        self._act_sel_tb_extend.setEnabled(range_ops and end < n - 1)
+        self._act_sel_tb_reduce.setEnabled(range_ops and has_multiple_selection)
+        self._act_sel_tb_move_backward.setEnabled(range_ops and start > 0)
+        self._act_sel_tb_move_forward.setEnabled(range_ops and end < n - 1)
+        # Resize/Rotate enabled when 2+ points are selected
         can_xform = has_multiple_selection and not self._canvas._sel_xform_active
         self._act_sel_xform.setEnabled(can_xform)
 
@@ -1535,6 +1564,7 @@ class MainWindow(QMainWindow):
                 action = self._recent_menu.addAction(
                     f"&{i % 10} {filename}"
                 )
+                action.setToolTip(path)
                 action.triggered.connect(
                     lambda checked, p=path: self._open_recent_file(p)
                 )
@@ -1573,20 +1603,24 @@ class MainWindow(QMainWindow):
         self._recalculate_auto_if_active()
 
     def _edit_copy(self):
-        """Copy selected stitch points to the internal clipboard."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None or end <= start:
+        """Copy the selected elements to the internal clipboard.
+
+        Full elements are copied, so section markers stay section markers and
+        colour changes are kept, not flattened into plain stitch points.
+        """
+        indices = self._canvas.get_selected_indices()
+        if len(indices) < 2:
             return
-        self._clipboard = [(e[1], e[2]) for e in self._pattern.elements[start:end + 1] if elem_has_coords(e)]
+        self._clipboard = [self._pattern.elements[i] for i in indices]
         self._act_paste.setEnabled(True)
 
     def _edit_cut(self):
-        """Cut selected stitch points: copy to clipboard then delete in one undo step."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None or end <= start:
+        """Cut the selected elements: copy to clipboard then delete in one undo step."""
+        indices = self._canvas.get_selected_indices()
+        if len(indices) < 2:
             return
-        cut_elems = self._pattern.cut_range(start, end)
-        self._clipboard = [(e[1], e[2]) for e in cut_elems if elem_has_coords(e)]
+        cut_elems = self._pattern.cut_indices(indices)
+        self._clipboard = list(cut_elems)
         self._canvas.set_selection(None, None)
         self._canvas._update_size()
         self._canvas.update()
@@ -1595,8 +1629,9 @@ class MainWindow(QMainWindow):
         self._recalculate_auto_if_active()
 
     def _edit_paste(self):
-        """Paste clipboard points using the same logic as Insert P-Memory."""
-        if not self._clipboard:
+        """Paste the clipboard elements using the same logic as Insert P-Memory."""
+        if not self._clipboard or self._canvas.has_index_selection():
+            # An area selection has no contiguous range to paste over.
             return
         self._apply_insert_pattern(self._clipboard, None)
 
@@ -1649,11 +1684,11 @@ class MainWindow(QMainWindow):
 
     def _edit_delete_selected(self):
         """Delete all selected stitch points."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None:
+        indices = self._canvas.get_selected_indices()
+        if not indices:
             return  # No selection
 
-        self._pattern.delete_range(start, end)
+        self._pattern.delete_indices(indices)
 
         # Clear selection and update
         self._canvas.set_selection(None, None)
@@ -1664,30 +1699,33 @@ class MainWindow(QMainWindow):
     def _edit_invert_selected(self):
         """Invert the order of selected stitch points."""
         start, end = self._canvas.get_selection()
-        if start is None or end is None:
-            return  # No selection
-        
+        if self._canvas.has_index_selection() or start is None or end is None:
+            # Reversing the order is only meaningful for a contiguous run.
+            return
+
         self._pattern.invert_selected(start, end)
         self._canvas.update()
         self._on_pattern_changed()
 
     def _edit_mirror_vertical(self):
         """Mirror selected points vertically around the center of selection."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None:
+        indices = self._canvas.get_selected_indices()
+        if not indices:
             return  # No selection
-        
-        self._pattern.mirror_vertical(start, end, snap=self._canvas.snap_normal_to_grid)
+
+        self._pattern.mirror_vertical_indices(
+            indices, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
 
     def _edit_mirror_horizontal(self):
         """Mirror selected points horizontally around the center of selection."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None:
+        indices = self._canvas.get_selected_indices()
+        if not indices:
             return  # No selection
-        
-        self._pattern.mirror_horizontal(start, end, snap=self._canvas.snap_normal_to_grid)
+
+        self._pattern.mirror_horizontal_indices(
+            indices, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
 
@@ -1695,8 +1733,7 @@ class MainWindow(QMainWindow):
 
     def _edit_sel_xform_activate(self):
         """Enter resize/rotate mode for the current selection."""
-        start, end = self._canvas.get_selection()
-        if start is None or end is None or end - start < 1:
+        if len(self._canvas.get_selected_indices()) < 2:
             return
         self._canvas.enter_sel_xform_mode()
         self._selection_toolbar.setVisible(False)
@@ -2036,19 +2073,68 @@ class MainWindow(QMainWindow):
         self._on_tool_pan()
         self._fit_pattern()
 
-    def _apply_insert_pattern(self, points, slot_type, append_on_no_selection=False):
-        """Replace the currently selected range with new points.
+    @staticmethod
+    def _mark_pattern_ends_as_sections(elements):
+        """Return *elements* with the first and last coordinate as ELEM_SECTION.
 
-        If no points are selected and *append_on_no_selection* is False (the
+        PCD/PCQ store a pattern as one section: the first and the last record
+        carry control byte 0x04. Giving an inserted pattern the same shape keeps
+        it selectable as a single section and saves back in that form.
+
+        Args:
+            elements: Pattern elements; entries without coordinates are skipped
+                when looking for the ends.
+
+        Returns:
+            list: A new list; the input is not modified.
+        """
+        marked = list(elements)
+        coord_indices = [i for i, e in enumerate(marked) if elem_has_coords(e)]
+        if not coord_indices:
+            return marked
+        for index in {coord_indices[0], coord_indices[-1]}:
+            entry = marked[index]
+            marked[index] = (ELEM_SECTION, entry[1], entry[2])
+        return marked
+
+    def _insert_pmemory_pattern(self, points, slot_type):
+        """Insert a pattern read from P-Memory.
+
+        Machine patterns are plain point lists; they are inserted as a single
+        section, i.e. with ELEM_SECTION at both ends.
+
+        Args:
+            points: ``[(x, y), ...]`` as decoded from the machine.
+            slot_type: ``'9mm'`` or ``'MAXI'``.
+        """
+        self._apply_insert_pattern(
+            self._mark_pattern_ends_as_sections(
+                [(ELEM_STITCH, x, y) for x, y in points]),
+            slot_type)
+
+    def _apply_insert_pattern(self, elements, slot_type, append_on_no_selection=False):
+        """Replace the currently selected range with *elements*.
+
+        *elements* are pattern elements (ELEM_STITCH / ELEM_AUTO / ELEM_SECTION /
+        ELEM_COLOR), so a pasted block keeps its section markers and colour
+        changes. Machine inserts wrap their plain points as ELEM_STITCH tuples at
+        the call site.
+
+        If no elements are selected and *append_on_no_selection* is False (the
         default), the last pattern point is used as the single-point selection
         (P-Memory insert behaviour).  When *append_on_no_selection* is True the
-        points are instead appended to the end of the pattern (Copy/Paste
+        elements are instead appended to the end of the pattern (Copy/Paste
         behaviour).
 
-        The incoming points are translated so that their first point coincides
-        with the first point of the selection before the replacement takes
-        place.
+        The incoming coordinates are translated so that their first point
+        coincides with the first point of the selection before the replacement
+        takes place.
         """
+        if not elements:
+            return
+        elements = list(elements)
+        coords = [(e[1], e[2]) for e in elements if elem_has_coords(e)]
+
         start, end = self._canvas.get_selection()
 
         if not append_on_no_selection:
@@ -2074,26 +2160,25 @@ class MainWindow(QMainWindow):
             if ret != QMessageBox.Ok:
                 return
 
-        # Translate loaded points so their first point aligns with
+        # Translate loaded coordinates so their first point aligns with
         # the element at [start], then clamp to the current canvas bounds.
         cw = self._pattern.CANVAS_WIDTH
         ch = self._pattern.CANVAS_HEIGHT
-        if points and start is not None and start < len(self._pattern.elements):
+        dx = dy = 0
+        if coords and start is not None and start < len(self._pattern.elements):
             anchor_coords = self._pattern.get_coords(start)
             anchor_x, anchor_y = anchor_coords if anchor_coords is not None else (0, 0)
-            dx = anchor_x - points[0][0]
-            dy = anchor_y - points[0][1]
-            translated = [(x + dx, y + dy) for x, y in points]
-        else:
-            translated = list(points)
+            dx = anchor_x - coords[0][0]
+            dy = anchor_y - coords[0][1]
+        translated = [(x + dx, y + dy) for x, y in coords]
 
-        # If the translated pattern extends outside the canvas, shift it as a
+        # If the translated block extends outside the canvas, shift it as a
         # whole so it fits without squashing.  Only clamp individual points when
-        # the pattern is genuinely larger than the canvas in that axis.
+        # the block is genuinely larger than the canvas in that axis.
         shift_applied = False
         if translated:
-            xs = [x for x, y in translated]
-            ys = [y for x, y in translated]
+            xs = [x for x, _y in translated]
+            ys = [y for _x, y in translated]
             x_min, x_max = min(xs), max(xs)
             y_min, y_max = min(ys), max(ys)
 
@@ -2117,31 +2202,38 @@ class MainWindow(QMainWindow):
 
         clamped = [(max(0, min(cw, x)), max(0, min(ch, y))) for x, y in translated]
 
+        # Put the clamped coordinates back, keeping each element's kind (and the
+        # colour-change records, which carry no coordinates).
+        placed = []
+        coord_index = 0
+        for elem in elements:
+            if elem_has_coords(elem):
+                x, y = clamped[coord_index]
+                coord_index += 1
+                placed.append((elem[0], x, y))
+            else:
+                placed.append(elem)
+
         if start is None:
             if append_on_no_selection:
                 # No selection — append to end of the pattern.
                 n = len(self._pattern.elements)
-                self._pattern.replace_range(n, n - 1, [(ELEM_STITCH, x, y) for x, y in clamped])
-                if clamped:
-                    self._canvas.set_selection(n, n + len(clamped) - 1)
-                else:
-                    self._canvas.set_selected_point(None)
+                self._pattern.replace_range(n, n - 1, placed)
+                self._canvas.set_selection(n, n + len(placed) - 1)
             else:
-                # Pattern is empty – just load the points as-is (machine path).
-                self._pattern.set_machine_data(clamped, self._pattern.stitch_type)
+                # Pattern is empty – just load the elements as-is (machine path).
+                self._pattern.set_machine_elements(
+                    placed, [], self._pattern.stitch_type)
                 self._canvas.set_selected_point(None)
         else:
-            # When a canvas-fitting shift was applied the inserted pattern no
+            # When a canvas-fitting shift was applied the inserted block no
             # longer starts at the anchor point, so keep elements[start]
-            # in place and replace [start+1, end] with the new points.
+            # in place and replace [start+1, end] with the new elements.
             # Without a shift, replace from start so the anchor is overwritten.
             replace_start = start + 1 if shift_applied else start
-            self._pattern.replace_range(replace_start, end, [(ELEM_STITCH, x, y) for x, y in clamped])
-            # Update selection to cover the newly inserted points
-            if clamped:
-                self._canvas.set_selection(replace_start, replace_start + len(clamped) - 1)
-            else:
-                self._canvas.set_selected_point(None)
+            self._pattern.replace_range(replace_start, end, placed)
+            # Update selection to cover the newly inserted elements
+            self._canvas.set_selection(replace_start, replace_start + len(placed) - 1)
 
         self._canvas._update_size()
         self._canvas.update()
@@ -2210,7 +2302,7 @@ class MainWindow(QMainWindow):
 
         if action == PMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
             if dlg.loaded_points is not None:
-                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+                self._insert_pmemory_pattern(dlg.loaded_points, dlg.loaded_slot_type)
     
     def _machine_load_pmemory(self):
         self._machine_query_and_show_pmemory(PMemoryDialog.ACTION_LOAD)
@@ -2294,7 +2386,9 @@ class MainWindow(QMainWindow):
 
         if action == CardMemoryDialog.ACTION_INSERT and result == QDialog.Accepted:
             if dlg.loaded_points is not None:
-                self._apply_insert_pattern(dlg.loaded_points, dlg.loaded_slot_type)
+                self._apply_insert_pattern(
+                    [(ELEM_STITCH, x, y) for x, y in dlg.loaded_points],
+                    dlg.loaded_slot_type)
 
     def _machine_load_card(self):
         self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)

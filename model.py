@@ -138,21 +138,28 @@ class DeletePointCommand(Command):
         pattern.elements.insert(idx, self.element)
 
 
-class DeleteRangeCommand(Command):
-    """Deletes elements at indices [start, end] (inclusive) as a single undo step."""
+class DeleteIndicesCommand(Command):
+    """Deletes the elements at the given indices as a single undo step.
 
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-        self.saved_points = None  # kept as attribute name for compatibility
+    Used for selections that are not a contiguous range (area selection).
+    """
+
+    def __init__(self, indices):
+        self.indices = sorted({int(i) for i in indices})
+        self.removed = None  # [(index, element), ...] in ascending index order
 
     def redo(self, pattern):
-        self.saved_points = list(pattern.elements[self.start:self.end + 1])
-        del pattern.elements[self.start:self.end + 1]
+        self.removed = [(i, pattern.elements[i]) for i in self.indices
+                        if 0 <= i < len(pattern.elements)]
+        # Delete from the end so the earlier indices stay valid.
+        for index, _element in reversed(self.removed):
+            del pattern.elements[index]
 
     def undo(self, pattern):
-        if self.saved_points is not None:
-            pattern.elements[self.start:self.start] = self.saved_points
+        if self.removed is None:
+            return
+        for index, element in self.removed:
+            pattern.elements.insert(index, element)
 
 
 class ReplaceRangeCommand(Command):
@@ -195,67 +202,63 @@ class InvertRangeCommand(Command):
 
 
 class MirrorVerticalCommand(Command):
-    """Mirrors coord elements vertically around the center of a [start, end] range."""
-    def __init__(self, start, end, snap=True):
-        self.start = start
-        self.end = end
+    """Mirrors the coord elements at the given indices around their vertical centre."""
+    def __init__(self, indices, snap=True):
+        self.indices = list(indices)
         self.snap = snap
-        self.original_points = None
+        self.original_points = None  # [(index, element), ...]
 
     def redo(self, pattern):
         if self.original_points is None:
-            self.original_points = [pattern.elements[i] for i in range(self.start, self.end + 1)]
+            self.original_points = [(i, pattern.elements[i]) for i in self.indices
+                                    if 0 <= i < len(pattern.elements)]
 
-        coord_ys = [e[2] for e in self.original_points if elem_has_coords(e)]
+        coord_ys = [e[2] for _i, e in self.original_points if elem_has_coords(e)]
         if not coord_ys:
             return
         center_y = (min(coord_ys) + max(coord_ys)) / 2
 
-        for i, e in enumerate(self.original_points):
+        for index, e in self.original_points:
             if elem_has_coords(e):
                 mirrored_y = 2 * center_y - e[2]
                 if self.snap:
                     mirrored_y = int(round(mirrored_y))
-                pattern.elements[self.start + i] = (e[0], e[1], mirrored_y)
-            else:
-                pattern.elements[self.start + i] = e
+                pattern.elements[index] = (e[0], e[1], mirrored_y)
 
     def undo(self, pattern):
         if self.original_points:
-            for i, e in enumerate(self.original_points):
-                pattern.elements[self.start + i] = e
+            for index, e in self.original_points:
+                pattern.elements[index] = e
 
 
 class MirrorHorizontalCommand(Command):
-    """Mirrors coord elements horizontally around the center of a [start, end] range."""
-    def __init__(self, start, end, snap=True):
-        self.start = start
-        self.end = end
+    """Mirrors the coord elements at the given indices around their horizontal centre."""
+    def __init__(self, indices, snap=True):
+        self.indices = list(indices)
         self.snap = snap
-        self.original_points = None
+        self.original_points = None  # [(index, element), ...]
 
     def redo(self, pattern):
         if self.original_points is None:
-            self.original_points = [pattern.elements[i] for i in range(self.start, self.end + 1)]
+            self.original_points = [(i, pattern.elements[i]) for i in self.indices
+                                    if 0 <= i < len(pattern.elements)]
 
-        coord_xs = [e[1] for e in self.original_points if elem_has_coords(e)]
+        coord_xs = [e[1] for _i, e in self.original_points if elem_has_coords(e)]
         if not coord_xs:
             return
         center_x = (min(coord_xs) + max(coord_xs)) / 2
 
-        for i, e in enumerate(self.original_points):
+        for index, e in self.original_points:
             if elem_has_coords(e):
                 mirrored_x = 2 * center_x - e[1]
                 if self.snap:
                     mirrored_x = int(round(mirrored_x))
-                pattern.elements[self.start + i] = (e[0], mirrored_x, e[2])
-            else:
-                pattern.elements[self.start + i] = e
+                pattern.elements[index] = (e[0], mirrored_x, e[2])
 
     def undo(self, pattern):
         if self.original_points:
-            for i, e in enumerate(self.original_points):
-                pattern.elements[self.start + i] = e
+            for index, e in self.original_points:
+                pattern.elements[index] = e
 
 
 class ConvertAutoStitchesCommand(Command):
@@ -601,7 +604,7 @@ class StitchPattern:
         end = min(len(self.elements) - 1, end)
         if start > end:
             return
-        self._exec(DeleteRangeCommand(start, end))
+        self.delete_indices(range(start, end + 1))
 
     def cut_range(self, start, end):
         """Delete elements at indices [start, end] (inclusive) and return them.
@@ -612,9 +615,26 @@ class StitchPattern:
         end = min(len(self.elements) - 1, end)
         if start > end:
             return []
-        cmd = DeleteRangeCommand(start, end)
+        return self.cut_indices(range(start, end + 1))
+
+    def delete_indices(self, indices):
+        """Delete the elements at *indices* (any order) as a single undo step."""
+        indices = [i for i in indices if 0 <= i < len(self.elements)]
+        if not indices:
+            return
+        self._exec(DeleteIndicesCommand(indices))
+
+    def cut_indices(self, indices):
+        """Delete the elements at *indices* and return them.
+
+        Returns the removed elements in index order, or [] when nothing matched.
+        """
+        indices = [i for i in indices if 0 <= i < len(self.elements)]
+        if not indices:
+            return []
+        cmd = DeleteIndicesCommand(indices)
         self._exec(cmd)
-        return list(cmd.saved_points)
+        return [element for _index, element in cmd.removed]
 
     # ── Range operations ──
 
@@ -628,13 +648,25 @@ class StitchPattern:
         """Mirror selected coord elements vertically around the center of selection."""
         if start is None or end is None or start > end:
             return
-        self._exec(MirrorVerticalCommand(start, end, snap=snap))
+        self.mirror_vertical_indices(range(start, end + 1), snap=snap)
+
+    def mirror_vertical_indices(self, indices, snap=True):
+        """Mirror the coord elements at *indices* vertically around their centre."""
+        indices = [i for i in indices if 0 <= i < len(self.elements)]
+        if indices:
+            self._exec(MirrorVerticalCommand(indices, snap=snap))
 
     def mirror_horizontal(self, start, end, snap=True):
         """Mirror selected coord elements horizontally around the center of selection."""
         if start is None or end is None or start > end:
             return
-        self._exec(MirrorHorizontalCommand(start, end, snap=snap))
+        self.mirror_horizontal_indices(range(start, end + 1), snap=snap)
+
+    def mirror_horizontal_indices(self, indices, snap=True):
+        """Mirror the coord elements at *indices* horizontally around their centre."""
+        indices = [i for i in indices if 0 <= i < len(self.elements)]
+        if indices:
+            self._exec(MirrorHorizontalCommand(indices, snap=snap))
 
     def replace_range(self, start, end, new_elements):
         """Replace elements at indices [start, end] (inclusive) with new_elements."""
