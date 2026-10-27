@@ -113,6 +113,12 @@ class MachineComm:
         PREVIEW_SIZES["Embroidery"][0] * PREVIEW_SIZES["Embroidery"][1] // 8
     )
 
+    # A card slot holds roughly 32 kB of raw payload (PCD splits writes at
+    # ~32500 B; the exact limit is unknown).  The cap covers the whole KN
+    # transfer - filename, preview block(s) and stitch stream - not just the
+    # stitch stream, because the machine stores all of it in the slot.
+    CARD_MAX_PAYLOAD = 32500
+
     # Embroidery (hoop) card encoding.  Canvas units are 1/6 mm, payload units
     # are ~1/10 mm; the conversion is a truncating scale, never a rounding.
     EMBROIDERY_SCALE = 256 / 153
@@ -1598,6 +1604,10 @@ class MachineComm:
 
         Data payload = ``<filename_bytes> + <preview_bytes> + <pattern_raw>``
 
+        The whole data payload must fit the slot's capacity
+        (:attr:`CARD_MAX_PAYLOAD`); an oversized embroidery design is rejected
+        here, before the machine is contacted.
+
         Data chunks::
 
             CTRL_ENQ + SIZE + <payload> + SIZE + CTRL_ETB + <2 hex checksum>
@@ -1619,8 +1629,9 @@ class MachineComm:
 
         Raises:
             serial.SerialException: If the port is not open.
-            MachineCommError: On timeout, CTRL_NAK, checksum error, or
-                unexpected response.
+            MachineCommError: On timeout, CTRL_NAK, checksum error, unexpected
+                response, or when the pattern payload exceeds the card slot
+                capacity.
         """
         self._require_open()
 
@@ -1651,6 +1662,22 @@ class MachineComm:
             # Embroidery carries one extra preview block per colour.
             preview_bytes = b"".join(MachineComm.encode_card_previews_embroidery(pattern))
             stitch_data, _points = MachineComm.encode_card_pattern_embroidery(pattern)
+
+            # Check the complete payload before a connection is opened: the
+            # machine would otherwise accept the KN command and then run out
+            # of slot space halfway through the transfer.
+            payload_size = len(filename_bytes) + len(preview_bytes) + len(stitch_data)
+            if payload_size > MachineComm.CARD_MAX_PAYLOAD:
+                self._logger.log_error(
+                    f"Embroidery payload too large: {payload_size} bytes "
+                    f"(limit {MachineComm.CARD_MAX_PAYLOAD})"
+                )
+                raise MachineCommError(_tr(
+                    "The pattern file size is too large and cannot be stored on "
+                    "the memory card: {0} bytes are needed, but a card slot holds "
+                    "at most {1} bytes. Split the design into smaller parts."
+                ).format(payload_size, MachineComm.CARD_MAX_PAYLOAD))
+
             header = MachineComm.encode_card_header_embroidery(
                 pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes)
         else:
@@ -2810,9 +2837,11 @@ class MachineComm:
             coordinates the payload was derived from.
 
         Raises:
-            MachineCommError: If the design is empty, a colour index is outside
-                the 16-colour palette, or the payload exceeds 65535 bytes (the
-                KN header stores its size in 16 bits).
+            MachineCommError: If the design is empty or a colour index is
+                outside the 16-colour palette.  The card-slot size cap is not
+                checked here: it applies to the whole transfer payload, so
+                :meth:`send_card_slot` enforces it where the previews and the
+                filename are known.
         """
         points, sections = MachineComm._embroidery_design(pattern)
         values, origin = MachineComm._embroidery_values(points)
@@ -2820,11 +2849,6 @@ class MachineComm:
             values, sections, origin,
             colours=pattern.colors if pattern.colors else None,
         )
-        if len(payload) > 0xFFFF:
-            raise MachineCommError(_tr(
-                "The encoded embroidery pattern is {0} bytes, but the memory card "
-                "format can hold at most 65535."
-            ).format(len(payload)))
         return payload, points
 
     @staticmethod
