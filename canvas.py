@@ -4,10 +4,11 @@ import os
 import math
 
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap
+from PyQt5.QtCore import Qt, QSize, QRect, QPoint, pyqtSignal
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap, QPolygon
 
-from model import StitchPattern, ELEM_AUTO, ELEM_COLOR, elem_has_coords
+from model import (StitchPattern, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION,
+                   elem_has_coords, is_hoop_stitch_type)
 
 
 class StitchCanvas(QWidget):
@@ -38,6 +39,9 @@ class StitchCanvas(QWidget):
     COLOR_BG = QColor(255, 255, 255)
     COLOR_FIRST_POINT = QColor(0, 200, 0)  # Green for first point
     COLOR_LAST_POINT = QColor(200, 0, 0)   # Red for last point
+    COLOR_SELECTED_POINT = QColor(0, 80, 200)   # Blue selected stitch dot
+    # Embroidery selection marker, matching the Section Markers dialog preview.
+    COLOR_EMBROIDERY_SELECTION = QColor(210, 0, 120)
 
     def __init__(self, pattern, parent=None):
         super().__init__(parent)
@@ -815,6 +819,97 @@ class StitchCanvas(QWidget):
             cy = (sx - self.MARGIN) / self._scale
         return cx, cy
 
+    # ── Selection markers when stitch points are hidden ──
+
+    def _selection_marker_indices(self, embroidery):
+        """Return the element indices to mark while stitch points are hidden.
+
+        A single selected point marks that point, a continuous range marks only
+        its first and last stitch, and an area selection marks every selected
+        stitch. Embroidery omits area selections entirely.
+        """
+        elements = self.pattern.elements
+        if self._selection_indices is not None:
+            if embroidery:
+                return []
+            return [i for i in sorted(self._selection_indices)
+                    if 0 <= i < len(elements) and elem_has_coords(elements[i])]
+
+        start, end = self._selection_start, self._selection_end
+        if start is None or end is None:
+            return []
+        start = max(0, start)
+        end = min(end, len(elements) - 1)
+        if start > end:
+            return []
+        if start == end:
+            return [start] if elem_has_coords(elements[start]) else []
+
+        first = next((i for i in range(start, end + 1)
+                      if elem_has_coords(elements[i])), None)
+        if first is None:
+            return []
+        last = next((i for i in range(end, start - 1, -1)
+                     if elem_has_coords(elements[i])), None)
+        return [first] if first == last else [first, last]
+
+    def _paint_selection_markers(self, painter, xform_preview=None):
+        """Keep the selection visible when the normal stitch points are off.
+
+        9 mm / MAXI use the usual blue stitch dot; embroidery uses the larger
+        magenta marker of the Section Markers dialog preview so the selection
+        stands out against dense thread work.
+        """
+        if self._show_stitch_points:
+            return
+        embroidery = is_hoop_stitch_type(self.pattern.stitch_type)
+        indices = self._selection_marker_indices(embroidery)
+        if not indices:
+            return
+
+        elements = self.pattern.elements
+        radius = self._point_radius + 2 if embroidery else self._point_radius
+        color = (self.COLOR_EMBROIDERY_SELECTION if embroidery
+                 else self.COLOR_SELECTED_POINT)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(color))
+        for index in indices:
+            elem = elements[index]
+            x, y = elem[1], elem[2]
+            if xform_preview and index in xform_preview:
+                x, y = xform_preview[index]
+            sx, sy = self.canvas_to_screen(x, y)
+            if embroidery and elem[0] == ELEM_SECTION:
+                # Same diamond as the dialog preview's section marker.
+                painter.drawPolygon(QPolygon([
+                    QPoint(int(sx), int(sy - radius)),
+                    QPoint(int(sx + radius), int(sy)),
+                    QPoint(int(sx), int(sy + radius)),
+                    QPoint(int(sx - radius), int(sy)),
+                ]))
+            else:
+                painter.drawEllipse(int(sx - radius), int(sy - radius),
+                                    2 * radius, 2 * radius)
+
+        # The dialog rings the current stitch; a lone embroidery point gets the
+        # same ring so it cannot be overlooked.
+        single_point = (self._selection_indices is None
+                        and self._selection_start == self._selection_end)
+        if embroidery and single_point:
+            index = indices[0]
+            elem = elements[index]
+            x, y = elem[1], elem[2]
+            if xform_preview and index in xform_preview:
+                x, y = xform_preview[index]
+            sx, sy = self.canvas_to_screen(x, y)
+            ring = radius + 4
+            painter.setBrush(Qt.NoBrush)
+            painter.setPen(QPen(self.COLOR_EMBROIDERY_SELECTION, 2))
+            painter.drawEllipse(int(sx - ring), int(sy - ring),
+                                2 * ring, 2 * ring)
+            painter.setPen(Qt.NoPen)
+
     # ── Painting ──
 
     def paintEvent(self, event):
@@ -1059,6 +1154,9 @@ class StitchCanvas(QWidget):
                     if self.is_point_selected(cidx):
                         sx, sy = self.canvas_to_screen(x, y)
                         _draw_point(sx, sy, QColor(0, 80, 200), kind)
+
+        # With stitch points hidden the selection would disappear entirely.
+        self._paint_selection_markers(painter, xform_preview)
 
         # Template resize/rotate frame and handles
         if (self._template_resize_mode
