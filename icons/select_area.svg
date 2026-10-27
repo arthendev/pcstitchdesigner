@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Dashed freehand loop: nearly closed circle with the opening at the lower
+       right, where the pointer body leaves the loop -->
+  <path d="M9.14 15.09 A6.9 6.9 0 1 1 18.17 10.39"
+        fill="none" stroke="#1a73e8" stroke-width="1.5" stroke-linecap="round"
+        stroke-dasharray="2.5,1.8"/>
+  <!-- Arrow cursor; its tip (12,8) is the cursor hot spot -->
+  <path d="M12 8 L12 18.5 L14.8 16.05 L17.6 20.6 L19 19.9 L16.2 15.35 L19.7 15 Z"
+        fill="#333" stroke="#333" stroke-width="0.5" stroke-linejoin="round"/>
+</svg>
