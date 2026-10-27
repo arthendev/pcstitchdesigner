@@ -453,6 +453,19 @@ class SectionMarkersDialog(QDialog):
         """Return the indices of all section markers in the working copy."""
         return [i for i, e in enumerate(self._elements) if e[0] == ELEM_SECTION]
 
+    def _coord_numbering(self):
+        """Map element index → 1-based stitch number shown to the user.
+
+        Only coordinate elements (stitches, markers, auto-stitches) can carry a
+        section marker, so the numbering skips colour-change records. Otherwise
+        the visible numbers would jump over entries the user cannot mark.
+        """
+        return {index: number
+                for number, index in enumerate(
+                    (i for i, e in enumerate(self._elements)
+                     if elem_has_coords(e)),
+                    start=1)}
+
     def _selectable_indices(self):
         """Return the indices the selection may land on.
 
@@ -475,14 +488,16 @@ class SectionMarkersDialog(QDialog):
 
     def _refresh_views(self):
         """Rebuild the marker list and push the current selection to the preview."""
+        numbering = self._coord_numbering()
         self._section_list.blockSignals(True)
         self._section_list.clear()
         for index in self._section_indices():
             elem = self._elements[index]
-            item = QListWidgetItem(str(index))
+            number = numbering[index]
+            item = QListWidgetItem(str(number))
             item.setData(Qt.UserRole, index)
             item.setToolTip(
-                self.tr("Stitch {0}: x {1}, y {2}").format(index, elem[1], elem[2]))
+                self.tr("Stitch {0}: x {1}, y {2}").format(number, elem[1], elem[2]))
             self._section_list.addItem(item)
             if index in self._selected_indices:
                 item.setSelected(True)
@@ -505,16 +520,17 @@ class SectionMarkersDialog(QDialog):
         self._remove_button.setEnabled(element is not None and element[0] == ELEM_SECTION)
 
     def _update_status(self):
-        """Show the selected stitch index or the selected index range."""
+        """Show the selected stitch number or the selected number range."""
+        numbering = self._coord_numbering()
         if len(self._selected_indices) >= 2:
             first, last = min(self._selected_indices), max(self._selected_indices)
             self._range_label.setText(
-                self.tr("Range: {0} – {1}").format(first, last))
+                self.tr("Range: {0} – {1}").format(numbering[first], numbering[last]))
         elif self._current_index is not None:
             kind = self._elements[self._current_index][0]
             name = self.tr("Section marker") if kind == ELEM_SECTION else self.tr("Stitch")
             self._range_label.setText(
-                self.tr("{0}: {1}").format(name, self._current_index))
+                self.tr("{0}: {1}").format(name, numbering[self._current_index]))
         else:
             self._range_label.setText(self.tr("No stitch selected"))
 
