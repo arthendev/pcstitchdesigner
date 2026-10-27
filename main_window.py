@@ -156,12 +156,21 @@ class MainWindow(QMainWindow):
         # Status bar labels
         self._tool_label = QLabel(self.tr("Tool: -"))
         self._coord_label = QLabel("x: - y: -")
-        self._count_label = QLabel(self.tr("Points: 0"))
-        self._size_label = QLabel("W: - mm  H: - mm")
+        self._design_type_label = QLabel()
+        self._size_label = QLabel("Size: -")
+        self._count_label = QLabel(self.tr("Stitches: {0}").format(0))
         self.statusBar().addWidget(self._tool_label)
         self.statusBar().addPermanentWidget(self._coord_label)
         self.statusBar().addPermanentWidget(self._size_label)
         self.statusBar().addPermanentWidget(self._count_label)
+        self.statusBar().addPermanentWidget(self._design_type_label)
+
+        # Add more space between elements in the status bar
+        for label in (self._tool_label, self._coord_label,
+                      self._design_type_label, 
+                      self._size_label, self._count_label):
+            label.setContentsMargins(10, 0, 10, 0)
+        self._update_design_type_label()
 
         self._build_actions()
         self._build_menus()
@@ -1086,6 +1095,17 @@ class MainWindow(QMainWindow):
         """Return True when the current stitch type is a hoop (embroidery) pattern."""
         return is_hoop_stitch_type(self._pattern.stitch_type)
 
+    def _update_design_type_label(self):
+        """Show the current design type in the status bar."""
+        names = {
+            "9mm": "9mm",
+            "MAXI": "MAXI",
+            "small hoop": self.tr("Hoop 80×80"),
+            "large hoop": self.tr("Hoop 120×115"),
+        }
+        self._design_type_label.setText(
+            self.tr("Type: {0}").format(names[self._pattern.stitch_type]))
+
     # ── Design-type dependent UI ──
 
     def _design_type_allows(self, target):
@@ -1201,6 +1221,14 @@ class MainWindow(QMainWindow):
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
         cy_clamped = max(0, min(self._pattern.CANVAS_HEIGHT, cy))
+        if self._is_hoop_type():
+            # Hoop designs have different resolution on the machine,
+            # so the canvas units (1 unit = 1/6 mm) are meaningless.
+            # Show millimetres only.
+            cx_mm = cx_clamped * self._pattern.STITCH_RES_MM
+            cy_mm = cy_clamped * self._pattern.STITCH_RES_MM
+            self._coord_label.setText(f"x: {cx_mm:.2f} mm  y: {cy_mm:.2f} mm")
+            return
         if self._act_std_stitch_align_grid.isChecked():
             cx_rounded = round(cx_clamped)
             cy_rounded = round(cy_clamped)
@@ -1217,15 +1245,23 @@ class MainWindow(QMainWindow):
         stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
         auto_count = sum(1 for e in self._pattern.display_elements if e[0] == ELEM_AUTO)
         total = stitch_count + auto_count
-        label = self.tr("Stitches: {0}").format(total) + (
+        count_label = self.tr("Stitches: {0}").format(total) + (
             self.tr(" ({0} auto)").format(auto_count) if auto_count else ""
         )
-        self._count_label.setText(label)
-        w_mm, h_mm = self._pattern.get_stitch_size_mm()
-        if w_mm or h_mm:
-            self._size_label.setText(f"W: {w_mm:.1f} mm  H: {h_mm:.1f} mm")
+        self._update_design_type_label()
+        x_mm, y_mm = self._pattern.get_stitch_size_mm()
+        if x_mm or y_mm:
+            self._size_label.setText(f"Size: {x_mm:.1f} × {y_mm:.1f} mm")
         else:
-            self._size_label.setText("W: - mm  H: - mm")
+            self._size_label.setText("Size: -")
+
+        if self._is_hoop_type():
+            # Embroidery designs are stitched in thread colours, so the number
+            # of colour changes matters as much as the design size.
+            changes = sum(1 for e in self._pattern.elements if e[0] == ELEM_COLOR)
+            count_label += ", " + self.tr("color changes: {0}").format(changes)
+            
+        self._count_label.setText(count_label)
         self._update_title()
         self._update_undo_redo_state()
         self._update_selection_action_state()
