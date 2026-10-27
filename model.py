@@ -138,10 +138,50 @@ class DeletePointCommand(Command):
         pattern.elements.insert(idx, self.element)
 
 
+def deletion_targets(elements, indices):
+    """Indices a deletion of *indices* really removes.
+
+    Colour changes are anchors, not stitches: an ``ELEM_COLOR`` record is kept
+    even when it lies inside the selection, because it carries the thread colour
+    of everything that follows it. When the surviving records end up in a row,
+    all but the last one of that run are dropped — same rule as
+    :meth:`StitchPattern.get_color_at`, which lets the last colour change win.
+
+    A deletion that leaves no stitch behind empties the pattern, so in that case
+    the colour records go as well — an anchor has nothing left to colour.
+
+    Args:
+        elements: the pattern's base element list.
+        indices: element indices the caller wants to delete.
+
+    Returns:
+        Sorted list of the indices that are actually removed.
+    """
+    doomed = {i for i in indices
+              if 0 <= i < len(elements) and elements[i][0] != ELEM_COLOR}
+    previous_color = None  # colour record kept so far in the current run
+    for i, element in enumerate(elements):
+        if element[0] == ELEM_COLOR:
+            if previous_color is not None:
+                doomed.add(previous_color)
+            previous_color = i
+        elif i not in doomed:
+            # A surviving stitch ends the run of colour records.
+            previous_color = None
+    if not doomed:
+        return []
+    if not any(elem_has_coords(element) and i not in doomed
+               for i, element in enumerate(elements)):
+        # Nothing would be left to stitch: drop the pattern entirely.
+        return list(range(len(elements)))
+    return sorted(doomed)
+
+
 class DeleteIndicesCommand(Command):
     """Deletes the elements at the given indices as a single undo step.
 
     Used for selections that are not a contiguous range (area selection).
+    Colour changes survive the deletion; see :func:`deletion_targets`.
     """
 
     def __init__(self, indices):
@@ -149,8 +189,8 @@ class DeleteIndicesCommand(Command):
         self.removed = None  # [(index, element), ...] in ascending index order
 
     def redo(self, pattern):
-        self.removed = [(i, pattern.elements[i]) for i in self.indices
-                        if 0 <= i < len(pattern.elements)]
+        targets = deletion_targets(pattern.elements, self.indices)
+        self.removed = [(i, pattern.elements[i]) for i in targets]
         # Delete from the end so the earlier indices stay valid.
         for index, _element in reversed(self.removed):
             del pattern.elements[index]
@@ -599,7 +639,10 @@ class StitchPattern:
         self._exec(DeletePointCommand(index, elem))
 
     def delete_range(self, start, end):
-        """Delete elements at indices [start, end] (inclusive) as a single undo step."""
+        """Delete elements at indices [start, end] (inclusive) as a single undo step.
+
+        Colour changes inside the range are kept; see :meth:`delete_indices`.
+        """
         start = max(0, start)
         end = min(len(self.elements) - 1, end)
         if start > end:
@@ -610,6 +653,8 @@ class StitchPattern:
         """Delete elements at indices [start, end] (inclusive) and return them.
 
         Returns the list of removed elements, or [] when the range is invalid.
+        Colour changes inside the range are kept, except for redundant records of
+        a colour run; see :meth:`cut_indices`.
         """
         start = max(0, start)
         end = min(len(self.elements) - 1, end)
@@ -618,19 +663,26 @@ class StitchPattern:
         return self.cut_indices(range(start, end + 1))
 
     def delete_indices(self, indices):
-        """Delete the elements at *indices* (any order) as a single undo step."""
+        """Delete the elements at *indices* (any order) as a single undo step.
+
+        Colour changes inside *indices* are kept, a run of colour records left
+        behind by the deletion is collapsed to its last record, and a deletion
+        that would empty the pattern removes the colour records too.
+        """
         indices = [i for i in indices if 0 <= i < len(self.elements)]
-        if not indices:
+        if not indices or not deletion_targets(self.elements, indices):
             return
         self._exec(DeleteIndicesCommand(indices))
 
     def cut_indices(self, indices):
         """Delete the elements at *indices* and return them.
 
-        Returns the removed elements in index order, or [] when nothing matched.
+        Returns the elements that were really removed in index order, or [] when
+        nothing matched. Colour changes stay in the pattern, so they are only
+        returned when they were dropped as a redundant record of a colour run.
         """
         indices = [i for i in indices if 0 <= i < len(self.elements)]
-        if not indices:
+        if not indices or not deletion_targets(self.elements, indices):
             return []
         cmd = DeleteIndicesCommand(indices)
         self._exec(cmd)
