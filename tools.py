@@ -237,6 +237,7 @@ class PointDragMixin:
         self._drag_indices = []        # element indices being dragged
         self._drag_originals = []      # their elements before the drag
         self._drag_anchor = None       # element index the cursor grabbed
+        self._drag_start_canvas = None  # press point for cursor-relative drags
         self._drag_offset = (0.0, 0.0)  # canvas-space move applied so far
 
     @property
@@ -257,7 +258,27 @@ class PointDragMixin:
         self._drag_indices = list(indices)
         self._drag_originals = [canvas.pattern.elements[i] for i in self._drag_indices]
         self._drag_anchor = anchor_index
+        self._drag_start_canvas = None
         self._drag_offset = (0.0, 0.0)
+
+    def _begin_cursor_point_drag(self, canvas, press_canvas):
+        """Move the selection by the cursor's travel from *press_canvas*.
+
+        Used when the drag starts on empty canvas: there is no grabbed point, so
+        the whole selection follows the cursor delta instead of jumping to it.
+
+        Returns:
+            bool: True when there was a selection to move.
+        """
+        indices = canvas.get_selected_indices()
+        if not indices:
+            return False
+        self._drag_indices = list(indices)
+        self._drag_originals = [canvas.pattern.elements[i] for i in self._drag_indices]
+        self._drag_anchor = None
+        self._drag_start_canvas = press_canvas
+        self._drag_offset = (0.0, 0.0)
+        return True
 
     def _cursor_canvas_pos(self, canvas, event):
         """Clipped, optionally grid-snapped canvas position of the cursor."""
@@ -272,8 +293,13 @@ class PointDragMixin:
     def _update_point_drag(self, canvas, event):
         """Move the dragged points so the grabbed point follows the cursor."""
         cx, cy = self._cursor_canvas_pos(canvas, event)
-        anchor = self._drag_originals[self._drag_indices.index(self._drag_anchor)]
-        self._drag_offset = (cx - anchor[1], cy - anchor[2])
+        if self._drag_anchor is None:
+            # Started on empty canvas: move by the cursor delta.
+            sx, sy = self._drag_start_canvas
+            self._drag_offset = (cx - sx, cy - sy)
+        else:
+            anchor = self._drag_originals[self._drag_indices.index(self._drag_anchor)]
+            self._drag_offset = (cx - anchor[1], cy - anchor[2])
         width, height = canvas.pattern.CANVAS_WIDTH, canvas.pattern.CANVAS_HEIGHT
         for index, original in zip(self._drag_indices, self._drag_originals):
             if not elem_has_coords(original):
@@ -951,8 +977,9 @@ class MovePointTool(PointDragMixin, BaseTool):
 
     def __init__(self):
         self._init_point_drag()
-        self._empty_click = False    # True when press landed far from any point
-        self._press_screen_pos = None  # Screen pos of last empty-space press
+        self._pending_empty_drag = False  # empty-space press waiting for travel
+        self._press_screen_pos = None     # screen pos of that press
+        self._press_canvas_pos = None     # canvas pos of that press
 
     def key_press(self, canvas, event):
         """Backspace triggers Undo but only if last action was MovePointCommand.
@@ -1019,44 +1046,59 @@ class MovePointTool(PointDragMixin, BaseTool):
         return find_nearest_coord_index(
             canvas.pattern, cx, cy, self.SNAP_RADIUS_PX / canvas.get_scale())
 
+    def _clear_pending_empty_drag(self):
+        """Forget an empty-space press that has not turned into a drag yet."""
+        self._pending_empty_drag = False
+        self._press_screen_pos = None
+        self._press_canvas_pos = None
+
     def mouse_press(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
         cx, cy = canvas.screen_to_canvas(event.x(), event.y())
         idx = self._find_nearest(canvas, cx, cy)
         if idx is None:
-            self._empty_click = True
-            self._press_screen_pos = (event.x(), event.y())
+            # Empty canvas never deselects. A drag from here moves the current
+            # selection; a plain click leaves it untouched.
+            self._clear_pending_empty_drag()
+            if canvas.get_selected_indices():
+                self._pending_empty_drag = True
+                self._press_screen_pos = (event.x(), event.y())
+                self._press_canvas_pos = (cx, cy)
             return
-        self._empty_click = False
+        self._clear_pending_empty_drag()
         if not canvas.is_point_selected(idx):
-            # Grabbing a point outside the selection drags just that point.
+            # Grabbing a point outside the selection moves just that point.
             canvas.set_selected_point(idx)
         self._begin_point_drag(canvas, idx)
         canvas.setCursor(Qt.CrossCursor)
 
     def mouse_move(self, canvas, event):
-        if self._empty_click and self._press_screen_pos is not None:
+        if self._pending_empty_drag and self._press_screen_pos is not None:
             dx = event.x() - self._press_screen_pos[0]
             dy = event.y() - self._press_screen_pos[1]
-            if dx * dx + dy * dy > DRAG_START_PX ** 2:
-                self._empty_click = False
-                self._press_screen_pos = None
+            if dx * dx + dy * dy <= DRAG_START_PX ** 2:
+                return
+            press_canvas = self._press_canvas_pos
+            self._clear_pending_empty_drag()
+            if self._begin_cursor_point_drag(canvas, press_canvas):
+                self._update_point_drag(canvas, event)
+            return
         if self._is_dragging:
             self._update_point_drag(canvas, event)
 
     def mouse_release(self, canvas, event):
         if event.button() != Qt.LeftButton:
             return
-        if self._empty_click:
-            self._empty_click = False
-            self._press_screen_pos = None
-            canvas.set_selection(None, None)
-            canvas.update()
-            return
+        self._clear_pending_empty_drag()
         if self._is_dragging:
             self._finish_point_drag(canvas)
             canvas.setCursor(self.cursor)
+
+    def on_deselect(self, canvas):
+        """Drop an uncommitted drag when another tool takes over."""
+        self._cancel_point_drag(canvas)
+        self._clear_pending_empty_drag()
 
 
 class DeletePointTool(BaseTool):
