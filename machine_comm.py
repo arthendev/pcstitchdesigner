@@ -2688,8 +2688,9 @@ class MachineComm:
                 treats the distances as plain coordinates and draws the design
                 mirrored in both axes.
             colours: 16-entry RGB palette, ``[(r, g, b), ...]``.  Shorter lists
-                are padded with black so the ``28 41 01`` table always carries
-                16 entries.  ``None`` omits the table.
+                are completed from :data:`DEFAULT_PALETTE` at the matching
+                positions, so a missing entry still names the machine's thread
+                colour for that slot.  ``None`` omits the table.
             trailing_tieoffs: Append one zero-length stitch per colour change
                 before the end marker.  PC-Designer card writes do not use
                 these, so the default is off.
@@ -2711,7 +2712,10 @@ class MachineComm:
         if colours is not None:
             table = [(int(r) & 0xFF, int(g) & 0xFF, int(b) & 0xFF)
                      for r, g, b in list(colours)[:16]]
-            table += [(0, 0, 0)] * (16 - len(table))
+            # Missing trailing entries keep their machine-standard colour, so
+            # the padding never turns a palette slot black by accident.
+            table += [(int(r), int(g), int(b))
+                      for r, g, b in DEFAULT_PALETTE[len(table):16]]
             out += bytes([0x80, 0x28, 0x41, 0x01])
             for r, g, b in table:
                 out += bytes([r, g, b, 0x00])
