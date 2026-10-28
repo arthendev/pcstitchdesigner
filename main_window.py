@@ -1494,6 +1494,63 @@ class MainWindow(QMainWindow):
             return
         self._open_file(path)
 
+    def _adjust_loaded_pcs_palette(self, pattern, path):
+        """Settle the thread palette of a PCS embroidery pattern.
+
+        A PCS embroidery file is supposed to carry the machine's 16-colour
+        table. A file without one gets :data:`DEFAULT_PALETTE` and a warning;
+        a file with a different count lets the user decide whether to
+        normalise it. Declining keeps the palette exactly as stored.
+        """
+        required = file_io.palette_size(path)
+        if required is None or not is_hoop_stitch_type(pattern.stitch_type):
+            return
+
+        colors = list(pattern.colors)
+        if not colors:
+            pattern.colors = [tuple(c) for c in DEFAULT_PALETTE]
+            self._log_info(
+                f"Default thread palette applied while loading {path}")
+            QMessageBox.warning(
+                self, self.tr("Thread Palette"),
+                self.tr("The file does not define a thread palette.") + "\n\n" +
+                self.tr("The default palette with {0} thread colours was "
+                        "applied.").format(len(DEFAULT_PALETTE)))
+            return
+
+        if len(colors) == required:
+            return
+
+        if len(colors) > required:
+            change = self.tr("The extra {0} colours will be removed.").format(
+                len(colors) - required)
+        else:
+            change = self.tr(
+                "The missing colours will be filled from the default palette.")
+        answer = QMessageBox.question(
+            self, self.tr("Thread Palette"),
+            self.tr("The file defines {0} thread colours, but an embroidery pattern "
+                    "for Creative 7500-Series machine needs {1}.").format(len(colors), required) + "\n\n" +
+            change + "\n\n" +
+            self.tr("Do you want to adjust the palette to {0} colours?").format(
+                required),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
+        )
+        if answer != QMessageBox.Yes:
+            self._log_info(
+                f"Thread palette kept as stored while loading {path}")
+            return
+
+        if len(colors) > required:
+            del colors[required:]
+        else:
+            # Fill each missing slot from the matching default-palette entry,
+            # so slot 15/16 receive the machine's own colour for that slot.
+            colors.extend(DEFAULT_PALETTE[i] for i in range(len(colors), required))
+        pattern.colors = colors
+        self._log_info(
+            f"Thread palette adjusted to {required} colours while loading {path}")
+
     def _open_file(self, path):
         """Open a file and add it to recent files list."""
         self._log_info(f"File opened: {path}")
@@ -1507,6 +1564,7 @@ class MainWindow(QMainWindow):
                 self._log_error(warning)
             QMessageBox.warning(
                 self, self.tr("File loaded with warnings"), "\n".join(file_info.warnings))
+        self._adjust_loaded_pcs_palette(pattern, path)
         self._pattern = pattern
         self._canvas.pattern = pattern
         self._canvas.set_selected_point(None)
