@@ -756,8 +756,8 @@ class MainWindow(QMainWindow):
         sections_submenu.addAction(self._act_edit_section_markers)
         sections_submenu.addAction(self._act_remove_section_markers)
         colors_submenu = edit_menu.addMenu(self.tr("&Colors"))
-        colors_submenu.addAction(self._act_edit_palette)
         colors_submenu.addAction(self._act_edit_color_markers)
+        colors_submenu.addAction(self._act_edit_palette)
 
         tools_menu = mb.addMenu(self.tr("&Tools"))
         tools_menu.addAction(self._act_pan)
