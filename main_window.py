@@ -1075,6 +1075,47 @@ class MainWindow(QMainWindow):
                     return False
         return True
 
+    def _fit_pattern_into_hoop(self, stitch_type):
+        """Make the current pattern fit *stitch_type*, centring it if needed.
+
+        Moving to a smaller hoop can fail only because of the pattern's position:
+        a design drawn in the large hoop usually sits in its centre, which is
+        outside the small hoop. Such a design is centred in the new hoop instead
+        of refusing the change; only a design that is genuinely too wide or too
+        tall is rejected.
+
+        Returns:
+            bool: True when the pattern fits, False when it is too large.
+        """
+        if self._pattern_fits_in_canvas(stitch_type):
+            return True
+        bounds = self._pattern.get_stitch_bounds()
+        if bounds is None:
+            return True
+        min_x, min_y, max_x, max_y = bounds
+        width = max_x - min_x
+        height = max_y - min_y
+        canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[stitch_type]
+        if width > canvas_w or height > canvas_h:
+            return False
+
+        dx = round((canvas_w - width) / 2 - min_x)
+        dy = round((canvas_h - height) / 2 - min_y)
+        QMessageBox.warning(
+            self, self.tr("Canvas Size Change"),
+            self.tr("The design needs centering to fit the working area.") + "\n\n" +
+            self.tr("Centering will be applied automatically.")
+        )
+        # Move only after the user has seen what is going to happen.
+        self._pattern.elements = [
+            (e[0], e[1] + dx, e[2] + dy) if elem_has_coords(e) else e
+            for e in self._pattern.elements
+        ]
+        self._pattern._rebuild_display_no_auto()
+        self._log_info(
+            f"Pattern centred by ({dx}, {dy}) to fit the {stitch_type}")
+        return True
+
     def _on_stitch_9mm(self):
         if not self._pattern_fits_in_canvas("9mm"):
             QMessageBox.warning(
@@ -1124,7 +1165,7 @@ class MainWindow(QMainWindow):
             self._zoom_fit_height()
 
     def _on_stitch_small_hoop(self):
-        if not self._pattern_fits_in_canvas("small hoop"):
+        if not self._fit_pattern_into_hoop("small hoop"):
             QMessageBox.warning(
                 self, self.tr("Canvas Size Change"),
                 self.tr("Current pattern will be too large for the working area.")
@@ -1151,7 +1192,7 @@ class MainWindow(QMainWindow):
             self._zoom_fit_height()
 
     def _on_stitch_large_hoop(self):
-        if not self._pattern_fits_in_canvas("large hoop"):
+        if not self._fit_pattern_into_hoop("large hoop"):
             QMessageBox.warning(
                 self, self.tr("Canvas Size Change"),
                 self.tr("Current pattern will be too large for the working area.")
@@ -1560,29 +1601,31 @@ class MainWindow(QMainWindow):
         target_type = HOOP_PROMOTIONS.get(source_type, source_type)
         target_w, target_h = StitchPattern.CANVAS_SIZES[target_type]
         outside = self.tr(
-            "The file is marked as a {0} design, but its stitches reach outside "
-            "that area.").format(self._design_type_name(source_type))
+            "The design reaches outside of declared hoop size.").format(source_type)
 
         if min_x >= 0 and min_y >= 0 and max_x <= target_w and max_y <= target_h:
+            QMessageBox.warning(
+                self, self.tr("Design Too Large for Hoop"),
+                outside + "\n\n" +
+                self.tr("The design type will be changed automatically to fit inside the working area.")
+            )
             # The stitches are complete, only the hoop named in the file is wrong.
             pattern.stitch_type = target_type
             self._log_info(
                 f"Hoop design switched from {source_type} to {target_type} "
                 f"while loading: stitches reach outside the {source_type} area")
-            QMessageBox.warning(
-                self, self.tr("Design Too Large for Hoop"),
-                outside + "\n\n" +
-                self.tr("The pattern fits into the {0} ({1}). The design type "
-                        "will be changed automatically.").format(
-                            self._design_type_name(target_type),
-                            self._format_canvas_size(target_w, target_h)))
             return True
 
         if width <= target_w and height <= target_h:
-            # The design is smaller than the hoop but positioned outside it, so
-            # centring it keeps every stitch inside the drawable area.
             dx = round((target_w - width) / 2 - min_x)
             dy = round((target_h - height) / 2 - min_y)
+            QMessageBox.warning(
+                self, self.tr("Design Needs Centering"),
+                outside + "\n\n" +
+                self.tr("The design needs to be centered to fit inside the working area."))
+            # The design is smaller than the hoop but positioned outside it, so
+            # centring it keeps every stitch inside the drawable area. Move only
+            # after the user has seen what is going to happen.
             pattern.stitch_type = target_type
             pattern.elements = [
                 (e[0], e[1] + dx, e[2] + dy) if elem_has_coords(e) else e
@@ -1592,14 +1635,6 @@ class MainWindow(QMainWindow):
             self._log_info(
                 f"Hoop design centred by ({dx}, {dy}) inside the {target_type} "
                 f"while loading: stitches reach outside the {source_type} area")
-            QMessageBox.warning(
-                self, self.tr("Design Too Large for Hoop"),
-                outside + "\n\n" +
-                self.tr("The pattern is {0} and fits into the {1} ({2}), so it will be "
-                        "centred automatically.").format(
-                            self._format_canvas_size(width, height),
-                            self._design_type_name(target_type),
-                            self._format_canvas_size(target_w, target_h)))
             return True
 
         self._log_error(
@@ -1609,10 +1644,8 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(
             self, self.tr("Error opening file"),
             outside + "\n\n" +
-            self.tr("The pattern measures {0}, which is larger than the {1} "
-                    "({2}).").format(
+            self.tr("The pattern measures {0}, which is larger than the biggest supported hoop ({1}).").format(
                         self._format_canvas_size(width, height),
-                        self._design_type_name(target_type),
                         self._format_canvas_size(target_w, target_h)) + "\n\n" +
             self.tr("The file cannot be opened."))
         return False
