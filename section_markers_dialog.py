@@ -6,7 +6,8 @@ from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QPainter, QPen, QPolygon
 from PyQt5.QtWidgets import (
     QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
+    QListWidgetItem, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
+    QVBoxLayout, QWidget,
 )
 
 from model import (ELEM_COLOR, ELEM_SECTION, ELEM_STITCH, elem_has_coords,
@@ -332,6 +333,17 @@ class SectionMarkersDialog(QDialog):
         self._selected_indices = []
         self._did_fit = False
 
+        # Stitch number ↔ element index stay valid for the dialog's whole life:
+        # editing only changes element kinds, never the list length.
+        self._number_by_index = {
+            index: number
+            for number, index in enumerate(
+                (i for i, e in enumerate(self._elements) if elem_has_coords(e)),
+                start=1)
+        }
+        self._index_by_number = {number: index
+                                 for index, number in self._number_by_index.items()}
+
         # ── Left: section marker list with Add / Remove ──
         self._section_list = QListWidget()
         self._section_list.setSelectionMode(QListWidget.ExtendedSelection)
@@ -386,7 +398,13 @@ class SectionMarkersDialog(QDialog):
         hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it."))
         hint.setStyleSheet("color: gray;")
 
-        self._range_label = QLabel()
+        self._spins_syncing = False
+        self._spins_in_range = False
+        self._start_spin = self._make_spin(self.tr("First selected stitch"))
+        self._to_label = QLabel(self.tr("to"))
+        self._end_spin = self._make_spin(self.tr("Last selected stitch"))
+        self._to_label.setVisible(False)
+        self._end_spin.setVisible(False)
         self._first_button = self._nav_button(
             "|<", self.tr("Select the first stitch"), self._select_first)
         self._previous_button = self._nav_button(
@@ -406,10 +424,16 @@ class SectionMarkersDialog(QDialog):
         nav_layout.addStretch(1)
         nav_layout.addWidget(hint)
 
+        selection_layout = QHBoxLayout()
+        selection_layout.addWidget(self._start_spin)
+        selection_layout.addWidget(self._to_label)
+        selection_layout.addWidget(self._end_spin)
+        selection_layout.addStretch(1)
+
         right_layout = QVBoxLayout()
         right_layout.addWidget(self._scroll, 1)
         right_layout.addLayout(nav_layout)
-        right_layout.addWidget(self._range_label)
+        right_layout.addLayout(selection_layout)
 
         body = QHBoxLayout()
         body.addLayout(left_layout)
@@ -440,6 +464,18 @@ class SectionMarkersDialog(QDialog):
         button.clicked.connect(slot)
         return button
 
+    def _make_spin(self, tooltip):
+        """Create a 1-based stitch-number spin box for the selection."""
+        spin = QSpinBox()
+        spin.setRange(1, 1)
+        spin.setFixedWidth(70)
+        spin.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # Apply a typed number when editing is done, not on every keystroke.
+        spin.setKeyboardTracking(False)
+        spin.setToolTip(tooltip)
+        spin.valueChanged.connect(self._on_selection_spin_changed)
+        return spin
+
     def showEvent(self, event):
         super().showEvent(event)
         if not self._did_fit:
@@ -460,11 +496,7 @@ class SectionMarkersDialog(QDialog):
         section marker, so the numbering skips colour-change records. Otherwise
         the visible numbers would jump over entries the user cannot mark.
         """
-        return {index: number
-                for number, index in enumerate(
-                    (i for i, e in enumerate(self._elements)
-                     if elem_has_coords(e)),
-                    start=1)}
+        return self._number_by_index
 
     def _selectable_indices(self):
         """Return the indices the selection may land on.
@@ -508,7 +540,7 @@ class SectionMarkersDialog(QDialog):
 
         self._preview.set_selection(self._selected_indices, self._current_index)
         self._update_actions()
-        self._update_status()
+        self._update_selection_spins()
         self._update_apply_state()
 
     def _update_actions(self):
@@ -519,20 +551,79 @@ class SectionMarkersDialog(QDialog):
         self._add_button.setEnabled(element is not None and element[0] == ELEM_STITCH)
         self._remove_button.setEnabled(element is not None and element[0] == ELEM_SECTION)
 
-    def _update_status(self):
-        """Show the selected stitch number or the selected number range."""
-        numbering = self._coord_numbering()
-        if len(self._selected_indices) >= 2:
-            first, last = min(self._selected_indices), max(self._selected_indices)
-            self._range_label.setText(
-                self.tr("Range: {0} – {1}").format(numbering[first], numbering[last]))
+    def _update_selection_spins(self):
+        """Mirror the current selection in the stitch-number spin boxes."""
+        total = len(self._number_by_index)
+        is_range = len(self._selected_indices) >= 2
+        if is_range:
+            first = min(self._selected_indices)
+            last = max(self._selected_indices)
         elif self._current_index is not None:
-            kind = self._elements[self._current_index][0]
-            name = self.tr("Section marker") if kind == ELEM_SECTION else self.tr("Stitch")
-            self._range_label.setText(
-                self.tr("{0}: {1}").format(name, numbering[self._current_index]))
+            first = last = self._current_index
         else:
-            self._range_label.setText(self.tr("No stitch selected"))
+            first = last = None
+
+        first_number = self._number_by_index.get(first, 1)
+        last_number = self._number_by_index.get(last, 1)
+        self._spins_in_range = is_range
+
+        self._spins_syncing = True
+        try:
+            limit = max(1, total)
+            # The range ends must never cross: the start stops at the end and
+            # the end stops at the start.
+            self._start_spin.setMinimum(1)
+            self._start_spin.setMaximum(last_number if is_range else limit)
+            self._end_spin.setMaximum(limit)
+            self._end_spin.setMinimum(first_number if is_range else 1)
+            self._start_spin.setValue(first_number)
+            self._end_spin.setValue(last_number)
+        finally:
+            self._spins_syncing = False
+
+        has_selection = first is not None and total > 0
+        self._start_spin.setEnabled(has_selection)
+        self._end_spin.setEnabled(has_selection)
+        self._to_label.setEnabled(has_selection)
+        self._to_label.setVisible(is_range)
+        self._end_spin.setVisible(is_range)
+
+    def _on_selection_spin_changed(self, _value):
+        """Select the stitch or range named by the spin boxes."""
+        if self._spins_syncing:
+            return
+        if self._spins_in_range:
+            start = self._index_by_number.get(self._start_spin.value())
+            end = self._index_by_number.get(self._end_spin.value())
+            if start is None or end is None:
+                return
+            if start == end:
+                self._select_index(start)
+            else:
+                self._select_range(start, end)
+            return
+        index = self._index_by_number.get(self._start_spin.value())
+        if index is not None:
+            self._select_index(index)
+
+    def _select_range(self, start_index, end_index):
+        """Select the continuous range between two element indices."""
+        first, last = sorted((start_index, end_index))
+        self._selected_indices = [first, last]
+        self._current_index = None
+
+        # Keep the marker list in step with what the preview highlights.
+        self._section_list.blockSignals(True)
+        self._section_list.clearSelection()
+        for row in range(self._section_list.count()):
+            item = self._section_list.item(row)
+            if first <= int(item.data(Qt.UserRole)) <= last:
+                item.setSelected(True)
+        self._section_list.blockSignals(False)
+
+        self._preview.set_selection(self._selected_indices, None)
+        self._update_actions()
+        self._update_selection_spins()
 
     def _update_apply_state(self):
         """Enable Apply only while the working copy differs from the pattern."""
@@ -573,7 +664,7 @@ class SectionMarkersDialog(QDialog):
 
         self._preview.set_selection(self._selected_indices, self._current_index)
         self._update_actions()
-        self._update_status()
+        self._update_selection_spins()
         if self._current_index is not None:
             self._scroll_preview_to(self._current_index)
 
@@ -592,7 +683,7 @@ class SectionMarkersDialog(QDialog):
 
         self._preview.set_selection([], index)
         self._update_actions()
-        self._update_status()
+        self._update_selection_spins()
 
     def _select_index(self, index):
         """Make *index* the single selected stitch."""
@@ -608,7 +699,7 @@ class SectionMarkersDialog(QDialog):
 
         self._preview.set_selection([], index)
         self._update_actions()
-        self._update_status()
+        self._update_selection_spins()
         self._scroll_preview_to(index)
 
     def _select_first(self):
