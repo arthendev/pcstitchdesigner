@@ -44,6 +44,9 @@ from check_updates_dialog import run_check_for_updates, run_silent_check_for_upd
 # The design types offered by the Design menu. Hoop types are embroidery.
 STITCH_DESIGN_TYPES = ("9mm", "MAXI")
 EMBROIDERY_DESIGN_TYPES = ("small hoop", "large hoop")
+# A hoop design whose stitches do not fit its own hoop is first offered to this
+# larger hoop before it is rejected as unopenable.
+HOOP_PROMOTIONS = {"small hoop": "large hoop"}
 
 
 @dataclass(frozen=True)
@@ -1180,16 +1183,27 @@ class MainWindow(QMainWindow):
         """Return True when the current stitch type is a hoop (embroidery) pattern."""
         return is_hoop_stitch_type(self._pattern.stitch_type)
 
-    def _update_design_type_label(self):
-        """Show the current design type in the status bar."""
+    def _design_type_name(self, stitch_type):
+        """Return the user-facing name of *stitch_type*."""
         names = {
             "9mm": "9mm",
             "MAXI": "MAXI",
             "small hoop": self.tr("Hoop 80×80"),
             "large hoop": self.tr("Hoop 120×115"),
         }
+        return names[stitch_type]
+
+    def _format_canvas_size(self, width, height):
+        """Describe a canvas size in stitch units as "W × H mm" for messages."""
+        mm = StitchPattern.STITCH_RES_MM
+        return self.tr("{0} × {1} mm").format(
+            f"{width * mm:.1f}", f"{height * mm:.1f}")
+
+    def _update_design_type_label(self):
+        """Show the current design type in the status bar."""
         self._design_type_label.setText(
-            self.tr("Type: {0}").format(names[self._pattern.stitch_type]))
+            self.tr("Type: {0}").format(
+                self._design_type_name(self._pattern.stitch_type)))
 
     # ── Design-type dependent UI ──
 
@@ -1510,6 +1524,99 @@ class MainWindow(QMainWindow):
             return
         self._open_file(path)
 
+    def _fit_loaded_hoop_pattern(self, pattern):
+        """Repair a hoop design whose stitches reach outside its hoop.
+
+        Third-party PCS writers sometimes label a design as a small hoop design
+        although they placed the stitches in the large hoop coordinate space,
+        so the pattern is repaired instead of being loaded broken:
+
+        * coordinates that fit the next larger hoop unchanged switch the design
+          type to that hoop,
+        * a design whose extents fit but whose position does not is centred in
+          the larger hoop,
+        * a design larger than every hoop cannot be shown and is refused.
+
+        Only hoop designs are checked: 9 mm / MAXI coordinates are not tied to a
+        hoop area, so their files keep loading as stored.
+
+        Returns:
+            bool: True when the pattern can be opened, False when it must be
+            rejected.
+        """
+        if not is_hoop_stitch_type(pattern.stitch_type):
+            return True
+        bounds = pattern.get_stitch_bounds()
+        if bounds is None:
+            return True
+        min_x, min_y, max_x, max_y = bounds
+        canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[pattern.stitch_type]
+        if min_x >= 0 and min_y >= 0 and max_x <= canvas_w and max_y <= canvas_h:
+            return True
+        width = max_x - min_x
+        height = max_y - min_y
+
+        source_type = pattern.stitch_type
+        target_type = HOOP_PROMOTIONS.get(source_type, source_type)
+        target_w, target_h = StitchPattern.CANVAS_SIZES[target_type]
+        outside = self.tr(
+            "The file is marked as a {0} design, but its stitches reach outside "
+            "that area.").format(self._design_type_name(source_type))
+
+        if min_x >= 0 and min_y >= 0 and max_x <= target_w and max_y <= target_h:
+            # The stitches are complete, only the hoop named in the file is wrong.
+            pattern.stitch_type = target_type
+            self._log_info(
+                f"Hoop design switched from {source_type} to {target_type} "
+                f"while loading: stitches reach outside the {source_type} area")
+            QMessageBox.warning(
+                self, self.tr("Design Too Large for Hoop"),
+                outside + "\n\n" +
+                self.tr("The pattern fits into the {0} ({1}). The design type "
+                        "will be changed automatically.").format(
+                            self._design_type_name(target_type),
+                            self._format_canvas_size(target_w, target_h)))
+            return True
+
+        if width <= target_w and height <= target_h:
+            # The design is smaller than the hoop but positioned outside it, so
+            # centring it keeps every stitch inside the drawable area.
+            dx = round((target_w - width) / 2 - min_x)
+            dy = round((target_h - height) / 2 - min_y)
+            pattern.stitch_type = target_type
+            pattern.elements = [
+                (e[0], e[1] + dx, e[2] + dy) if elem_has_coords(e) else e
+                for e in pattern.elements
+            ]
+            pattern._rebuild_display_no_auto()
+            self._log_info(
+                f"Hoop design centred by ({dx}, {dy}) inside the {target_type} "
+                f"while loading: stitches reach outside the {source_type} area")
+            QMessageBox.warning(
+                self, self.tr("Design Too Large for Hoop"),
+                outside + "\n\n" +
+                self.tr("The pattern is {0} and fits into the {1} ({2}), so it will be "
+                        "centred automatically.").format(
+                            self._format_canvas_size(width, height),
+                            self._design_type_name(target_type),
+                            self._format_canvas_size(target_w, target_h)))
+            return True
+
+        self._log_error(
+            f"Refused to open a {source_type} design of "
+            f"{width} × {height} stitch units: larger than the {target_type} "
+            f"({target_w} × {target_h})")
+        QMessageBox.critical(
+            self, self.tr("Error opening file"),
+            outside + "\n\n" +
+            self.tr("The pattern measures {0}, which is larger than the {1} "
+                    "({2}).").format(
+                        self._format_canvas_size(width, height),
+                        self._design_type_name(target_type),
+                        self._format_canvas_size(target_w, target_h)) + "\n\n" +
+            self.tr("The file cannot be opened."))
+        return False
+
     def _adjust_loaded_pcs_palette(self, pattern, path):
         """Settle the thread palette of a PCS embroidery pattern.
 
@@ -1580,6 +1687,10 @@ class MainWindow(QMainWindow):
                 self._log_error(warning)
             QMessageBox.warning(
                 self, self.tr("File loaded with warnings"), "\n".join(file_info.warnings))
+        # Repair or refuse a hoop design whose stitches do not fit its hoop
+        # before any other dialog can ask questions about the file.
+        if not self._fit_loaded_hoop_pattern(pattern):
+            return
         self._adjust_loaded_pcs_palette(pattern, path)
         self._pattern = pattern
         self._canvas.pattern = pattern
