@@ -941,20 +941,50 @@ class MainWindow(QMainWindow):
         spin.valueChanged.connect(self._on_selection_spin_changed)
         return spin
 
+    def _selectable_stitch_indices(self):
+        """Return the element indices a stitch selection may land on."""
+        return [i for i, e in enumerate(self._pattern.elements) if elem_has_coords(e)]
+
+    def _stitch_number(self, index, coord_indices=None):
+        """Return the 1-based stitch number of element *index*, or None.
+
+        Colour-change records have no position, so the numbering counts only the
+        coordinate elements — the same rule the colour-change editor uses.
+        """
+        if coord_indices is None:
+            coord_indices = self._selectable_stitch_indices()
+        try:
+            return coord_indices.index(index) + 1
+        except ValueError:
+            return None
+
+    def _stitch_index(self, number, coord_indices=None):
+        """Return the element index of the 1-based stitch *number*, or None."""
+        if coord_indices is None:
+            coord_indices = self._selectable_stitch_indices()
+        if 1 <= number <= len(coord_indices):
+            return coord_indices[number - 1]
+        return None
+
     def _on_selection_spin_changed(self, _value):
         """Select the stitch points named by the index spin boxes."""
         if self._sel_spins_syncing:
             return
+        coord_indices = self._selectable_stitch_indices()
         start, end = self._canvas.get_selection()
         if start is not None and start == end:
             # A single selected point has only one box on screen, so either box
             # moves that point instead of growing it into a range.
-            index = self.sender().value() - 1
+            index = self._stitch_index(self.sender().value(), coord_indices)
+            if index is None:
+                return
             self._canvas.set_selection(index, index)
             return
-        self._canvas.set_selection(
-            self._sel_start_spin.value() - 1,
-            self._sel_end_spin.value() - 1)
+        new_start = self._stitch_index(self._sel_start_spin.value(), coord_indices)
+        new_end = self._stitch_index(self._sel_end_spin.value(), coord_indices)
+        if new_start is None or new_end is None:
+            return
+        self._canvas.set_selection(new_start, new_end)
 
     # ── Tool selection ──
 
@@ -1485,22 +1515,36 @@ class MainWindow(QMainWindow):
         can_xform = has_multiple_selection and not self._canvas._sel_xform_active
         self._act_sel_xform.setEnabled(can_xform)
 
-        # Index spin boxes mirror the selection (1-based). An area selection is
-        # an explicit set, so a range editor cannot represent it; leave it off.
-        spins_enabled = has_selection and not sparse
-        is_range = (spins_enabled and start is not None and end is not None
-                    and end > start)
+        # Index spin boxes mirror the selection (1-based). Colour-change records
+        # are not stitch points, so the numbering counts only the coordinate
+        # elements. An area selection is an explicit set, so a range editor
+        # cannot represent it; leave it off.
+        coord_indices = self._selectable_stitch_indices()
+        numbering = {index: number
+                     for number, index in enumerate(coord_indices, start=1)}
+        # A range end may sit on a colour record; report the nearest coordinate
+        # element inside the selection instead.
+        first_index = next((i for i in coord_indices
+                            if start is not None and i >= start), None)
+        last_index = next((i for i in reversed(coord_indices)
+                           if end is not None and i <= end), None)
+        start_number = numbering.get(first_index)
+        end_number = numbering.get(last_index)
+        spins_enabled = has_selection and not sparse and start_number is not None
+        is_range = (spins_enabled and end_number is not None
+                    and end_number > start_number)
         self._sel_spins_syncing = True
         try:
-            limit = max(1, n)
+            limit = max(1, len(coord_indices))
             # The range ends must never cross: From stops at To, To stops at
             # From, so a value can only shrink the range or grow it outwards.
-            self._sel_start_spin.setMaximum(end + 1 if is_range else limit)
+            self._sel_start_spin.setMaximum(end_number if is_range else limit)
             self._sel_start_spin.setMinimum(1)
             self._sel_end_spin.setMaximum(limit)
-            self._sel_end_spin.setMinimum(start + 1 if is_range else 1)
-            self._sel_start_spin.setValue(start + 1 if start is not None else 1)
-            self._sel_end_spin.setValue(end + 1 if end is not None else 1)
+            self._sel_end_spin.setMinimum(start_number if is_range else 1)
+            self._sel_start_spin.setValue(start_number if start_number else 1)
+            self._sel_end_spin.setValue(
+                end_number if end_number else (start_number or 1))
         finally:
             self._sel_spins_syncing = False
         for widget in (self._sel_start_spin, self._sel_to_label,
