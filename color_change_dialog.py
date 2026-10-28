@@ -139,7 +139,7 @@ class ColorChangeMarkersDialog(QDialog):
 
     def __init__(self, pattern, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(self.tr("Edit Color Change Markers"))
+        self.setWindowTitle(self.tr("Edit Color Changes"))
         self.resize(980, 660)
 
         self._pattern = pattern

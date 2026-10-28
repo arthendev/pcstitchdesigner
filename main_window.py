@@ -394,7 +394,7 @@ class MainWindow(QMainWindow):
         # Enabled for embroidery designs only (DESIGN_TYPE_RULES); the default
         # document is a 9 mm pattern.
         self._act_edit_color_markers = QAction(
-            self.tr("&Edit color change markers…"), self)
+            self.tr("&Edit color changes…"), self)
         self._act_edit_color_markers.setEnabled(False)
         self._act_edit_color_markers.triggered.connect(
             self._edit_color_change_markers)
