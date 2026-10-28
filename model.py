@@ -454,6 +454,36 @@ class SetPaletteCommand(Command):
             pattern.colors = self.old_colors
 
 
+class SetPaletteAndElementsCommand(Command):
+    """Replaces palette and element list as one undo step.
+
+    Removing a palette entry renumbers the ELEM_COLOR records after it, so the
+    palette and the records that reference it must be restored together.
+
+    Args:
+        new_colors: complete palette as ``[(r, g, b), ...]``.
+        new_elements: complete base element list.
+    """
+
+    def __init__(self, new_colors, new_elements):
+        self.new_colors = [tuple(c) for c in new_colors]
+        self.new_elements = list(new_elements)
+        self.old_colors = None
+        self.old_elements = None
+
+    def redo(self, pattern):
+        if self.old_colors is None:
+            self.old_colors = list(pattern.colors)
+            self.old_elements = list(pattern.elements)
+        pattern.colors = list(self.new_colors)
+        pattern.elements = list(self.new_elements)
+
+    def undo(self, pattern):
+        if self.old_colors is not None:
+            pattern.colors = list(self.old_colors)
+            pattern.elements = list(self.old_elements)
+
+
 class StitchPattern:
     """Ordered list of pattern elements with undo/redo.
 
@@ -569,6 +599,26 @@ class StitchPattern:
             colors: complete palette as ``[(r, g, b), ...]``.
         """
         self._exec(SetPaletteCommand(colors))
+
+    def set_palette_and_elements(self, colors, elements):
+        """Replace palette and element list as one undo step.
+
+        Used by the palette editor: removing an entry renumbers the ELEM_COLOR
+        records after it, so both lists have to change together.
+
+        Args:
+            colors: complete palette as ``[(r, g, b), ...]``.
+            elements: complete base element list (no ELEM_AUTO).
+
+        Returns:
+            bool: True when the pattern changed; False for an identical state.
+        """
+        new_colors = [tuple(c) for c in colors]
+        new_elements = list(elements)
+        if new_colors == self.colors and new_elements == self.elements:
+            return False
+        self._exec(SetPaletteAndElementsCommand(new_colors, new_elements))
+        return True
 
     def ensure_palette(self, colors=None):
         """Give the pattern a thread palette when it has none yet.

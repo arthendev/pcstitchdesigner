@@ -31,6 +31,7 @@ from pmemory_dialog import PMemoryDialog
 from cardmemory_dialog import CardMemoryDialog
 from section_markers_dialog import SectionMarkersDialog
 from color_change_dialog import ColorChangeMarkersDialog
+from palette_editor_dialog import PaletteEditorDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
@@ -89,6 +90,7 @@ DESIGN_TYPE_RULES = (
     # color palette bar and can have colour-change markers edited.
     DesignTypeRule("_palette_bar", EMBROIDERY_DESIGN_TYPES),
     DesignTypeRule("_act_edit_color_markers", EMBROIDERY_DESIGN_TYPES),
+    DesignTypeRule("_act_edit_palette", EMBROIDERY_DESIGN_TYPES),
 )
 
 
@@ -396,6 +398,11 @@ class MainWindow(QMainWindow):
         self._act_edit_color_markers.setEnabled(False)
         self._act_edit_color_markers.triggered.connect(
             self._edit_color_change_markers)
+
+        self._act_edit_palette = QAction(
+            self.tr("Edit color &palette…"), self)
+        self._act_edit_palette.setEnabled(False)
+        self._act_edit_palette.triggered.connect(self._edit_color_palette)
 
         # Sel-xform toolbar OK/Cancel actions (icon-only)
         self._act_sel_xform_ok = QAction(
@@ -741,6 +748,7 @@ class MainWindow(QMainWindow):
         sections_submenu.addAction(self._act_edit_section_markers)
         sections_submenu.addAction(self._act_remove_section_markers)
         colors_submenu = edit_menu.addMenu(self.tr("&Colors"))
+        colors_submenu.addAction(self._act_edit_palette)
         colors_submenu.addAction(self._act_edit_color_markers)
 
         tools_menu = mb.addMenu(self.tr("&Tools"))
@@ -2031,6 +2039,14 @@ class MainWindow(QMainWindow):
         dlg = SectionMarkersDialog(self._pattern, parent=self)
         if dlg.exec_() == QDialog.Accepted:
             self._canvas.update()
+            self._on_pattern_changed()
+
+    def _edit_color_palette(self):
+        """Open the palette editor; Apply is one undo step."""
+        dlg = PaletteEditorDialog(self._pattern, parent=self)
+        if dlg.exec_() == QDialog.Accepted:
+            self._canvas.update()
+            self._update_palette_bar()
             self._on_pattern_changed()
 
     def _edit_color_change_markers(self):
