@@ -142,14 +142,6 @@
         <translation>(без имени)</translation>
     </message>
     <message>
-        <source>Not Yet Implemented</source>
-        <translation>Ещё не реализовано</translation>
-    </message>
-    <message>
-        <source>Loading {0} patterns from memory card is not yet supported.</source>
-        <translation>Загрузка узоров «{0}» с карты памяти пока не поддерживается.</translation>
-    </message>
-    <message>
         <source>Decode Failed</source>
         <translation>Не удалось декодировать</translation>
     </message>
@@ -174,8 +166,16 @@
         <translation>Не удалось повторно загрузить эскизы с машины:</translation>
     </message>
     <message>
-        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
-        <translation>Загрузка узоров вышивки с карты памяти пока не поддерживается.</translation>
+        <source>Colours: {0}</source>
+        <translation>Цвета: {0}</translation>
+    </message>
+    <message>
+        <source>Hoop: unknown</source>
+        <translation>Пяльцы: неизвестно</translation>
+    </message>
+    <message>
+        <source>Hoop: {0} x {1} mm</source>
+        <translation>Пяльцы: {0} x {1} мм</translation>
     </message>
 </context>
 <context>
@@ -192,8 +192,8 @@
 <context>
     <name>ColorPaletteBar</name>
     <message>
-        <source>Color {0}: RGB({1}, {2}, {3})</source>
-        <translation>Цвет {0}: RGB({1}, {2}, {3})</translation>
+        <source>Color {0}: RGB({1}, {2}, {3}) — click to change</source>
+        <translation>Цвет {0}: RGB({1}, {2}, {3}) — нажмите, чтобы изменить</translation>
     </message>
 </context>
 <context>
@@ -250,6 +250,10 @@
         <source>Restore Defaults</source>
         <translation>Восстановить значения по умолчанию</translation>
     </message>
+    <message>
+        <source>Background:</source>
+        <translation>Фон:</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
@@ -304,6 +308,14 @@
     <message>
         <source>Pattern coordinates must not be negative</source>
         <translation>Координаты узора не могут быть отрицательными</translation>
+    </message>
+    <message>
+        <source>A colour change refers to palette index {0}, but the palette only holds indices 0 to {1}</source>
+        <translation>Смена цвета ссылается на индекс палитры {0}, но палитра содержит только индексы от 0 до {1}</translation>
+    </message>
+    <message>
+        <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
+        <translation>Файл вышивки содержит ровно {0} цветов нити, а в этом узоре {1}</translation>
     </message>
 </context>
 <context>
@@ -550,10 +562,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>Ожидался CTRL_ACK для начала первого блока, получено 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading unknown bytes in first chunk.</source>
-        <translation>Истекло время ожидания при чтении неизвестных байтов в первом блоке.</translation>
     </message>
     <message>
         <source>Timeout reading SIZE in first chunk.</source>
@@ -851,16 +859,48 @@
         <source>Unexpected response 0x{0} after stitch data.</source>
         <translation>Неожиданный ответ 0x{0} после данных стежков.</translation>
     </message>
+    <message>
+        <source>Colour index {0} is outside the machine's 16-colour palette.</source>
+        <translation>Индекс цвета {0} выходит за пределы 16-цветной палитры машины.</translation>
+    </message>
+    <message>
+        <source>Internal error: {0} preview block(s) generated, but the header expects {1}.</source>
+        <translation>Внутренняя ошибка: сформировано блоков предпросмотра — {0}, но заголовок ожидает {1}.</translation>
+    </message>
+    <message>
+        <source>The card payload contains no embroidery stitches.</source>
+        <translation>Данные карты не содержат стежков вышивки.</translation>
+    </message>
+    <message>
+        <source>The embroidery design contains no stitches.</source>
+        <translation>Узор вышивки не содержит стежков.</translation>
+    </message>
+    <message>
+        <source>The embroidery design is larger than the selected hoop.</source>
+        <translation>Узор вышивки больше выбранных пялец.</translation>
+    </message>
+    <message>
+        <source>The encoded embroidery pattern is {0} bytes, but the memory card format can hold at most 65535.</source>
+        <translation>Закодированный узор вышивки занимает {0} байт, но формат карты памяти вмещает не более 65535.</translation>
+    </message>
+    <message>
+        <source>The pattern file size is too large and cannot be stored on the memory card: {0} bytes are needed, but a card slot holds at most {1} bytes. Split the design into smaller parts.</source>
+        <translation>Файл узора слишком велик и не может быть сохранён на карте памяти: требуется {0} байт, но слот карты вмещает не более {1} байт. Разделите дизайн на части.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the pattern descriptor in first chunk.</source>
+        <translation>Тайм-аут при чтении дескриптора узора в первом блоке.</translation>
+    </message>
+    <message>
+        <source>Unknown machine model: {0}</source>
+        <translation>Неизвестная модель машины: {0}</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Tool: -</source>
         <translation>Инструмент: -</translation>
-    </message>
-    <message>
-        <source>Points: 0</source>
-        <translation>Точки: 0</translation>
     </message>
     <message>
         <source>&amp;New</source>
@@ -1037,10 +1077,6 @@
     <message>
         <source>Toggle Orientation</source>
         <translation>Переключить ориентацию</translation>
-    </message>
-    <message>
-        <source>Toggle view orientation: Default / Sewing Direction</source>
-        <translation>Переключить ориентацию вида: по умолчанию / направление шитья</translation>
     </message>
     <message>
         <source>Default</source>
@@ -1243,14 +1279,6 @@
         <translation>Текущий узор будет слишком большим для рабочей области.</translation>
     </message>
     <message>
-        <source>Embroidery Design</source>
-        <translation>Дизайн вышивки</translation>
-    </message>
-    <message>
-        <source>Embroidery designs can be loaded and viewed, but editing and transfer to the sewing machine are not yet supported.</source>
-        <translation>Дизайны вышивки можно загружать и просматривать, но их редактирование и передача на швейную машину пока не поддерживаются.</translation>
-    </message>
-    <message>
         <source>Stitches: {0}</source>
         <translation>Стежки: {0}</translation>
     </message>
@@ -1439,10 +1467,6 @@
         <translation>Отмена</translation>
     </message>
     <message>
-        <source>Sending embroidery patterns to memory card is not yet supported.</source>
-        <translation>Отправка узоров вышивки на карту памяти пока не поддерживается.</translation>
-    </message>
-    <message>
         <source>Writing pattern to memory card…</source>
         <translation>Запись узора на карту памяти…</translation>
     </message>
@@ -1529,6 +1553,202 @@
     <message>
         <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
         <translation>Этот формат файла хранит не более {0} символов, поэтому при сохранении заметка будет обрезана.</translation>
+    </message>
+    <message>
+        <source>&amp;Colors</source>
+        <translation>&amp;Цвета</translation>
+    </message>
+    <message>
+        <source>&amp;Edit color changes…</source>
+        <translation>&amp;Изменить смены цвета…</translation>
+    </message>
+    <message>
+        <source>&amp;Edit section markers…</source>
+        <translation>&amp;Изменить маркеры секций…</translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation>&amp;Преобразовать</translation>
+    </message>
+    <message>
+        <source>Centering will be applied automatically.</source>
+        <translation>Центрирование будет применено автоматически.</translation>
+    </message>
+    <message>
+        <source>Design Needs Centering</source>
+        <translation>Узор требуется центрировать</translation>
+    </message>
+    <message>
+        <source>Design Too Large for Hoop</source>
+        <translation>Узор слишком велик для пялец</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette and continue saving?</source>
+        <translation>Настроить палитру и продолжить сохранение?</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette to {0} colours?</source>
+        <translation>Настроить палитру до {0} цветов?</translation>
+    </message>
+    <message>
+        <source>Edit Color Change Markers</source>
+        <translation>Изменить маркеры смены цвета</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Изменить маркеры секций</translation>
+    </message>
+    <message>
+        <source>Edit color &amp;palette…</source>
+        <translation>Изменить &amp;палитру цветов…</translation>
+    </message>
+    <message>
+        <source>First selected stitch point</source>
+        <translation>Первая выделенная точка стежка</translation>
+    </message>
+    <message>
+        <source>Hoop 120×115</source>
+        <translation>Пяльцы 120×115</translation>
+    </message>
+    <message>
+        <source>Hoop 80×80</source>
+        <translation>Пяльцы 80×80</translation>
+    </message>
+    <message>
+        <source>Last selected stitch point</source>
+        <translation>Последняя выделенная точка стежка</translation>
+    </message>
+    <message>
+        <source>Move selection to beginning</source>
+        <translation>Переместить выделение в начало</translation>
+    </message>
+    <message>
+        <source>Move selection to end</source>
+        <translation>Переместить выделение в конец</translation>
+    </message>
+    <message>
+        <source>No supported machine model is configured.</source>
+        <translation>Поддерживаемая модель машины не настроена.</translation>
+    </message>
+    <message>
+        <source>Remove all section markers</source>
+        <translation>Удалить все маркеры секций</translation>
+    </message>
+    <message>
+        <source>S&amp;ections</source>
+        <translation>&amp;Секции</translation>
+    </message>
+    <message>
+        <source>Select Area</source>
+        <translation>Выделить область</translation>
+    </message>
+    <message>
+        <source>Select Section</source>
+        <translation>Выделить секцию</translation>
+    </message>
+    <message>
+        <source>The default palette with {0} thread colours was applied.</source>
+        <translation>Применена палитра по умолчанию с {0} цветами нити.</translation>
+    </message>
+    <message>
+        <source>The design needs centering to fit the working area.</source>
+        <translation>Узор нужно центрировать, чтобы он поместился в рабочей области.</translation>
+    </message>
+    <message>
+        <source>The design needs to be centered to fit inside the working area.</source>
+        <translation>Узор нужно центрировать, чтобы он поместился в рабочей области.</translation>
+    </message>
+    <message>
+        <source>The design reaches outside of declared hoop size.</source>
+        <translation>Узор выходит за указанный размер пялец.</translation>
+    </message>
+    <message>
+        <source>The design type changed, so the current file cannot store this pattern. Use Save As to choose a new file.</source>
+        <translation>Тип узора изменился, поэтому текущий файл не может сохранить этот узор. Используйте «Сохранить как», чтобы выбрать новый файл.</translation>
+    </message>
+    <message>
+        <source>The design type will be changed automatically to fit inside the working area.</source>
+        <translation>Тип узора будет изменён автоматически, чтобы узор поместился в рабочей области.</translation>
+    </message>
+    <message>
+        <source>The extra {0} colours will be removed.</source>
+        <translation>Лишние цвета ({0}) будут удалены.</translation>
+    </message>
+    <message>
+        <source>The file cannot be opened.</source>
+        <translation>Не удаётся открыть файл.</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
+        <translation>Файл задаёт {0} цветов нити, но узору вышивки для машины серии Creative 7500 требуется {1}.</translation>
+    </message>
+    <message>
+        <source>The file does not define a thread palette.</source>
+        <translation>Файл не задаёт палитру нитей.</translation>
+    </message>
+    <message>
+        <source>The missing colours will be filled from the default palette.</source>
+        <translation>Отсутствующие цвета будут заполнены из палитры по умолчанию.</translation>
+    </message>
+    <message>
+        <source>The palette will be filled up with {0} default thread colours.</source>
+        <translation>Палитра будет дополнена {0} цветами нити по умолчанию.</translation>
+    </message>
+    <message>
+        <source>The pattern measures {0}, which is larger than the biggest supported hoop ({1}).</source>
+        <translation>Размер узора — {0}, это больше самых больших поддерживаемых пялец ({1}).</translation>
+    </message>
+    <message>
+        <source>The stitch pattern is empty. Add stitch points first.</source>
+        <translation>Узор стежков пуст. Сначала добавьте точки стежков.</translation>
+    </message>
+    <message>
+        <source>The {0} additional thread colours will be dropped.</source>
+        <translation>Дополнительные цвета нити ({0}) будут отброшены.</translation>
+    </message>
+    <message>
+        <source>This file format always stores {0} thread colours, but the design has {1}.</source>
+        <translation>Этот формат файла всегда хранит {0} цветов нити, а в дизайне {1}.</translation>
+    </message>
+    <message>
+        <source>Thread Color {0}</source>
+        <translation>Цвет нити {0}</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Палитра нитей</translation>
+    </message>
+    <message>
+        <source>Tool: Select Area</source>
+        <translation>Инструмент: Выделить область</translation>
+    </message>
+    <message>
+        <source>Tool: Select Section</source>
+        <translation>Инструмент: Выделить секцию</translation>
+    </message>
+    <message>
+        <source>Type: {0}</source>
+        <translation>Тип: {0}</translation>
+    </message>
+    <message>
+        <source>color changes: {0}</source>
+        <translation>смены цвета: {0}</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>по</translation>
+    </message>
+    <message>
+        <source>{0} cannot store 9 mm or MAXI patterns on a memory card.</source>
+        <translation>{0} не может сохранять узоры 9 мм или MAXI на карте памяти.</translation>
+    </message>
+    <message>
+        <source>{0} cannot store embroidery designs on a memory card.</source>
+        <translation>{0} не может сохранять узоры вышивки на карте памяти.</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} мм</translation>
     </message>
 </context>
 <context>
@@ -1835,6 +2055,262 @@
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>Доступна новая версия! (последняя: {0})</translation>
+    </message>
+</context>
+<context>
+    <name>ColorChangeMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Автоцентрирование</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Choose another colour for the selected colour change.</source>
+        <translation>Выбрать другой цвет для выбранной смены цвета.</translation>
+    </message>
+    <message>
+        <source>Color change after the last stitch: palette color {0}, RGB({1}, {2}, {3})</source>
+        <translation>Смена цвета после последнего стежка: цвет палитры {0}, RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Color change before stitch {0}: palette color {1}, RGB({2}, {3}, {4})</source>
+        <translation>Смена цвета перед стежком {0}: цвет палитры {1}, RGB({2}, {3}, {4})</translation>
+    </message>
+    <message>
+        <source>Color changes</source>
+        <translation>Смены цвета</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+колесо — масштабирование. Щёлкните по стежку, чтобы выделить его.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Изменить</translation>
+    </message>
+    <message>
+        <source>Edit Color Changes</source>
+        <translation>Изменить смены цвета</translation>
+    </message>
+    <message>
+        <source>Insert a colour change before the selected stitch.</source>
+        <translation>Вставить смену цвета перед выделенным стежком.</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Remove the colour change before the selected stitch.</source>
+        <translation>Удалить смену цвета перед выделенным стежком.</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Прокрутите предпросмотр так, чтобы выделенный стежок оставался по центру.</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Выделить первый стежок</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Выделить последний стежок</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Выделить следующий стежок</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Выделить предыдущий стежок</translation>
+    </message>
+    <message>
+        <source>Selected stitch (1-based)</source>
+        <translation>Выделенный стежок (с 1)</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Показывать точки стежков</translation>
+    </message>
+    <message>
+        <source>end</source>
+        <translation>конец</translation>
+    </message>
+    <message>
+        <source>{0} → color {1}</source>
+        <translation>{0} → цвет {1}</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteColorDialog</name>
+    <message>
+        <source>Available thread colors</source>
+        <translation>Доступные цвета нитей</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Изменить цвет {0}</translation>
+    </message>
+    <message>
+        <source>Color {0}: RGB({1}, {2}, {3})</source>
+        <translation>Цвет {0}: RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Double-click a color to change it.</source>
+        <translation>Дважды щёлкните цвет, чтобы изменить его.</translation>
+    </message>
+    <message>
+        <source>Select Color</source>
+        <translation>Выбор цвета</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteEditorDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Append a thread colour and choose its colour.</source>
+        <translation>Добавить цвет нити и выбрать его цвет.</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Изменить цвет {0}</translation>
+    </message>
+    <message>
+        <source>Change the selected thread colour.</source>
+        <translation>Изменить выбранный цвет нити.</translation>
+    </message>
+    <message>
+        <source>Double-click a colour, or press Edit, to change it.</source>
+        <translation>Дважды щёлкните цвет или нажмите «Изменить», чтобы изменить его.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Изменить</translation>
+    </message>
+    <message>
+        <source>Edit Color Palette</source>
+        <translation>Изменить палитру цветов</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Remove the selected thread colour.</source>
+        <translation>Удалить выбранный цвет нити.</translation>
+    </message>
+    <message>
+        <source>Thread colors</source>
+        <translation>Цвета нитей</translation>
+    </message>
+    <message>
+        <source>{0}: RGB({1}, {2}, {3})</source>
+        <translation>{0}: RGB({1}, {2}, {3})</translation>
+    </message>
+</context>
+<context>
+    <name>SectionMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Добавить</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Автоцентрирование</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+колесо — масштабирование. Щёлкните по стежку, чтобы выделить его.</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Изменить маркеры секций</translation>
+    </message>
+    <message>
+        <source>First selected stitch</source>
+        <translation>Первый выделенный стежок</translation>
+    </message>
+    <message>
+        <source>Last selected stitch</source>
+        <translation>Последний выделенный стежок</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Прокрутите предпросмотр так, чтобы выделенный стежок оставался по центру.</translation>
+    </message>
+    <message>
+        <source>Section markers</source>
+        <translation>Маркеры секций</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Выделить первый стежок</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Выделить последний стежок</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Выделить следующий стежок</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Выделить предыдущий стежок</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Показывать точки стежков</translation>
+    </message>
+    <message>
+        <source>Stitch {0}: x {1}, y {2}</source>
+        <translation>Стежок {0}: x {1}, y {2}</translation>
+    </message>
+    <message>
+        <source>Turn the selected section marker back into a stitch.</source>
+        <translation>Превратить выделенный маркер секции обратно в стежок.</translation>
+    </message>
+    <message>
+        <source>Turn the selected stitch into a section marker.</source>
+        <translation>Превратить выделенный стежок в маркер секции.</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>по</translation>
     </message>
 </context>
 </TS>

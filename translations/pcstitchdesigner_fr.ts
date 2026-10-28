@@ -142,14 +142,6 @@
         <translation>(sans nom)</translation>
     </message>
     <message>
-        <source>Not Yet Implemented</source>
-        <translation>Pas encore implémenté</translation>
-    </message>
-    <message>
-        <source>Loading {0} patterns from memory card is not yet supported.</source>
-        <translation>Le chargement de motifs {0} depuis la carte mémoire n'est pas encore pris en charge.</translation>
-    </message>
-    <message>
         <source>Decode Failed</source>
         <translation>Échec du décodage</translation>
     </message>
@@ -174,8 +166,16 @@
         <translation>Échec du rechargement des aperçus depuis la machine :</translation>
     </message>
     <message>
-        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
-        <translation>Le chargement de motifs de broderie depuis la carte mémoire n'est pas encore pris en charge.</translation>
+        <source>Colours: {0}</source>
+        <translation>Couleurs : {0}</translation>
+    </message>
+    <message>
+        <source>Hoop: unknown</source>
+        <translation>Cerceau : inconnu</translation>
+    </message>
+    <message>
+        <source>Hoop: {0} x {1} mm</source>
+        <translation>Cerceau : {0} x {1} mm</translation>
     </message>
 </context>
 <context>
@@ -192,8 +192,8 @@
 <context>
     <name>ColorPaletteBar</name>
     <message>
-        <source>Color {0}: RGB({1}, {2}, {3})</source>
-        <translation>Couleur {0} : RVB({1}, {2}, {3})</translation>
+        <source>Color {0}: RGB({1}, {2}, {3}) — click to change</source>
+        <translation>Couleur {0} : RVB({1}, {2}, {3}) — cliquer pour modifier</translation>
     </message>
 </context>
 <context>
@@ -250,6 +250,10 @@
         <source>Restore Defaults</source>
         <translation>Rétablir les valeurs par défaut</translation>
     </message>
+    <message>
+        <source>Background:</source>
+        <translation>Arrière-plan :</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
@@ -304,6 +308,14 @@
     <message>
         <source>Pattern coordinates must not be negative</source>
         <translation>Les coordonnées du motif ne doivent pas être négatives</translation>
+    </message>
+    <message>
+        <source>A colour change refers to palette index {0}, but the palette only holds indices 0 to {1}</source>
+        <translation>Un changement de couleur fait référence à l'index de palette {0}, mais la palette ne contient que les index 0 à {1}</translation>
+    </message>
+    <message>
+        <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
+        <translation>Un fichier de broderie contient exactement {0} couleurs de fil, mais ce motif en a {1}</translation>
     </message>
 </context>
 <context>
@@ -550,10 +562,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK attendu pour démarrer le premier bloc, 0x{0} reçu.</translation>
-    </message>
-    <message>
-        <source>Timeout reading unknown bytes in first chunk.</source>
-        <translation>Délai d'attente dépassé lors de la lecture des octets inconnus dans le premier bloc.</translation>
     </message>
     <message>
         <source>Timeout reading SIZE in first chunk.</source>
@@ -851,16 +859,48 @@
         <source>Unexpected response 0x{0} after stitch data.</source>
         <translation>Réponse inattendue 0x{0} après les données de points.</translation>
     </message>
+    <message>
+        <source>Colour index {0} is outside the machine's 16-colour palette.</source>
+        <translation>L'index de couleur {0} est en dehors de la palette de 16 couleurs de la machine.</translation>
+    </message>
+    <message>
+        <source>Internal error: {0} preview block(s) generated, but the header expects {1}.</source>
+        <translation>Erreur interne : {0} bloc(s) d'aperçu généré(s), mais l'en-tête en attend {1}.</translation>
+    </message>
+    <message>
+        <source>The card payload contains no embroidery stitches.</source>
+        <translation>Les données de la carte ne contiennent aucun point de broderie.</translation>
+    </message>
+    <message>
+        <source>The embroidery design contains no stitches.</source>
+        <translation>Le motif de broderie ne contient aucun point.</translation>
+    </message>
+    <message>
+        <source>The embroidery design is larger than the selected hoop.</source>
+        <translation>Le motif de broderie est plus grand que le cerceau sélectionné.</translation>
+    </message>
+    <message>
+        <source>The encoded embroidery pattern is {0} bytes, but the memory card format can hold at most 65535.</source>
+        <translation>Le motif de broderie encodé fait {0} octets, mais le format de carte mémoire peut en contenir au maximum 65535.</translation>
+    </message>
+    <message>
+        <source>The pattern file size is too large and cannot be stored on the memory card: {0} bytes are needed, but a card slot holds at most {1} bytes. Split the design into smaller parts.</source>
+        <translation>Le fichier de motif est trop volumineux et ne peut pas être enregistré sur la carte mémoire : {0} octets sont nécessaires, mais un emplacement de carte en contient au maximum {1} octets. Divisez le motif en parties plus petites.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the pattern descriptor in first chunk.</source>
+        <translation>Délai dépassé lors de la lecture du descripteur de motif dans le premier bloc.</translation>
+    </message>
+    <message>
+        <source>Unknown machine model: {0}</source>
+        <translation>Modèle de machine inconnu : {0}</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Tool: -</source>
         <translation>Outil : -</translation>
-    </message>
-    <message>
-        <source>Points: 0</source>
-        <translation>Points : 0</translation>
     </message>
     <message>
         <source>&amp;New</source>
@@ -1037,10 +1077,6 @@
     <message>
         <source>Toggle Orientation</source>
         <translation>Basculer l'orientation</translation>
-    </message>
-    <message>
-        <source>Toggle view orientation: Default / Sewing Direction</source>
-        <translation>Basculer l'orientation de la vue : par défaut / sens de couture</translation>
     </message>
     <message>
         <source>Default</source>
@@ -1243,14 +1279,6 @@
         <translation>Le motif actuel sera trop grand pour la zone de travail.</translation>
     </message>
     <message>
-        <source>Embroidery Design</source>
-        <translation>Motif de broderie</translation>
-    </message>
-    <message>
-        <source>Embroidery designs can be loaded and viewed, but editing and transfer to the sewing machine are not yet supported.</source>
-        <translation>Les motifs de broderie peuvent être chargés et affichés, mais leur modification et leur transfert vers la machine à coudre ne sont pas encore pris en charge.</translation>
-    </message>
-    <message>
         <source>Stitches: {0}</source>
         <translation>Points : {0}</translation>
     </message>
@@ -1439,10 +1467,6 @@
         <translation>Annuler</translation>
     </message>
     <message>
-        <source>Sending embroidery patterns to memory card is not yet supported.</source>
-        <translation>L'envoi de motifs de broderie vers la carte mémoire n'est pas encore pris en charge.</translation>
-    </message>
-    <message>
         <source>Writing pattern to memory card…</source>
         <translation>Écriture du motif sur la carte mémoire…</translation>
     </message>
@@ -1529,6 +1553,202 @@
     <message>
         <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
         <translation>Ce format de fichier enregistre au maximum {0} caractères ; la note sera donc tronquée lors de l'enregistrement.</translation>
+    </message>
+    <message>
+        <source>&amp;Colors</source>
+        <translation>&amp;Couleurs</translation>
+    </message>
+    <message>
+        <source>&amp;Edit color changes…</source>
+        <translation>&amp;Modifier les changements de couleur…</translation>
+    </message>
+    <message>
+        <source>&amp;Edit section markers…</source>
+        <translation>&amp;Modifier les marqueurs de section…</translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation>&amp;Transformer</translation>
+    </message>
+    <message>
+        <source>Centering will be applied automatically.</source>
+        <translation>Le centrage sera appliqué automatiquement.</translation>
+    </message>
+    <message>
+        <source>Design Needs Centering</source>
+        <translation>Le motif doit être centré</translation>
+    </message>
+    <message>
+        <source>Design Too Large for Hoop</source>
+        <translation>Motif trop grand pour le cerceau</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette and continue saving?</source>
+        <translation>Voulez-vous ajuster la palette et continuer l'enregistrement ?</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette to {0} colours?</source>
+        <translation>Voulez-vous ajuster la palette à {0} couleurs ?</translation>
+    </message>
+    <message>
+        <source>Edit Color Change Markers</source>
+        <translation>Modifier les marqueurs de changement de couleur</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Modifier les marqueurs de section</translation>
+    </message>
+    <message>
+        <source>Edit color &amp;palette…</source>
+        <translation>Modifier la &amp;palette de couleurs…</translation>
+    </message>
+    <message>
+        <source>First selected stitch point</source>
+        <translation>Premier point de couture sélectionné</translation>
+    </message>
+    <message>
+        <source>Hoop 120×115</source>
+        <translation>Cerceau 120×115</translation>
+    </message>
+    <message>
+        <source>Hoop 80×80</source>
+        <translation>Cerceau 80×80</translation>
+    </message>
+    <message>
+        <source>Last selected stitch point</source>
+        <translation>Dernier point de couture sélectionné</translation>
+    </message>
+    <message>
+        <source>Move selection to beginning</source>
+        <translation>Déplacer la sélection au début</translation>
+    </message>
+    <message>
+        <source>Move selection to end</source>
+        <translation>Déplacer la sélection à la fin</translation>
+    </message>
+    <message>
+        <source>No supported machine model is configured.</source>
+        <translation>Aucun modèle de machine pris en charge n'est configuré.</translation>
+    </message>
+    <message>
+        <source>Remove all section markers</source>
+        <translation>Supprimer tous les marqueurs de section</translation>
+    </message>
+    <message>
+        <source>S&amp;ections</source>
+        <translation>&amp;Sections</translation>
+    </message>
+    <message>
+        <source>Select Area</source>
+        <translation>Sélectionner une zone</translation>
+    </message>
+    <message>
+        <source>Select Section</source>
+        <translation>Sélectionner une section</translation>
+    </message>
+    <message>
+        <source>The default palette with {0} thread colours was applied.</source>
+        <translation>La palette par défaut avec {0} couleurs de fil a été appliquée.</translation>
+    </message>
+    <message>
+        <source>The design needs centering to fit the working area.</source>
+        <translation>Le motif doit être centré pour tenir dans la zone de travail.</translation>
+    </message>
+    <message>
+        <source>The design needs to be centered to fit inside the working area.</source>
+        <translation>Le motif doit être centré pour tenir dans la zone de travail.</translation>
+    </message>
+    <message>
+        <source>The design reaches outside of declared hoop size.</source>
+        <translation>Le motif dépasse la taille de cerceau déclarée.</translation>
+    </message>
+    <message>
+        <source>The design type changed, so the current file cannot store this pattern. Use Save As to choose a new file.</source>
+        <translation>Le type de motif a changé : le fichier actuel ne peut donc pas enregistrer ce motif. Utilisez Enregistrer sous pour choisir un nouveau fichier.</translation>
+    </message>
+    <message>
+        <source>The design type will be changed automatically to fit inside the working area.</source>
+        <translation>Le type de motif sera modifié automatiquement pour tenir dans la zone de travail.</translation>
+    </message>
+    <message>
+        <source>The extra {0} colours will be removed.</source>
+        <translation>Les {0} couleurs en trop seront supprimées.</translation>
+    </message>
+    <message>
+        <source>The file cannot be opened.</source>
+        <translation>Le fichier ne peut pas être ouvert.</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
+        <translation>Le fichier définit {0} couleurs de fil, mais un motif de broderie pour la machine Creative série 7500 en nécessite {1}.</translation>
+    </message>
+    <message>
+        <source>The file does not define a thread palette.</source>
+        <translation>Le fichier ne définit pas de palette de fils.</translation>
+    </message>
+    <message>
+        <source>The missing colours will be filled from the default palette.</source>
+        <translation>Les couleurs manquantes seront complétées à partir de la palette par défaut.</translation>
+    </message>
+    <message>
+        <source>The palette will be filled up with {0} default thread colours.</source>
+        <translation>La palette sera complétée avec {0} couleurs de fil par défaut.</translation>
+    </message>
+    <message>
+        <source>The pattern measures {0}, which is larger than the biggest supported hoop ({1}).</source>
+        <translation>Le motif mesure {0}, ce qui est plus grand que le plus grand cerceau pris en charge ({1}).</translation>
+    </message>
+    <message>
+        <source>The stitch pattern is empty. Add stitch points first.</source>
+        <translation>Le motif de points est vide. Ajoutez d'abord des points de couture.</translation>
+    </message>
+    <message>
+        <source>The {0} additional thread colours will be dropped.</source>
+        <translation>Les {0} couleurs de fil supplémentaires seront ignorées.</translation>
+    </message>
+    <message>
+        <source>This file format always stores {0} thread colours, but the design has {1}.</source>
+        <translation>Ce format de fichier enregistre toujours {0} couleurs de fil, mais le motif en a {1}.</translation>
+    </message>
+    <message>
+        <source>Thread Color {0}</source>
+        <translation>Couleur de fil {0}</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Palette de fils</translation>
+    </message>
+    <message>
+        <source>Tool: Select Area</source>
+        <translation>Outil : Sélectionner une zone</translation>
+    </message>
+    <message>
+        <source>Tool: Select Section</source>
+        <translation>Outil : Sélectionner une section</translation>
+    </message>
+    <message>
+        <source>Type: {0}</source>
+        <translation>Type : {0}</translation>
+    </message>
+    <message>
+        <source>color changes: {0}</source>
+        <translation>changements de couleur : {0}</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>à</translation>
+    </message>
+    <message>
+        <source>{0} cannot store 9 mm or MAXI patterns on a memory card.</source>
+        <translation>{0} ne peut pas enregistrer de motifs 9 mm ou MAXI sur une carte mémoire.</translation>
+    </message>
+    <message>
+        <source>{0} cannot store embroidery designs on a memory card.</source>
+        <translation>{0} ne peut pas enregistrer de motifs de broderie sur une carte mémoire.</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1835,6 +2055,262 @@
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>Une nouvelle version est disponible ! (dernière : {0})</translation>
+    </message>
+</context>
+<context>
+    <name>ColorChangeMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Centrage automatique</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Choose another colour for the selected colour change.</source>
+        <translation>Choisir une autre couleur pour le changement de couleur sélectionné.</translation>
+    </message>
+    <message>
+        <source>Color change after the last stitch: palette color {0}, RGB({1}, {2}, {3})</source>
+        <translation>Changement de couleur après le dernier point : couleur de palette {0}, RVB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Color change before stitch {0}: palette color {1}, RGB({2}, {3}, {4})</source>
+        <translation>Changement de couleur avant le point {0} : couleur de palette {1}, RVB({2}, {3}, {4})</translation>
+    </message>
+    <message>
+        <source>Color changes</source>
+        <translation>Changements de couleur</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+molette pour zoomer. Cliquez sur un point pour le sélectionner.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Modifier</translation>
+    </message>
+    <message>
+        <source>Edit Color Changes</source>
+        <translation>Modifier les changements de couleur</translation>
+    </message>
+    <message>
+        <source>Insert a colour change before the selected stitch.</source>
+        <translation>Insérer un changement de couleur avant le point sélectionné.</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Remove the colour change before the selected stitch.</source>
+        <translation>Supprimer le changement de couleur avant le point sélectionné.</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Faites défiler l'aperçu pour que le point sélectionné reste centré.</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Sélectionner le premier point</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Sélectionner le dernier point</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Sélectionner le point suivant</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Sélectionner le point précédent</translation>
+    </message>
+    <message>
+        <source>Selected stitch (1-based)</source>
+        <translation>Point sélectionné (base 1)</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Afficher les points de couture</translation>
+    </message>
+    <message>
+        <source>end</source>
+        <translation>fin</translation>
+    </message>
+    <message>
+        <source>{0} → color {1}</source>
+        <translation>{0} → couleur {1}</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteColorDialog</name>
+    <message>
+        <source>Available thread colors</source>
+        <translation>Couleurs de fil disponibles</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Modifier la couleur {0}</translation>
+    </message>
+    <message>
+        <source>Color {0}: RGB({1}, {2}, {3})</source>
+        <translation>Couleur {0} : RVB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Double-click a color to change it.</source>
+        <translation>Double-cliquez sur une couleur pour la modifier.</translation>
+    </message>
+    <message>
+        <source>Select Color</source>
+        <translation>Sélectionner une couleur</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteEditorDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <source>Append a thread colour and choose its colour.</source>
+        <translation>Ajouter une couleur de fil et choisir sa couleur.</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Modifier la couleur {0}</translation>
+    </message>
+    <message>
+        <source>Change the selected thread colour.</source>
+        <translation>Modifier la couleur de fil sélectionnée.</translation>
+    </message>
+    <message>
+        <source>Double-click a colour, or press Edit, to change it.</source>
+        <translation>Double-cliquez sur une couleur, ou appuyez sur Modifier, pour la changer.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Modifier</translation>
+    </message>
+    <message>
+        <source>Edit Color Palette</source>
+        <translation>Modifier la palette de couleurs</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Remove the selected thread colour.</source>
+        <translation>Supprimer la couleur de fil sélectionnée.</translation>
+    </message>
+    <message>
+        <source>Thread colors</source>
+        <translation>Couleurs de fil</translation>
+    </message>
+    <message>
+        <source>{0}: RGB({1}, {2}, {3})</source>
+        <translation>{0} : RVB({1}, {2}, {3})</translation>
+    </message>
+</context>
+<context>
+    <name>SectionMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Ajouter</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Appliquer</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Centrage automatique</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+molette pour zoomer. Cliquez sur un point pour le sélectionner.</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Modifier les marqueurs de section</translation>
+    </message>
+    <message>
+        <source>First selected stitch</source>
+        <translation>Premier point sélectionné</translation>
+    </message>
+    <message>
+        <source>Last selected stitch</source>
+        <translation>Dernier point sélectionné</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Faites défiler l'aperçu pour que le point sélectionné reste centré.</translation>
+    </message>
+    <message>
+        <source>Section markers</source>
+        <translation>Marqueurs de section</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Sélectionner le premier point</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Sélectionner le dernier point</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Sélectionner le point suivant</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Sélectionner le point précédent</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Afficher les points de couture</translation>
+    </message>
+    <message>
+        <source>Stitch {0}: x {1}, y {2}</source>
+        <translation>Point {0} : x {1}, y {2}</translation>
+    </message>
+    <message>
+        <source>Turn the selected section marker back into a stitch.</source>
+        <translation>Retransformer le marqueur de section sélectionné en point.</translation>
+    </message>
+    <message>
+        <source>Turn the selected stitch into a section marker.</source>
+        <translation>Transformer le point sélectionné en marqueur de section.</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>à</translation>
     </message>
 </context>
 </TS>

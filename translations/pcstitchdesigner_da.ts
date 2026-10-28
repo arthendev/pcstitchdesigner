@@ -142,14 +142,6 @@
         <translation>(uden navn)</translation>
     </message>
     <message>
-        <source>Not Yet Implemented</source>
-        <translation>Endnu ikke implementeret</translation>
-    </message>
-    <message>
-        <source>Loading {0} patterns from memory card is not yet supported.</source>
-        <translation>Indlæsning af {0}-mønstre fra hukommelseskort understøttes endnu ikke.</translation>
-    </message>
-    <message>
         <source>Decode Failed</source>
         <translation>Dekodning mislykkedes</translation>
     </message>
@@ -174,8 +166,16 @@
         <translation>Forhåndsvisningerne kunne ikke genindlæses fra maskinen:</translation>
     </message>
     <message>
-        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
-        <translation>Indlæsning af broderimønstre fra hukommelseskort understøttes endnu ikke.</translation>
+        <source>Colours: {0}</source>
+        <translation>Farver: {0}</translation>
+    </message>
+    <message>
+        <source>Hoop: unknown</source>
+        <translation>Ramme: ukendt</translation>
+    </message>
+    <message>
+        <source>Hoop: {0} x {1} mm</source>
+        <translation>Ramme: {0} x {1} mm</translation>
     </message>
 </context>
 <context>
@@ -192,8 +192,8 @@
 <context>
     <name>ColorPaletteBar</name>
     <message>
-        <source>Color {0}: RGB({1}, {2}, {3})</source>
-        <translation>Farve {0}: RGB({1}, {2}, {3})</translation>
+        <source>Color {0}: RGB({1}, {2}, {3}) — click to change</source>
+        <translation>Farve {0}: RGB({1}, {2}, {3}) — klik for at ændre</translation>
     </message>
 </context>
 <context>
@@ -250,6 +250,10 @@
         <source>Restore Defaults</source>
         <translation>Gendan standard</translation>
     </message>
+    <message>
+        <source>Background:</source>
+        <translation>Baggrund:</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
@@ -304,6 +308,14 @@
     <message>
         <source>Pattern coordinates must not be negative</source>
         <translation>Mønsterkoordinater må ikke være negative</translation>
+    </message>
+    <message>
+        <source>A colour change refers to palette index {0}, but the palette only holds indices 0 to {1}</source>
+        <translation>Et farveskift refererer til paletindeks {0}, men paletten indeholder kun indeks 0 til {1}</translation>
+    </message>
+    <message>
+        <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
+        <translation>En broderifil gemmer nøjagtigt {0} trådfarver, men dette mønster har {1}</translation>
     </message>
 </context>
 <context>
@@ -550,10 +562,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK forventedes for at starte den første blok, fik 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading unknown bytes in first chunk.</source>
-        <translation>Timeout ved læsning af ukendte byte i den første blok.</translation>
     </message>
     <message>
         <source>Timeout reading SIZE in first chunk.</source>
@@ -851,16 +859,48 @@
         <source>Unexpected response 0x{0} after stitch data.</source>
         <translation>Uventet svar 0x{0} efter stingdata.</translation>
     </message>
+    <message>
+        <source>Colour index {0} is outside the machine's 16-colour palette.</source>
+        <translation>Farveindeks {0} ligger uden for maskinens 16-farvepalet.</translation>
+    </message>
+    <message>
+        <source>Internal error: {0} preview block(s) generated, but the header expects {1}.</source>
+        <translation>Intern fejl: {0} forhåndsvisningsblokke genereret, men headeren forventer {1}.</translation>
+    </message>
+    <message>
+        <source>The card payload contains no embroidery stitches.</source>
+        <translation>Kortedata indeholder ingen broderisting.</translation>
+    </message>
+    <message>
+        <source>The embroidery design contains no stitches.</source>
+        <translation>Broderimønsteret indeholder ingen sting.</translation>
+    </message>
+    <message>
+        <source>The embroidery design is larger than the selected hoop.</source>
+        <translation>Broderimønsteret er større end den valgte ramme.</translation>
+    </message>
+    <message>
+        <source>The encoded embroidery pattern is {0} bytes, but the memory card format can hold at most 65535.</source>
+        <translation>Det kodede broderimønster er {0} byte, men hukommelseskortformatet kan højst rumme 65535.</translation>
+    </message>
+    <message>
+        <source>The pattern file size is too large and cannot be stored on the memory card: {0} bytes are needed, but a card slot holds at most {1} bytes. Split the design into smaller parts.</source>
+        <translation>Mønsterfilen er for stor og kan ikke gemmes på hukommelseskortet: der kræves {0} byte, men en kortplads rummer højst {1} byte. Opdel designet i mindre dele.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the pattern descriptor in first chunk.</source>
+        <translation>Timeout under læsning af mønsterbeskrivelsen i første blok.</translation>
+    </message>
+    <message>
+        <source>Unknown machine model: {0}</source>
+        <translation>Ukendt maskinmodel: {0}</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Tool: -</source>
         <translation>Værktøj: -</translation>
-    </message>
-    <message>
-        <source>Points: 0</source>
-        <translation>Punkter: 0</translation>
     </message>
     <message>
         <source>&amp;New</source>
@@ -1037,10 +1077,6 @@
     <message>
         <source>Toggle Orientation</source>
         <translation>Skift orientering</translation>
-    </message>
-    <message>
-        <source>Toggle view orientation: Default / Sewing Direction</source>
-        <translation>Skift visningsorientering: Standard / Syningsretning</translation>
     </message>
     <message>
         <source>Default</source>
@@ -1243,14 +1279,6 @@
         <translation>Det aktuelle mønster bliver for stort til arbejdsområdet.</translation>
     </message>
     <message>
-        <source>Embroidery Design</source>
-        <translation>Broderidesign</translation>
-    </message>
-    <message>
-        <source>Embroidery designs can be loaded and viewed, but editing and transfer to the sewing machine are not yet supported.</source>
-        <translation>Broderidesign kan indlæses og vises, men redigering og overførsel til symaskinen understøttes endnu ikke.</translation>
-    </message>
-    <message>
         <source>Stitches: {0}</source>
         <translation>Sting: {0}</translation>
     </message>
@@ -1439,10 +1467,6 @@
         <translation>Annullér</translation>
     </message>
     <message>
-        <source>Sending embroidery patterns to memory card is not yet supported.</source>
-        <translation>Afsendelse af broderimønstre til hukommelseskortet understøttes endnu ikke.</translation>
-    </message>
-    <message>
         <source>Writing pattern to memory card…</source>
         <translation>Skriver mønsteret til hukommelseskortet…</translation>
     </message>
@@ -1529,6 +1553,202 @@
     <message>
         <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
         <translation>Dette filformat gemmer højst {0} tegn, så noten forkortes ved lagring.</translation>
+    </message>
+    <message>
+        <source>&amp;Colors</source>
+        <translation>&amp;Farver</translation>
+    </message>
+    <message>
+        <source>&amp;Edit color changes…</source>
+        <translation>&amp;Redigér farveskift…</translation>
+    </message>
+    <message>
+        <source>&amp;Edit section markers…</source>
+        <translation>&amp;Redigér sektionsmarkeringer…</translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation>&amp;Transformér</translation>
+    </message>
+    <message>
+        <source>Centering will be applied automatically.</source>
+        <translation>Centreringen anvendes automatisk.</translation>
+    </message>
+    <message>
+        <source>Design Needs Centering</source>
+        <translation>Mønsteret skal centreres</translation>
+    </message>
+    <message>
+        <source>Design Too Large for Hoop</source>
+        <translation>Mønsteret er for stort til rammen</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette and continue saving?</source>
+        <translation>Vil du tilpasse paletten og fortsætte lagringen?</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette to {0} colours?</source>
+        <translation>Vil du tilpasse paletten til {0} farver?</translation>
+    </message>
+    <message>
+        <source>Edit Color Change Markers</source>
+        <translation>Redigér farveskiftsmarkeringer</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Redigér sektionsmarkeringer</translation>
+    </message>
+    <message>
+        <source>Edit color &amp;palette…</source>
+        <translation>Redigér farve&amp;palet…</translation>
+    </message>
+    <message>
+        <source>First selected stitch point</source>
+        <translation>Første valgte stingpunkt</translation>
+    </message>
+    <message>
+        <source>Hoop 120×115</source>
+        <translation>Ramme 120×115</translation>
+    </message>
+    <message>
+        <source>Hoop 80×80</source>
+        <translation>Ramme 80×80</translation>
+    </message>
+    <message>
+        <source>Last selected stitch point</source>
+        <translation>Sidste valgte stingpunkt</translation>
+    </message>
+    <message>
+        <source>Move selection to beginning</source>
+        <translation>Flyt markeringen til begyndelsen</translation>
+    </message>
+    <message>
+        <source>Move selection to end</source>
+        <translation>Flyt markeringen til slutningen</translation>
+    </message>
+    <message>
+        <source>No supported machine model is configured.</source>
+        <translation>Der er ikke konfigureret en understøttet maskinmodel.</translation>
+    </message>
+    <message>
+        <source>Remove all section markers</source>
+        <translation>Fjern alle sektionsmarkeringer</translation>
+    </message>
+    <message>
+        <source>S&amp;ections</source>
+        <translation>&amp;Sektioner</translation>
+    </message>
+    <message>
+        <source>Select Area</source>
+        <translation>Markér område</translation>
+    </message>
+    <message>
+        <source>Select Section</source>
+        <translation>Markér sektion</translation>
+    </message>
+    <message>
+        <source>The default palette with {0} thread colours was applied.</source>
+        <translation>Standardpaletten med {0} trådfarver blev anvendt.</translation>
+    </message>
+    <message>
+        <source>The design needs centering to fit the working area.</source>
+        <translation>Mønsteret skal centreres for at passe i arbejdsområdet.</translation>
+    </message>
+    <message>
+        <source>The design needs to be centered to fit inside the working area.</source>
+        <translation>Mønsteret skal centreres for at passe inden for arbejdsområdet.</translation>
+    </message>
+    <message>
+        <source>The design reaches outside of declared hoop size.</source>
+        <translation>Mønsteret rækker ud over den angivne rammestørrelse.</translation>
+    </message>
+    <message>
+        <source>The design type changed, so the current file cannot store this pattern. Use Save As to choose a new file.</source>
+        <translation>Designtyppen er ændret, så den aktuelle fil kan ikke gemme dette mønster. Brug Gem som for at vælge en ny fil.</translation>
+    </message>
+    <message>
+        <source>The design type will be changed automatically to fit inside the working area.</source>
+        <translation>Designtyppen ændres automatisk, så den passer inden for arbejdsområdet.</translation>
+    </message>
+    <message>
+        <source>The extra {0} colours will be removed.</source>
+        <translation>De ekstra {0} farver fjernes.</translation>
+    </message>
+    <message>
+        <source>The file cannot be opened.</source>
+        <translation>Filen kan ikke åbnes.</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
+        <translation>Filen definerer {0} trådfarver, men et broderimønster til Creative 7500-serien kræver {1}.</translation>
+    </message>
+    <message>
+        <source>The file does not define a thread palette.</source>
+        <translation>Filen definerer ingen trådpalet.</translation>
+    </message>
+    <message>
+        <source>The missing colours will be filled from the default palette.</source>
+        <translation>De manglende farver udfyldes fra standardpaletten.</translation>
+    </message>
+    <message>
+        <source>The palette will be filled up with {0} default thread colours.</source>
+        <translation>Paletten udfyldes med {0} standardtrådfarver.</translation>
+    </message>
+    <message>
+        <source>The pattern measures {0}, which is larger than the biggest supported hoop ({1}).</source>
+        <translation>Mønsteret måler {0}, hvilket er større end den største understøttede ramme ({1}).</translation>
+    </message>
+    <message>
+        <source>The stitch pattern is empty. Add stitch points first.</source>
+        <translation>Stingmønsteret er tomt. Tilføj stingpunkter først.</translation>
+    </message>
+    <message>
+        <source>The {0} additional thread colours will be dropped.</source>
+        <translation>De {0} yderligere trådfarver kasseres.</translation>
+    </message>
+    <message>
+        <source>This file format always stores {0} thread colours, but the design has {1}.</source>
+        <translation>Dette filformat gemmer altid {0} trådfarver, men designet har {1}.</translation>
+    </message>
+    <message>
+        <source>Thread Color {0}</source>
+        <translation>Trådfarve {0}</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Trådpalet</translation>
+    </message>
+    <message>
+        <source>Tool: Select Area</source>
+        <translation>Værktøj: Markér område</translation>
+    </message>
+    <message>
+        <source>Tool: Select Section</source>
+        <translation>Værktøj: Markér sektion</translation>
+    </message>
+    <message>
+        <source>Type: {0}</source>
+        <translation>Type: {0}</translation>
+    </message>
+    <message>
+        <source>color changes: {0}</source>
+        <translation>farveskift: {0}</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>til</translation>
+    </message>
+    <message>
+        <source>{0} cannot store 9 mm or MAXI patterns on a memory card.</source>
+        <translation>{0} kan ikke gemme 9 mm- eller MAXI-mønstre på et hukommelseskort.</translation>
+    </message>
+    <message>
+        <source>{0} cannot store embroidery designs on a memory card.</source>
+        <translation>{0} kan ikke gemme broderidesign på et hukommelseskort.</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1835,6 +2055,262 @@
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>Der er en ny version tilgængelig! (nyeste: {0})</translation>
+    </message>
+</context>
+<context>
+    <name>ColorChangeMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Tilføj</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Anvend</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Autocentrér</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annullér</translation>
+    </message>
+    <message>
+        <source>Choose another colour for the selected colour change.</source>
+        <translation>Vælg en anden farve til det valgte farveskift.</translation>
+    </message>
+    <message>
+        <source>Color change after the last stitch: palette color {0}, RGB({1}, {2}, {3})</source>
+        <translation>Farveskift efter sidste sting: paletfarve {0}, RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Color change before stitch {0}: palette color {1}, RGB({2}, {3}, {4})</source>
+        <translation>Farveskift før sting {0}: paletfarve {1}, RGB({2}, {3}, {4})</translation>
+    </message>
+    <message>
+        <source>Color changes</source>
+        <translation>Farveskift</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+rul for at zoome. Klik på et sting for at vælge det.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Redigér</translation>
+    </message>
+    <message>
+        <source>Edit Color Changes</source>
+        <translation>Redigér farveskift</translation>
+    </message>
+    <message>
+        <source>Insert a colour change before the selected stitch.</source>
+        <translation>Indsæt et farveskift før det valgte sting.</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Fjern</translation>
+    </message>
+    <message>
+        <source>Remove the colour change before the selected stitch.</source>
+        <translation>Fjern farveskiftet før det valgte sting.</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Rul forhåndsvisningen, så det valgte sting forbliver centreret.</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Markér det første sting</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Markér det sidste sting</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Markér det næste sting</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Markér det forrige sting</translation>
+    </message>
+    <message>
+        <source>Selected stitch (1-based)</source>
+        <translation>Valgt sting (1-baseret)</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Vis stingpunkter</translation>
+    </message>
+    <message>
+        <source>end</source>
+        <translation>slut</translation>
+    </message>
+    <message>
+        <source>{0} → color {1}</source>
+        <translation>{0} → farve {1}</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteColorDialog</name>
+    <message>
+        <source>Available thread colors</source>
+        <translation>Tilgængelige trådfarver</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Skift farve {0}</translation>
+    </message>
+    <message>
+        <source>Color {0}: RGB({1}, {2}, {3})</source>
+        <translation>Farve {0}: RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Double-click a color to change it.</source>
+        <translation>Dobbeltklik på en farve for at ændre den.</translation>
+    </message>
+    <message>
+        <source>Select Color</source>
+        <translation>Vælg farve</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteEditorDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Tilføj</translation>
+    </message>
+    <message>
+        <source>Append a thread colour and choose its colour.</source>
+        <translation>Tilføj en trådfarve og vælg dens farve.</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Anvend</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annullér</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Skift farve {0}</translation>
+    </message>
+    <message>
+        <source>Change the selected thread colour.</source>
+        <translation>Skift den valgte trådfarve.</translation>
+    </message>
+    <message>
+        <source>Double-click a colour, or press Edit, to change it.</source>
+        <translation>Dobbeltklik på en farve, eller tryk på Redigér, for at ændre den.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Redigér</translation>
+    </message>
+    <message>
+        <source>Edit Color Palette</source>
+        <translation>Redigér farvepalet</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Fjern</translation>
+    </message>
+    <message>
+        <source>Remove the selected thread colour.</source>
+        <translation>Fjern den valgte trådfarve.</translation>
+    </message>
+    <message>
+        <source>Thread colors</source>
+        <translation>Trådfarver</translation>
+    </message>
+    <message>
+        <source>{0}: RGB({1}, {2}, {3})</source>
+        <translation>{0}: RGB({1}, {2}, {3})</translation>
+    </message>
+</context>
+<context>
+    <name>SectionMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Tilføj</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Anvend</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Autocentrér</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annullér</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+rul for at zoome. Klik på et sting for at vælge det.</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Redigér sektionsmarkeringer</translation>
+    </message>
+    <message>
+        <source>First selected stitch</source>
+        <translation>Første valgte sting</translation>
+    </message>
+    <message>
+        <source>Last selected stitch</source>
+        <translation>Sidste valgte sting</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Fjern</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Rul forhåndsvisningen, så det valgte sting forbliver centreret.</translation>
+    </message>
+    <message>
+        <source>Section markers</source>
+        <translation>Sektionsmarkeringer</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Markér det første sting</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Markér det sidste sting</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Markér det næste sting</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Markér det forrige sting</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Vis stingpunkter</translation>
+    </message>
+    <message>
+        <source>Stitch {0}: x {1}, y {2}</source>
+        <translation>Sting {0}: x {1}, y {2}</translation>
+    </message>
+    <message>
+        <source>Turn the selected section marker back into a stitch.</source>
+        <translation>Lav den valgte sektionsmarkering om til et sting igen.</translation>
+    </message>
+    <message>
+        <source>Turn the selected stitch into a section marker.</source>
+        <translation>Lav det valgte sting om til en sektionsmarkering.</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>til</translation>
     </message>
 </context>
 </TS>

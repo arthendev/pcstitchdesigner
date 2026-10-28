@@ -142,14 +142,6 @@
         <translation>(namnlös)</translation>
     </message>
     <message>
-        <source>Not Yet Implemented</source>
-        <translation>Ännu inte implementerat</translation>
-    </message>
-    <message>
-        <source>Loading {0} patterns from memory card is not yet supported.</source>
-        <translation>Inläsning av {0}-mönster från minneskort stöds ännu inte.</translation>
-    </message>
-    <message>
         <source>Decode Failed</source>
         <translation>Avkodningen misslyckades</translation>
     </message>
@@ -174,8 +166,16 @@
         <translation>Det gick inte att läsa om förhandsvisningarna från maskinen:</translation>
     </message>
     <message>
-        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
-        <translation>Inläsning av broderimönster från minneskort stöds ännu inte.</translation>
+        <source>Colours: {0}</source>
+        <translation>Färger: {0}</translation>
+    </message>
+    <message>
+        <source>Hoop: unknown</source>
+        <translation>Ram: okänd</translation>
+    </message>
+    <message>
+        <source>Hoop: {0} x {1} mm</source>
+        <translation>Ram: {0} x {1} mm</translation>
     </message>
 </context>
 <context>
@@ -192,8 +192,8 @@
 <context>
     <name>ColorPaletteBar</name>
     <message>
-        <source>Color {0}: RGB({1}, {2}, {3})</source>
-        <translation>Färg {0}: RGB({1}, {2}, {3})</translation>
+        <source>Color {0}: RGB({1}, {2}, {3}) — click to change</source>
+        <translation>Färg {0}: RGB({1}, {2}, {3}) — klicka för att ändra</translation>
     </message>
 </context>
 <context>
@@ -250,6 +250,10 @@
         <source>Restore Defaults</source>
         <translation>Återställ standard</translation>
     </message>
+    <message>
+        <source>Background:</source>
+        <translation>Bakgrund:</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
@@ -304,6 +308,14 @@
     <message>
         <source>Pattern coordinates must not be negative</source>
         <translation>Mönsterkoordinater får inte vara negativa</translation>
+    </message>
+    <message>
+        <source>A colour change refers to palette index {0}, but the palette only holds indices 0 to {1}</source>
+        <translation>Ett färgbyte refererar till palettindex {0}, men paletten innehåller bara index 0 till {1}</translation>
+    </message>
+    <message>
+        <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
+        <translation>En broderifil lagrar exakt {0} trådfärger, men det här mönstret har {1}</translation>
     </message>
 </context>
 <context>
@@ -550,10 +562,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK förväntades för att starta det första blocket, fick 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading unknown bytes in first chunk.</source>
-        <translation>Tidsgränsen överskreds vid läsning av okända byte i det första blocket.</translation>
     </message>
     <message>
         <source>Timeout reading SIZE in first chunk.</source>
@@ -851,16 +859,48 @@
         <source>Unexpected response 0x{0} after stitch data.</source>
         <translation>Oväntat svar 0x{0} efter stygnsdatan.</translation>
     </message>
+    <message>
+        <source>Colour index {0} is outside the machine's 16-colour palette.</source>
+        <translation>Färgindex {0} ligger utanför maskinens 16-färgspalett.</translation>
+    </message>
+    <message>
+        <source>Internal error: {0} preview block(s) generated, but the header expects {1}.</source>
+        <translation>Internt fel: {0} förhandsgranskningsblock genererades, men rubriken förväntar sig {1}.</translation>
+    </message>
+    <message>
+        <source>The card payload contains no embroidery stitches.</source>
+        <translation>Kortets data innehåller inga broderistygn.</translation>
+    </message>
+    <message>
+        <source>The embroidery design contains no stitches.</source>
+        <translation>Broderimönstret innehåller inga stygn.</translation>
+    </message>
+    <message>
+        <source>The embroidery design is larger than the selected hoop.</source>
+        <translation>Broderimönstret är större än den valda ramen.</translation>
+    </message>
+    <message>
+        <source>The encoded embroidery pattern is {0} bytes, but the memory card format can hold at most 65535.</source>
+        <translation>Det kodade broderimönstret är {0} byte, men minneskortsformatet kan högst rymma 65535.</translation>
+    </message>
+    <message>
+        <source>The pattern file size is too large and cannot be stored on the memory card: {0} bytes are needed, but a card slot holds at most {1} bytes. Split the design into smaller parts.</source>
+        <translation>Mönsterfilen är för stor och kan inte lagras på minneskortet: {0} byte behövs, men en kortplats rymmer högst {1} byte. Dela upp designen i mindre delar.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the pattern descriptor in first chunk.</source>
+        <translation>Tidsgränsen överskreds vid läsning av mönsterbeskrivningen i första blocket.</translation>
+    </message>
+    <message>
+        <source>Unknown machine model: {0}</source>
+        <translation>Okänd maskinmodell: {0}</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Tool: -</source>
         <translation>Verktyg: -</translation>
-    </message>
-    <message>
-        <source>Points: 0</source>
-        <translation>Punkter: 0</translation>
     </message>
     <message>
         <source>&amp;New</source>
@@ -1037,10 +1077,6 @@
     <message>
         <source>Toggle Orientation</source>
         <translation>Växla orientering</translation>
-    </message>
-    <message>
-        <source>Toggle view orientation: Default / Sewing Direction</source>
-        <translation>Växla vyorientering: Standard / Sömnadsriktning</translation>
     </message>
     <message>
         <source>Default</source>
@@ -1243,14 +1279,6 @@
         <translation>Det aktuella mönstret blir för stort för arbetsområdet.</translation>
     </message>
     <message>
-        <source>Embroidery Design</source>
-        <translation>Broderimönster</translation>
-    </message>
-    <message>
-        <source>Embroidery designs can be loaded and viewed, but editing and transfer to the sewing machine are not yet supported.</source>
-        <translation>Broderimönster kan läsas in och visas, men redigering och överföring till symaskinen stöds ännu inte.</translation>
-    </message>
-    <message>
         <source>Stitches: {0}</source>
         <translation>Stygn: {0}</translation>
     </message>
@@ -1439,10 +1467,6 @@
         <translation>Avbryt</translation>
     </message>
     <message>
-        <source>Sending embroidery patterns to memory card is not yet supported.</source>
-        <translation>Att skicka broderimönster till minneskortet stöds ännu inte.</translation>
-    </message>
-    <message>
         <source>Writing pattern to memory card…</source>
         <translation>Skriver mönstret till minneskortet…</translation>
     </message>
@@ -1529,6 +1553,202 @@
     <message>
         <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
         <translation>Det här filformatet lagrar högst {0} tecken, så anteckningen trunkeras när den sparas.</translation>
+    </message>
+    <message>
+        <source>&amp;Colors</source>
+        <translation>&amp;Färger</translation>
+    </message>
+    <message>
+        <source>&amp;Edit color changes…</source>
+        <translation>&amp;Redigera färgbyten…</translation>
+    </message>
+    <message>
+        <source>&amp;Edit section markers…</source>
+        <translation>&amp;Redigera sektionsmarkeringar…</translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation>&amp;Transformera</translation>
+    </message>
+    <message>
+        <source>Centering will be applied automatically.</source>
+        <translation>Centreringen tillämpas automatiskt.</translation>
+    </message>
+    <message>
+        <source>Design Needs Centering</source>
+        <translation>Mönstret måste centreras</translation>
+    </message>
+    <message>
+        <source>Design Too Large for Hoop</source>
+        <translation>Mönstret är för stort för ramen</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette and continue saving?</source>
+        <translation>Vill du justera paletten och fortsätta spara?</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette to {0} colours?</source>
+        <translation>Vill du justera paletten till {0} färger?</translation>
+    </message>
+    <message>
+        <source>Edit Color Change Markers</source>
+        <translation>Redigera färgbytesmarkeringar</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Redigera sektionsmarkeringar</translation>
+    </message>
+    <message>
+        <source>Edit color &amp;palette…</source>
+        <translation>Redigera färg&amp;palett…</translation>
+    </message>
+    <message>
+        <source>First selected stitch point</source>
+        <translation>Första valda stygnpunkten</translation>
+    </message>
+    <message>
+        <source>Hoop 120×115</source>
+        <translation>Ram 120×115</translation>
+    </message>
+    <message>
+        <source>Hoop 80×80</source>
+        <translation>Ram 80×80</translation>
+    </message>
+    <message>
+        <source>Last selected stitch point</source>
+        <translation>Sista valda stygnpunkten</translation>
+    </message>
+    <message>
+        <source>Move selection to beginning</source>
+        <translation>Flytta markeringen till början</translation>
+    </message>
+    <message>
+        <source>Move selection to end</source>
+        <translation>Flytta markeringen till slutet</translation>
+    </message>
+    <message>
+        <source>No supported machine model is configured.</source>
+        <translation>Ingen maskinmodell som stöds är konfigurerad.</translation>
+    </message>
+    <message>
+        <source>Remove all section markers</source>
+        <translation>Ta bort alla sektionsmarkeringar</translation>
+    </message>
+    <message>
+        <source>S&amp;ections</source>
+        <translation>&amp;Sektioner</translation>
+    </message>
+    <message>
+        <source>Select Area</source>
+        <translation>Markera område</translation>
+    </message>
+    <message>
+        <source>Select Section</source>
+        <translation>Markera sektion</translation>
+    </message>
+    <message>
+        <source>The default palette with {0} thread colours was applied.</source>
+        <translation>Standardpaletten med {0} trådfärger användes.</translation>
+    </message>
+    <message>
+        <source>The design needs centering to fit the working area.</source>
+        <translation>Mönstret måste centreras för att passa i arbetsområdet.</translation>
+    </message>
+    <message>
+        <source>The design needs to be centered to fit inside the working area.</source>
+        <translation>Mönstret måste centreras för att passa inom arbetsområdet.</translation>
+    </message>
+    <message>
+        <source>The design reaches outside of declared hoop size.</source>
+        <translation>Mönstret sträcker sig utanför den angivna ramstorleken.</translation>
+    </message>
+    <message>
+        <source>The design type changed, so the current file cannot store this pattern. Use Save As to choose a new file.</source>
+        <translation>Mönstertypen har ändrats, så den aktuella filen kan inte spara det här mönstret. Använd Spara som för att välja en ny fil.</translation>
+    </message>
+    <message>
+        <source>The design type will be changed automatically to fit inside the working area.</source>
+        <translation>Mönstertypen ändras automatiskt så att den passar inom arbetsområdet.</translation>
+    </message>
+    <message>
+        <source>The extra {0} colours will be removed.</source>
+        <translation>De {0} extra färgerna tas bort.</translation>
+    </message>
+    <message>
+        <source>The file cannot be opened.</source>
+        <translation>Filen kan inte öppnas.</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
+        <translation>Filen definierar {0} trådfärger, men ett broderimönster för Creative 7500-serien behöver {1}.</translation>
+    </message>
+    <message>
+        <source>The file does not define a thread palette.</source>
+        <translation>Filen definierar ingen trådpalett.</translation>
+    </message>
+    <message>
+        <source>The missing colours will be filled from the default palette.</source>
+        <translation>De saknade färgerna fylls på från standardpaletten.</translation>
+    </message>
+    <message>
+        <source>The palette will be filled up with {0} default thread colours.</source>
+        <translation>Paletten fylls på med {0} standardtrådfärger.</translation>
+    </message>
+    <message>
+        <source>The pattern measures {0}, which is larger than the biggest supported hoop ({1}).</source>
+        <translation>Mönstret mäter {0}, vilket är större än den största ram som stöds ({1}).</translation>
+    </message>
+    <message>
+        <source>The stitch pattern is empty. Add stitch points first.</source>
+        <translation>Stygnmönstret är tomt. Lägg till stygnpunkter först.</translation>
+    </message>
+    <message>
+        <source>The {0} additional thread colours will be dropped.</source>
+        <translation>De {0} ytterligare trådfärgerna tas bort.</translation>
+    </message>
+    <message>
+        <source>This file format always stores {0} thread colours, but the design has {1}.</source>
+        <translation>Det här filformatet lagrar alltid {0} trådfärger, men designen har {1}.</translation>
+    </message>
+    <message>
+        <source>Thread Color {0}</source>
+        <translation>Trådfärg {0}</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Trådpalett</translation>
+    </message>
+    <message>
+        <source>Tool: Select Area</source>
+        <translation>Verktyg: Markera område</translation>
+    </message>
+    <message>
+        <source>Tool: Select Section</source>
+        <translation>Verktyg: Markera sektion</translation>
+    </message>
+    <message>
+        <source>Type: {0}</source>
+        <translation>Typ: {0}</translation>
+    </message>
+    <message>
+        <source>color changes: {0}</source>
+        <translation>färgbyten: {0}</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>till</translation>
+    </message>
+    <message>
+        <source>{0} cannot store 9 mm or MAXI patterns on a memory card.</source>
+        <translation>{0} kan inte lagra 9 mm- eller MAXI-mönster på ett minneskort.</translation>
+    </message>
+    <message>
+        <source>{0} cannot store embroidery designs on a memory card.</source>
+        <translation>{0} kan inte lagra broderimönster på ett minneskort.</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1835,6 +2055,262 @@
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>En ny version är tillgänglig! (senaste: {0})</translation>
+    </message>
+</context>
+<context>
+    <name>ColorChangeMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Lägg till</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Använd</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Autocentrera</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Avbryt</translation>
+    </message>
+    <message>
+        <source>Choose another colour for the selected colour change.</source>
+        <translation>Välj en annan färg för det valda färgbytet.</translation>
+    </message>
+    <message>
+        <source>Color change after the last stitch: palette color {0}, RGB({1}, {2}, {3})</source>
+        <translation>Färgbyte efter sista stygnet: palettfärg {0}, RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Color change before stitch {0}: palette color {1}, RGB({2}, {3}, {4})</source>
+        <translation>Färgbyte före stygn {0}: palettfärg {1}, RGB({2}, {3}, {4})</translation>
+    </message>
+    <message>
+        <source>Color changes</source>
+        <translation>Färgbyten</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+rulla för att zooma. Klicka på ett stygn för att markera det.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Redigera</translation>
+    </message>
+    <message>
+        <source>Edit Color Changes</source>
+        <translation>Redigera färgbyten</translation>
+    </message>
+    <message>
+        <source>Insert a colour change before the selected stitch.</source>
+        <translation>Infoga ett färgbyte före det valda stygnet.</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Ta bort</translation>
+    </message>
+    <message>
+        <source>Remove the colour change before the selected stitch.</source>
+        <translation>Ta bort färgbytet före det valda stygnet.</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Rulla förhandsgranskningen så att det valda stygnet hålls centrerat.</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Markera första stygnet</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Markera sista stygnet</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Markera nästa stygn</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Markera föregående stygn</translation>
+    </message>
+    <message>
+        <source>Selected stitch (1-based)</source>
+        <translation>Valt stygn (1-baserat)</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Visa stygnpunkter</translation>
+    </message>
+    <message>
+        <source>end</source>
+        <translation>slut</translation>
+    </message>
+    <message>
+        <source>{0} → color {1}</source>
+        <translation>{0} → färg {1}</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteColorDialog</name>
+    <message>
+        <source>Available thread colors</source>
+        <translation>Tillgängliga trådfärger</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Ändra färg {0}</translation>
+    </message>
+    <message>
+        <source>Color {0}: RGB({1}, {2}, {3})</source>
+        <translation>Färg {0}: RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Double-click a color to change it.</source>
+        <translation>Dubbelklicka på en färg för att ändra den.</translation>
+    </message>
+    <message>
+        <source>Select Color</source>
+        <translation>Välj färg</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteEditorDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Lägg till</translation>
+    </message>
+    <message>
+        <source>Append a thread colour and choose its colour.</source>
+        <translation>Lägg till en trådfärg och välj dess färg.</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Använd</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Avbryt</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Ändra färg {0}</translation>
+    </message>
+    <message>
+        <source>Change the selected thread colour.</source>
+        <translation>Ändra den valda trådfärgen.</translation>
+    </message>
+    <message>
+        <source>Double-click a colour, or press Edit, to change it.</source>
+        <translation>Dubbelklicka på en färg, eller tryck på Redigera, för att ändra den.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Redigera</translation>
+    </message>
+    <message>
+        <source>Edit Color Palette</source>
+        <translation>Redigera färgpalett</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Ta bort</translation>
+    </message>
+    <message>
+        <source>Remove the selected thread colour.</source>
+        <translation>Ta bort den valda trådfärgen.</translation>
+    </message>
+    <message>
+        <source>Thread colors</source>
+        <translation>Trådfärger</translation>
+    </message>
+    <message>
+        <source>{0}: RGB({1}, {2}, {3})</source>
+        <translation>{0}: RGB({1}, {2}, {3})</translation>
+    </message>
+</context>
+<context>
+    <name>SectionMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Lägg till</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Använd</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Autocentrera</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Avbryt</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+rulla för att zooma. Klicka på ett stygn för att markera det.</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Redigera sektionsmarkeringar</translation>
+    </message>
+    <message>
+        <source>First selected stitch</source>
+        <translation>Första valda stygnet</translation>
+    </message>
+    <message>
+        <source>Last selected stitch</source>
+        <translation>Sista valda stygnet</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Ta bort</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Rulla förhandsgranskningen så att det valda stygnet hålls centrerat.</translation>
+    </message>
+    <message>
+        <source>Section markers</source>
+        <translation>Sektionsmarkeringar</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>Markera första stygnet</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>Markera sista stygnet</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>Markera nästa stygn</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>Markera föregående stygn</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Visa stygnpunkter</translation>
+    </message>
+    <message>
+        <source>Stitch {0}: x {1}, y {2}</source>
+        <translation>Stygn {0}: x {1}, y {2}</translation>
+    </message>
+    <message>
+        <source>Turn the selected section marker back into a stitch.</source>
+        <translation>Gör om den valda sektionsmarkeringen till ett stygn igen.</translation>
+    </message>
+    <message>
+        <source>Turn the selected stitch into a section marker.</source>
+        <translation>Gör om det valda stygnet till en sektionsmarkering.</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>till</translation>
     </message>
 </context>
 </TS>

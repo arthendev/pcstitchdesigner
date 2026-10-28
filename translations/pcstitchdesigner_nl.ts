@@ -142,14 +142,6 @@
         <translation>(naamloos)</translation>
     </message>
     <message>
-        <source>Not Yet Implemented</source>
-        <translation>Nog niet geïmplementeerd</translation>
-    </message>
-    <message>
-        <source>Loading {0} patterns from memory card is not yet supported.</source>
-        <translation>Het laden van {0}-patronen van de geheugenkaart wordt nog niet ondersteund.</translation>
-    </message>
-    <message>
         <source>Decode Failed</source>
         <translation>Decoderen mislukt</translation>
     </message>
@@ -174,8 +166,16 @@
         <translation>Voorbeelden konden niet opnieuw van de machine worden geladen:</translation>
     </message>
     <message>
-        <source>Loading Embroidery patterns from memory card is not yet supported.</source>
-        <translation>Het laden van borduurpatronen van de geheugenkaart wordt nog niet ondersteund.</translation>
+        <source>Colours: {0}</source>
+        <translation>Kleuren: {0}</translation>
+    </message>
+    <message>
+        <source>Hoop: unknown</source>
+        <translation>Ring: onbekend</translation>
+    </message>
+    <message>
+        <source>Hoop: {0} x {1} mm</source>
+        <translation>Ring: {0} x {1} mm</translation>
     </message>
 </context>
 <context>
@@ -192,8 +192,8 @@
 <context>
     <name>ColorPaletteBar</name>
     <message>
-        <source>Color {0}: RGB({1}, {2}, {3})</source>
-        <translation>Kleur {0}: RGB({1}, {2}, {3})</translation>
+        <source>Color {0}: RGB({1}, {2}, {3}) — click to change</source>
+        <translation>Kleur {0}: RGB({1}, {2}, {3}) — klik om te wijzigen</translation>
     </message>
 </context>
 <context>
@@ -250,6 +250,10 @@
         <source>Restore Defaults</source>
         <translation>Standaardwaarden herstellen</translation>
     </message>
+    <message>
+        <source>Background:</source>
+        <translation>Achtergrond:</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
@@ -304,6 +308,14 @@
     <message>
         <source>Pattern coordinates must not be negative</source>
         <translation>Patrooncoördinaten mogen niet negatief zijn</translation>
+    </message>
+    <message>
+        <source>A colour change refers to palette index {0}, but the palette only holds indices 0 to {1}</source>
+        <translation>Een kleurwissel verwijst naar paletindex {0}, maar het palet bevat alleen de indices 0 tot {1}</translation>
+    </message>
+    <message>
+        <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
+        <translation>Een borduurbestand bevat precies {0} draadkleuren, maar dit patroon heeft er {1}</translation>
     </message>
 </context>
 <context>
@@ -550,10 +562,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK verwacht om het eerste blok te starten, ontvangen 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading unknown bytes in first chunk.</source>
-        <translation>Time-out bij lezen van onbekende bytes in het eerste blok.</translation>
     </message>
     <message>
         <source>Timeout reading SIZE in first chunk.</source>
@@ -851,16 +859,48 @@
         <source>Unexpected response 0x{0} after stitch data.</source>
         <translation>Onverwachte reactie 0x{0} na de steekgegevens.</translation>
     </message>
+    <message>
+        <source>Colour index {0} is outside the machine's 16-colour palette.</source>
+        <translation>Kleurindex {0} valt buiten het 16-kleurenpalet van de machine.</translation>
+    </message>
+    <message>
+        <source>Internal error: {0} preview block(s) generated, but the header expects {1}.</source>
+        <translation>Interne fout: {0} voorbeeldblokken gegenereerd, maar de kop verwacht {1}.</translation>
+    </message>
+    <message>
+        <source>The card payload contains no embroidery stitches.</source>
+        <translation>De kaartgegevens bevatten geen borduursteken.</translation>
+    </message>
+    <message>
+        <source>The embroidery design contains no stitches.</source>
+        <translation>Het borduurpatroon bevat geen steken.</translation>
+    </message>
+    <message>
+        <source>The embroidery design is larger than the selected hoop.</source>
+        <translation>Het borduurpatroon is groter dan de geselecteerde ring.</translation>
+    </message>
+    <message>
+        <source>The encoded embroidery pattern is {0} bytes, but the memory card format can hold at most 65535.</source>
+        <translation>Het gecodeerde borduurpatroon is {0} bytes, maar het geheugenkaartformaat kan maximaal 65535 bevatten.</translation>
+    </message>
+    <message>
+        <source>The pattern file size is too large and cannot be stored on the memory card: {0} bytes are needed, but a card slot holds at most {1} bytes. Split the design into smaller parts.</source>
+        <translation>Het patroonbestand is te groot en kan niet op de geheugenkaart worden opgeslagen: er zijn {0} bytes nodig, maar een kaartslot bevat maximaal {1} bytes. Splits het ontwerp in kleinere delen.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the pattern descriptor in first chunk.</source>
+        <translation>Time-out bij het lezen van de patroonbeschrijving in het eerste blok.</translation>
+    </message>
+    <message>
+        <source>Unknown machine model: {0}</source>
+        <translation>Onbekend machinemodel: {0}</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
         <source>Tool: -</source>
         <translation>Gereedschap: -</translation>
-    </message>
-    <message>
-        <source>Points: 0</source>
-        <translation>Punten: 0</translation>
     </message>
     <message>
         <source>&amp;New</source>
@@ -1037,10 +1077,6 @@
     <message>
         <source>Toggle Orientation</source>
         <translation>Oriëntatie wisselen</translation>
-    </message>
-    <message>
-        <source>Toggle view orientation: Default / Sewing Direction</source>
-        <translation>Weergaveoriëntatie wisselen: Standaard / Naairichting</translation>
     </message>
     <message>
         <source>Default</source>
@@ -1243,14 +1279,6 @@
         <translation>Het huidige patroon wordt te groot voor het werkgebied.</translation>
     </message>
     <message>
-        <source>Embroidery Design</source>
-        <translation>Borduurontwerp</translation>
-    </message>
-    <message>
-        <source>Embroidery designs can be loaded and viewed, but editing and transfer to the sewing machine are not yet supported.</source>
-        <translation>Borduurontwerpen kunnen worden geladen en bekeken, maar bewerken en overdragen naar de naaimachine worden nog niet ondersteund.</translation>
-    </message>
-    <message>
         <source>Stitches: {0}</source>
         <translation>Steken: {0}</translation>
     </message>
@@ -1439,10 +1467,6 @@
         <translation>Annuleren</translation>
     </message>
     <message>
-        <source>Sending embroidery patterns to memory card is not yet supported.</source>
-        <translation>Het verzenden van borduurpatronen naar de geheugenkaart wordt nog niet ondersteund.</translation>
-    </message>
-    <message>
         <source>Writing pattern to memory card…</source>
         <translation>Patroon naar de geheugenkaart schrijven…</translation>
     </message>
@@ -1529,6 +1553,202 @@
     <message>
         <source>This file format stores at most {0} characters, so the note will be truncated when saving.</source>
         <translation>Dit bestandsformaat slaat maximaal {0} tekens op, dus de notitie wordt bij het opslaan afgekapt.</translation>
+    </message>
+    <message>
+        <source>&amp;Colors</source>
+        <translation>&amp;Kleuren</translation>
+    </message>
+    <message>
+        <source>&amp;Edit color changes…</source>
+        <translation>Kleurwissels &amp;bewerken…</translation>
+    </message>
+    <message>
+        <source>&amp;Edit section markers…</source>
+        <translation>Sectiemarkeringen &amp;bewerken…</translation>
+    </message>
+    <message>
+        <source>&amp;Transform</source>
+        <translation>&amp;Transformeren</translation>
+    </message>
+    <message>
+        <source>Centering will be applied automatically.</source>
+        <translation>Het centreren wordt automatisch toegepast.</translation>
+    </message>
+    <message>
+        <source>Design Needs Centering</source>
+        <translation>Patroon moet worden gecentreerd</translation>
+    </message>
+    <message>
+        <source>Design Too Large for Hoop</source>
+        <translation>Patroon te groot voor de ring</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette and continue saving?</source>
+        <translation>Wilt u het palet aanpassen en doorgaan met opslaan?</translation>
+    </message>
+    <message>
+        <source>Do you want to adjust the palette to {0} colours?</source>
+        <translation>Wilt u het palet aanpassen naar {0} kleuren?</translation>
+    </message>
+    <message>
+        <source>Edit Color Change Markers</source>
+        <translation>Kleurwisselmarkeringen bewerken</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Sectiemarkeringen bewerken</translation>
+    </message>
+    <message>
+        <source>Edit color &amp;palette…</source>
+        <translation>Kleuren&amp;palet bewerken…</translation>
+    </message>
+    <message>
+        <source>First selected stitch point</source>
+        <translation>Eerste geselecteerde steekpunt</translation>
+    </message>
+    <message>
+        <source>Hoop 120×115</source>
+        <translation>Ring 120×115</translation>
+    </message>
+    <message>
+        <source>Hoop 80×80</source>
+        <translation>Ring 80×80</translation>
+    </message>
+    <message>
+        <source>Last selected stitch point</source>
+        <translation>Laatste geselecteerde steekpunt</translation>
+    </message>
+    <message>
+        <source>Move selection to beginning</source>
+        <translation>Selectie naar het begin verplaatsen</translation>
+    </message>
+    <message>
+        <source>Move selection to end</source>
+        <translation>Selectie naar het einde verplaatsen</translation>
+    </message>
+    <message>
+        <source>No supported machine model is configured.</source>
+        <translation>Er is geen ondersteund machinemodel geconfigureerd.</translation>
+    </message>
+    <message>
+        <source>Remove all section markers</source>
+        <translation>Alle sectiemarkeringen verwijderen</translation>
+    </message>
+    <message>
+        <source>S&amp;ections</source>
+        <translation>&amp;Secties</translation>
+    </message>
+    <message>
+        <source>Select Area</source>
+        <translation>Gebied selecteren</translation>
+    </message>
+    <message>
+        <source>Select Section</source>
+        <translation>Sectie selecteren</translation>
+    </message>
+    <message>
+        <source>The default palette with {0} thread colours was applied.</source>
+        <translation>Het standaardpalet met {0} draadkleuren is toegepast.</translation>
+    </message>
+    <message>
+        <source>The design needs centering to fit the working area.</source>
+        <translation>Het patroon moet worden gecentreerd om in het werkgebied te passen.</translation>
+    </message>
+    <message>
+        <source>The design needs to be centered to fit inside the working area.</source>
+        <translation>Het patroon moet worden gecentreerd om binnen het werkgebied te passen.</translation>
+    </message>
+    <message>
+        <source>The design reaches outside of declared hoop size.</source>
+        <translation>Het patroon reikt buiten de opgegeven ringmaat.</translation>
+    </message>
+    <message>
+        <source>The design type changed, so the current file cannot store this pattern. Use Save As to choose a new file.</source>
+        <translation>Het patroontype is gewijzigd, dus het huidige bestand kan dit patroon niet opslaan. Gebruik Opslaan als om een nieuw bestand te kiezen.</translation>
+    </message>
+    <message>
+        <source>The design type will be changed automatically to fit inside the working area.</source>
+        <translation>Het patroontype wordt automatisch gewijzigd zodat het in het werkgebied past.</translation>
+    </message>
+    <message>
+        <source>The extra {0} colours will be removed.</source>
+        <translation>De {0} extra kleuren worden verwijderd.</translation>
+    </message>
+    <message>
+        <source>The file cannot be opened.</source>
+        <translation>Het bestand kan niet worden geopend.</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
+        <translation>Het bestand definieert {0} draadkleuren, maar een borduurpatroon voor de Creative 7500-serie heeft {1} nodig.</translation>
+    </message>
+    <message>
+        <source>The file does not define a thread palette.</source>
+        <translation>Het bestand definieert geen draadpalet.</translation>
+    </message>
+    <message>
+        <source>The missing colours will be filled from the default palette.</source>
+        <translation>De ontbrekende kleuren worden aangevuld vanuit het standaardpalet.</translation>
+    </message>
+    <message>
+        <source>The palette will be filled up with {0} default thread colours.</source>
+        <translation>Het palet wordt aangevuld met {0} standaard draadkleuren.</translation>
+    </message>
+    <message>
+        <source>The pattern measures {0}, which is larger than the biggest supported hoop ({1}).</source>
+        <translation>Het patroon meet {0}, groter dan de grootste ondersteunde ring ({1}).</translation>
+    </message>
+    <message>
+        <source>The stitch pattern is empty. Add stitch points first.</source>
+        <translation>Het steekpatroon is leeg. Voeg eerst steekpunten toe.</translation>
+    </message>
+    <message>
+        <source>The {0} additional thread colours will be dropped.</source>
+        <translation>De {0} extra draadkleuren worden verwijderd.</translation>
+    </message>
+    <message>
+        <source>This file format always stores {0} thread colours, but the design has {1}.</source>
+        <translation>Dit bestandsformaat slaat altijd {0} draadkleuren op, maar het ontwerp heeft er {1}.</translation>
+    </message>
+    <message>
+        <source>Thread Color {0}</source>
+        <translation>Draadkleur {0}</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Draadpalet</translation>
+    </message>
+    <message>
+        <source>Tool: Select Area</source>
+        <translation>Gereedschap: Gebied selecteren</translation>
+    </message>
+    <message>
+        <source>Tool: Select Section</source>
+        <translation>Gereedschap: Sectie selecteren</translation>
+    </message>
+    <message>
+        <source>Type: {0}</source>
+        <translation>Type: {0}</translation>
+    </message>
+    <message>
+        <source>color changes: {0}</source>
+        <translation>kleurwissels: {0}</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>tot</translation>
+    </message>
+    <message>
+        <source>{0} cannot store 9 mm or MAXI patterns on a memory card.</source>
+        <translation>{0} kan geen 9 mm- of MAXI-patronen op een geheugenkaart opslaan.</translation>
+    </message>
+    <message>
+        <source>{0} cannot store embroidery designs on a memory card.</source>
+        <translation>{0} kan geen borduurontwerpen op een geheugenkaart opslaan.</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1835,6 +2055,262 @@
     <message>
         <source>A new version is available! (latest: {0})</source>
         <translation>Er is een nieuwe versie beschikbaar! (nieuwste: {0})</translation>
+    </message>
+</context>
+<context>
+    <name>ColorChangeMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Toevoegen</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Toepassen</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Automatisch centreren</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuleren</translation>
+    </message>
+    <message>
+        <source>Choose another colour for the selected colour change.</source>
+        <translation>Een andere kleur kiezen voor de geselecteerde kleurwissel.</translation>
+    </message>
+    <message>
+        <source>Color change after the last stitch: palette color {0}, RGB({1}, {2}, {3})</source>
+        <translation>Kleurwissel na de laatste steek: paletkleur {0}, RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Color change before stitch {0}: palette color {1}, RGB({2}, {3}, {4})</source>
+        <translation>Kleurwissel voor steek {0}: paletkleur {1}, RGB({2}, {3}, {4})</translation>
+    </message>
+    <message>
+        <source>Color changes</source>
+        <translation>Kleurwissels</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+scrollen om te zoomen. Klik op een steek om deze te selecteren.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Bewerken</translation>
+    </message>
+    <message>
+        <source>Edit Color Changes</source>
+        <translation>Kleurwissels bewerken</translation>
+    </message>
+    <message>
+        <source>Insert a colour change before the selected stitch.</source>
+        <translation>Een kleurwissel invoegen vóór de geselecteerde steek.</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Verwijderen</translation>
+    </message>
+    <message>
+        <source>Remove the colour change before the selected stitch.</source>
+        <translation>De kleurwissel vóór de geselecteerde steek verwijderen.</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Scroll het voorbeeld zodat de geselecteerde steek gecentreerd blijft.</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>De eerste steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>De laatste steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>De volgende steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>De vorige steek selecteren</translation>
+    </message>
+    <message>
+        <source>Selected stitch (1-based)</source>
+        <translation>Geselecteerde steek (1-gebaseerd)</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Steekpunten tonen</translation>
+    </message>
+    <message>
+        <source>end</source>
+        <translation>einde</translation>
+    </message>
+    <message>
+        <source>{0} → color {1}</source>
+        <translation>{0} → kleur {1}</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteColorDialog</name>
+    <message>
+        <source>Available thread colors</source>
+        <translation>Beschikbare draadkleuren</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Kleur {0} wijzigen</translation>
+    </message>
+    <message>
+        <source>Color {0}: RGB({1}, {2}, {3})</source>
+        <translation>Kleur {0}: RGB({1}, {2}, {3})</translation>
+    </message>
+    <message>
+        <source>Double-click a color to change it.</source>
+        <translation>Dubbelklik op een kleur om deze te wijzigen.</translation>
+    </message>
+    <message>
+        <source>Select Color</source>
+        <translation>Kleur selecteren</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteEditorDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Toevoegen</translation>
+    </message>
+    <message>
+        <source>Append a thread colour and choose its colour.</source>
+        <translation>Een draadkleur toevoegen en de kleur ervan kiezen.</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Toepassen</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuleren</translation>
+    </message>
+    <message>
+        <source>Change Color {0}</source>
+        <translation>Kleur {0} wijzigen</translation>
+    </message>
+    <message>
+        <source>Change the selected thread colour.</source>
+        <translation>De geselecteerde draadkleur wijzigen.</translation>
+    </message>
+    <message>
+        <source>Double-click a colour, or press Edit, to change it.</source>
+        <translation>Dubbelklik op een kleur of druk op Bewerken om deze te wijzigen.</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Bewerken</translation>
+    </message>
+    <message>
+        <source>Edit Color Palette</source>
+        <translation>Kleurenpalet bewerken</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Verwijderen</translation>
+    </message>
+    <message>
+        <source>Remove the selected thread colour.</source>
+        <translation>De geselecteerde draadkleur verwijderen.</translation>
+    </message>
+    <message>
+        <source>Thread colors</source>
+        <translation>Draadkleuren</translation>
+    </message>
+    <message>
+        <source>{0}: RGB({1}, {2}, {3})</source>
+        <translation>{0}: RGB({1}, {2}, {3})</translation>
+    </message>
+</context>
+<context>
+    <name>SectionMarkersDialog</name>
+    <message>
+        <source>Add</source>
+        <translation>Toevoegen</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Toepassen</translation>
+    </message>
+    <message>
+        <source>Auto-center</source>
+        <translation>Automatisch centreren</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annuleren</translation>
+    </message>
+    <message>
+        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
+        <translation>Ctrl+scrollen om te zoomen. Klik op een steek om deze te selecteren.</translation>
+    </message>
+    <message>
+        <source>Edit Section Markers</source>
+        <translation>Sectiemarkeringen bewerken</translation>
+    </message>
+    <message>
+        <source>First selected stitch</source>
+        <translation>Eerste geselecteerde steek</translation>
+    </message>
+    <message>
+        <source>Last selected stitch</source>
+        <translation>Laatste geselecteerde steek</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Verwijderen</translation>
+    </message>
+    <message>
+        <source>Scroll the preview so the selected stitch stays centred.</source>
+        <translation>Scroll het voorbeeld zodat de geselecteerde steek gecentreerd blijft.</translation>
+    </message>
+    <message>
+        <source>Section markers</source>
+        <translation>Sectiemarkeringen</translation>
+    </message>
+    <message>
+        <source>Select the first stitch</source>
+        <translation>De eerste steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the last stitch</source>
+        <translation>De laatste steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the next stitch</source>
+        <translation>De volgende steek selecteren</translation>
+    </message>
+    <message>
+        <source>Select the previous stitch</source>
+        <translation>De vorige steek selecteren</translation>
+    </message>
+    <message>
+        <source>Show stitch points</source>
+        <translation>Steekpunten tonen</translation>
+    </message>
+    <message>
+        <source>Stitch {0}: x {1}, y {2}</source>
+        <translation>Steek {0}: x {1}, y {2}</translation>
+    </message>
+    <message>
+        <source>Turn the selected section marker back into a stitch.</source>
+        <translation>De geselecteerde sectiemarkering weer omzetten in een steek.</translation>
+    </message>
+    <message>
+        <source>Turn the selected stitch into a section marker.</source>
+        <translation>De geselecteerde steek omzetten in een sectiemarkering.</translation>
+    </message>
+    <message>
+        <source>to</source>
+        <translation>tot</translation>
     </message>
 </context>
 </TS>
