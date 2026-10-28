@@ -158,6 +158,7 @@ class ColorChangeMarkersDialog(QDialog):
         self._color_list.setIconSize(QSize(14, 14))
         self._color_list.setMinimumWidth(170)
         self._color_list.itemSelectionChanged.connect(self._on_list_selection_changed)
+        self._color_list.itemDoubleClicked.connect(self._on_list_item_double_clicked)
 
         self._add_button = QPushButton(self.tr("Add"))
         self._add_button.setToolTip(
@@ -482,6 +483,12 @@ class ColorChangeMarkersDialog(QDialog):
         self._refresh_views()
         if self._current_index is not None:
             self._scroll_preview_to(self._current_index)
+
+    def _on_list_item_double_clicked(self, item):
+        """Open the colour picker for a double-clicked change marker."""
+        self._marker_index = int(item.data(Qt.UserRole))
+        self._current_index = self._first_stitch_after(self._marker_index)
+        self._edit_marker()
 
     def _on_canvas_point_clicked(self, index):
         """Select a stitch clicked in the preview; no marker is selected then."""
