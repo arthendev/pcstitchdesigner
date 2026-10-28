@@ -5,7 +5,7 @@ from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt5.QtWidgets import (
     QButtonGroup, QCheckBox, QColorDialog, QDialog, QDialogButtonBox,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QPushButton, QScrollArea, QSizePolicy, QVBoxLayout,
+    QPushButton, QScrollArea, QSizePolicy, QSpinBox, QVBoxLayout,
 )
 
 from model import (DEFAULT_PALETTE, ELEM_COLOR, ELEM_SECTION, ELEM_STITCH,
@@ -213,7 +213,9 @@ class ColorChangeMarkersDialog(QDialog):
         hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it."))
         hint.setStyleSheet("color: gray;")
 
-        self._range_label = QLabel()
+        self._spins_syncing = False
+        self._stitch_spin = self._make_spin(
+            self.tr("Selected stitch (1-based)"))
         self._first_button = self._nav_button(
             "|<", self.tr("Select the first stitch"), self._select_first)
         self._previous_button = self._nav_button(
@@ -233,10 +235,14 @@ class ColorChangeMarkersDialog(QDialog):
         nav_layout.addStretch(1)
         nav_layout.addWidget(hint)
 
+        selection_layout = QHBoxLayout()
+        selection_layout.addWidget(self._stitch_spin)
+        selection_layout.addStretch(1)
+
         right_layout = QVBoxLayout()
         right_layout.addWidget(self._scroll, 1)
         right_layout.addLayout(nav_layout)
-        right_layout.addWidget(self._range_label)
+        right_layout.addLayout(selection_layout)
 
         body = QHBoxLayout()
         body.addLayout(left_layout)
@@ -267,6 +273,18 @@ class ColorChangeMarkersDialog(QDialog):
         button.clicked.connect(slot)
         return button
 
+    def _make_spin(self, tooltip):
+        """Create the 1-based stitch-number spin box."""
+        spin = QSpinBox()
+        spin.setRange(1, 1)
+        spin.setFixedWidth(70)
+        spin.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # Apply a typed number when editing is done, not on every keystroke.
+        spin.setKeyboardTracking(False)
+        spin.setToolTip(tooltip)
+        spin.valueChanged.connect(self._on_stitch_spin_changed)
+        return spin
+
     def showEvent(self, event):
         super().showEvent(event)
         if not self._did_fit:
@@ -296,6 +314,15 @@ class ColorChangeMarkersDialog(QDialog):
     def _selectable_indices(self):
         """Return the indices the stitch selection may land on."""
         return [i for i, e in enumerate(self._elements) if elem_has_coords(e)]
+
+    def _coord_numbering(self):
+        """Map element index → 1-based stitch number.
+
+        Colour-change records have no position, so the numbering counts only
+        the visible (coordinate) elements, exactly like the stitch spin box.
+        """
+        return {index: number
+                for number, index in enumerate(self._selectable_indices(), start=1)}
 
     def _first_stitch_after(self, marker_index):
         """Return the first stitch index after *marker_index*, or ``None``."""
@@ -340,6 +367,7 @@ class ColorChangeMarkersDialog(QDialog):
 
     def _refresh_views(self):
         """Rebuild the marker list and repaint the preview from the working copy."""
+        numbering = self._coord_numbering()
         self._color_list.blockSignals(True)
         self._color_list.clear()
         for index, elem in enumerate(self._elements):
@@ -347,13 +375,24 @@ class ColorChangeMarkersDialog(QDialog):
                 continue
             color_index = min(int(elem[1]), len(self._colors) - 1)
             r, g, b = self._colors[color_index]
+            # A marker has no position of its own; it is numbered by the stitch
+            # it starts (the first visible element after it).
+            number = numbering.get(self._first_stitch_after(index))
+            label = str(number) if number is not None else self.tr("end")
             item = QListWidgetItem(
                 self._swatch_icon(color_index),
-                self.tr("{0} → color {1}").format(index, color_index + 1))
+                self.tr("{0} → color {1}").format(label, color_index + 1))
             item.setData(Qt.UserRole, index)
-            item.setToolTip(self.tr(
-                "Color change at {0}: palette color {1}, RGB({2}, {3}, {4})"
-            ).format(index, color_index + 1, r, g, b))
+            if number is not None:
+                item.setToolTip(self.tr(
+                    "Color change before stitch {0}: palette color {1}, "
+                    "RGB({2}, {3}, {4})"
+                ).format(number, color_index + 1, r, g, b))
+            else:
+                item.setToolTip(self.tr(
+                    "Color change after the last stitch: palette color {0}, "
+                    "RGB({1}, {2}, {3})"
+                ).format(color_index + 1, r, g, b))
             self._color_list.addItem(item)
             if index == self._marker_index:
                 self._color_list.setCurrentItem(item)
@@ -367,7 +406,7 @@ class ColorChangeMarkersDialog(QDialog):
             self._preview.set_selection([], None)
 
         self._update_actions()
-        self._update_status()
+        self._update_selection_spins()
         self._update_apply_state()
 
     def _update_actions(self):
@@ -383,23 +422,28 @@ class ColorChangeMarkersDialog(QDialog):
             and 0 <= self._marker_index < len(self._elements)
             and self._elements[self._marker_index][0] == ELEM_COLOR)
 
-    def _update_status(self):
-        """Show where the selected colour change starts, or the selected stitch."""
-        if self._marker_index is not None and self._current_index is not None:
-            color_index = min(int(self._elements[self._marker_index][1]),
-                              len(self._colors) - 1)
-            self._range_label.setText(
-                self.tr("Color {0}, first stitch {1}").format(
-                    color_index + 1, self._current_index))
-        elif self._current_index is not None:
-            self._range_label.setText(
-                self.tr("Stitch: {0}").format(self._current_index))
-        elif self._marker_index is not None:
-            self._range_label.setText(
-                self.tr("Color change at {0} (no stitch after it)").format(
-                    self._marker_index))
-        else:
-            self._range_label.setText(self.tr("No color change selected"))
+    def _update_selection_spins(self):
+        """Mirror the selected stitch in the stitch-number spin box."""
+        selectable = self._selectable_indices()
+        numbers = self._coord_numbering()
+
+        self._spins_syncing = True
+        try:
+            self._stitch_spin.setMaximum(max(1, len(selectable)))
+            self._stitch_spin.setValue(numbers.get(self._current_index, 1))
+        finally:
+            self._spins_syncing = False
+        self._stitch_spin.setEnabled(
+            self._current_index is not None and bool(selectable))
+
+    def _on_stitch_spin_changed(self, _value):
+        """Select the stitch named by the spin box."""
+        if self._spins_syncing:
+            return
+        selectable = self._selectable_indices()
+        number = self._stitch_spin.value()
+        if 1 <= number <= len(selectable):
+            self._select_index(selectable[number - 1])
 
     def _update_apply_state(self):
         """Enable Apply only while the working copy differs from the pattern."""
