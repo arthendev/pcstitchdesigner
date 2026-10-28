@@ -653,6 +653,26 @@ class StitchPattern:
         self.colors = []
         return True
 
+    def clear_color_changes(self):
+        """Remove every ELEM_COLOR record; 9 mm and MAXI patterns carry none.
+
+        A colour change only names a slot in the thread palette, so it becomes
+        meaningless as soon as a design stops being embroidery. The sewing
+        formats have no palette and their writers skip colour records, so the
+        records are dropped from the model instead of lingering there. This
+        shifts element indices, hence the display layer is rebuilt.
+
+        Returns:
+            int: How many colour-change records were removed.
+        """
+        kept = [e for e in self.elements if e[0] != ELEM_COLOR]
+        removed = len(self.elements) - len(kept)
+        if not removed:
+            return 0
+        self.elements = kept
+        self._rebuild_display_no_auto()
+        return removed
+
     def rounded_elements(self):
         """Yield elements with x/y coordinates rounded and converted to int on demand."""
         for e in self.elements:

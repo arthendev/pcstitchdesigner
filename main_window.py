@@ -127,6 +127,10 @@ class MainWindow(QMainWindow):
 
         self._file_path = None
         self._file_info = None  # PatternFileInfo from the last loaded file
+        # Design class ("hoop" / "stitch") the current file was written as. A
+        # file's extension fixes its format, so it cannot be overwritten once the
+        # design type switches between embroidery and sewing.
+        self._file_design_class = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of elements copied from the selection
         self._pattern = StitchPattern()
@@ -1296,6 +1300,35 @@ class MainWindow(QMainWindow):
         # Machine — capabilities come from the model registry, not from the
         # pattern type alone, so re-evaluate them through that single path.
         self._update_machine_capability_actions()
+        # The file format follows the design class, so a type change can make the
+        # current file unusable as a save target.
+        self._update_save_action_state()
+
+    def _design_class(self, stitch_type=None):
+        """Return "hoop" or "stitch" for *stitch_type*, defaulting to the pattern's."""
+        stitch_type = stitch_type or self._pattern.stitch_type
+        return "hoop" if is_hoop_stitch_type(stitch_type) else "stitch"
+
+    def _save_target_is_stale(self):
+        """Return True when the current file cannot hold the current design.
+
+        A file's format follows its extension: only the embroidery format can
+        store a thread palette and hoop coordinates, and only the sewing formats
+        can be read by the PFAFF stitch-file programs. After switching between
+        hoop and sewing designs, Save would overwrite the file with data it
+        cannot represent, so the user has to choose a new name through Save As.
+        """
+        return (self._file_path is not None
+                and self._file_design_class is not None
+                and self._file_design_class != self._design_class())
+
+    def _update_save_action_state(self):
+        """Enable Save only while the current file can hold the current design."""
+        stale = self._save_target_is_stale()
+        self._act_save.setEnabled(not stale)
+        self._act_save.setToolTip(
+            self.tr("The design type changed, so the current file cannot store "
+                    "this pattern. Use Save As to choose a new file.") if stale else "")
 
     def _update_machine_capability_actions(self):
         """Enable machine actions that the configured model actually supports.
@@ -1515,6 +1548,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selected_point(None)
         self._file_path = None
         self._file_info = None
+        self._file_design_class = None
         self._machine_pattern_name = None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
@@ -1751,6 +1785,9 @@ class MainWindow(QMainWindow):
             self._pattern.modified = False
         self._file_path = path
         self._file_info = file_info
+        # Remember which design class the file holds, so a later switch to the
+        # other class forces Save As instead of overwriting it.
+        self._file_design_class = self._design_class(self._pattern.stitch_type)
         # The window now shows a file, so a name remembered from the machine
         # must not leak into the title or the Save As proposal.
         self._machine_pattern_name = None
@@ -1910,6 +1947,10 @@ class MainWindow(QMainWindow):
         return True
 
     def _file_save(self):
+        if self._save_target_is_stale():
+            # The file format no longer matches the design, so the existing file
+            # must not be overwritten.
+            return self._file_save_as()
         if self._file_path:
             if not self._confirm_pcs_palette(self._file_path):
                 return False
@@ -1923,7 +1964,9 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, self.tr("Error saving file"), str(e))
                 return False
+            self._file_design_class = self._design_class()
             self._update_title()
+            self._update_save_action_state()
             return True
         return self._file_save_as()
 
@@ -1953,7 +1996,13 @@ class MainWindow(QMainWindow):
         # same folder; only a pattern that came from the machine (no file yet)
         # is proposed by its machine name.
         if self._file_path:
-            proposed = self._file_path
+            if self._save_target_is_stale():
+                # Drop the old extension: the format changed, so the name must not
+                # keep pointing at the file that is being replaced. The selected
+                # filter decides the new extension when the name has none.
+                proposed = os.path.splitext(self._file_path)[0]
+            else:
+                proposed = self._file_path
         elif self._machine_pattern_name:
             proposed = self._machine_pattern_name
         else:
@@ -1975,7 +2024,10 @@ class MainWindow(QMainWindow):
                 path += default_ext
         
         previous_path = self._file_path
+        previous_class = self._file_design_class
         self._file_path = path
+        # Save As writes the format the current design needs by construction.
+        self._file_design_class = self._design_class()
         result = self._file_save()
         if result:
             self._add_recent_file(path)
@@ -1983,6 +2035,7 @@ class MainWindow(QMainWindow):
             # A cancelled save must not leave the window pointing at a file
             # that was never written.
             self._file_path = previous_path
+            self._file_design_class = previous_class
         return result
 
     def _add_recent_file(self, path):
@@ -2559,6 +2612,7 @@ class MainWindow(QMainWindow):
         self._canvas.set_selected_point(None)
         self._file_path = None
         self._file_info = None
+        self._file_design_class = None
         self._machine_pattern_name = name or None
         self._canvas.set_template_image(None)
         self._canvas.set_template_resize_mode(False)
@@ -3154,11 +3208,20 @@ class MainWindow(QMainWindow):
             self._log_info("Default embroidery color palette applied")
 
     def _drop_stitch_palette(self):
-        """Remove the thread palette of a 9 mm / MAXI pattern.
+        """Remove the embroidery-only data of a 9 mm / MAXI pattern.
 
         Those patterns are stitched in the machine's own thread colors, so they
-        neither show a palette bar nor store a palette in the file.
+        neither show a palette bar nor store a palette in the file. Colour-change
+        records name palette slots, so they go with the palette — keeping them
+        would leave references to colours that no longer exist.
         """
+        removed = self._pattern.clear_color_changes()
+        if removed:
+            self._log_info(
+                f"{removed} colour changes removed with the thread palette")
+            # Removing records shifts every following index, so any selection
+            # made before the switch no longer points at the intended stitches.
+            self._canvas.set_selected_point(None)
         if self._pattern.clear_palette():
             self._log_info("Embroidery color palette removed")
 
