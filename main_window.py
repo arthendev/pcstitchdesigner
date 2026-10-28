@@ -239,6 +239,14 @@ class MainWindow(QMainWindow):
                         self._on_tool_select()
         return super().eventFilter(obj, event)
 
+    def createPopupMenu(self):
+        """Suppress the toolbar/dock visibility context menu.
+
+        Returning ``None`` tells QMainWindow not to show the popup that would
+        otherwise let the user hide toolbars.
+        """
+        return None
+
     # ── Actions ──
 
     def _build_actions(self):
