@@ -2576,7 +2576,9 @@ class MachineComm:
 
         A colour change with no stitch after it (an ``ELEM_COLOR`` at the end of
         the element list) is ignored: the card format cannot represent it, and
-        PC-Designer never writes one.
+        PC-Designer never writes one.  Adjacent colour records are collapsed to
+        the one that actually takes effect, so derived data (colour mask,
+        preview blocks) never mentions an unused colour.
 
         Raises:
             MachineCommError: If the design has no stitches or a colour index
@@ -2606,7 +2608,27 @@ class MachineComm:
         # Entries recorded after the last stitch can never be sewn.
         last_index = len(points) - 1
         sections = [entry for entry in sections if entry[0] <= last_index]
+        sections = MachineComm._normalise_embroidery_sections(sections)
         return points, sections
+
+    @staticmethod
+    def _normalise_embroidery_sections(sections):
+        """Collapse colour records that cannot affect the stitch stream.
+
+        Adjacent ``ELEM_COLOR`` records land on the same stitch index.  Only
+        the last one of such a group can take effect, and if it repeats the
+        colour already in force the whole group is a no-op.  Removing both
+        cases keeps the header colour mask and the per-colour preview blocks
+        in step with the encoded stitch stream.
+        """
+        normalised = [sections[0]]
+        for start, colour in sections[1:]:
+            if start == normalised[-1][0] and len(normalised) > 1:
+                # Same stitch: the later record wins (and may cancel the pair).
+                normalised.pop()
+            if colour != normalised[-1][1]:
+                normalised.append((start, colour))
+        return normalised
 
     @staticmethod
     def _embroidery_values(points):
