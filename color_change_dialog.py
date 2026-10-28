@@ -256,6 +256,11 @@ class ColorChangeMarkersDialog(QDialog):
         self._buttons.addButton(self.tr("Cancel"), QDialogButtonBox.RejectRole)
         self._buttons.accepted.connect(self._apply)
         self._buttons.rejected.connect(self.reject)
+        # Enter must not apply the dialog: no button is a default, and the
+        # initial focus belongs to the colour-change list.
+        for button in self._buttons.buttons():
+            button.setAutoDefault(False)
+            button.setDefault(False)
 
         layout = QVBoxLayout(self)
         layout.addLayout(body, 1)
@@ -264,6 +269,7 @@ class ColorChangeMarkersDialog(QDialog):
         self._refresh_views()
         if self._color_list.count():
             self._color_list.setCurrentRow(0)
+        self._color_list.setFocus()
 
     # ── Widget setup helpers ──
 
@@ -449,6 +455,11 @@ class ColorChangeMarkersDialog(QDialog):
     def _update_apply_state(self):
         """Enable Apply only while the working copy differs from the pattern."""
         self._apply_button.setEnabled(self._has_changes())
+        # Qt may promote an enabled accept-role button to the dialog default;
+        # only an explicit click on Apply may apply.
+        for button in self._buttons.buttons():
+            button.setAutoDefault(False)
+            button.setDefault(False)
 
     def _has_changes(self):
         """True when the working copy differs from the pattern."""

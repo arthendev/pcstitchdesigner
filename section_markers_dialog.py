@@ -5,9 +5,9 @@ import math
 from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QPainter, QPen, QPolygon
 from PyQt5.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QListWidget,
-    QListWidgetItem, QPushButton, QScrollArea, QSizePolicy, QSpinBox,
-    QVBoxLayout, QWidget,
+    QAbstractSpinBox, QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout,
+    QLabel, QListWidget, QListWidgetItem, QPushButton, QScrollArea,
+    QSizePolicy, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from model import (ELEM_COLOR, ELEM_SECTION, ELEM_STITCH, elem_has_coords,
@@ -446,6 +446,11 @@ class SectionMarkersDialog(QDialog):
         self._buttons.addButton(self.tr("Cancel"), QDialogButtonBox.RejectRole)
         self._buttons.accepted.connect(self._apply)
         self._buttons.rejected.connect(self.reject)
+        # Enter must not apply the dialog: no button is a default, and the
+        # initial focus belongs to the marker list.
+        for button in self._buttons.buttons():
+            button.setAutoDefault(False)
+            button.setDefault(False)
 
         layout = QVBoxLayout(self)
         layout.addLayout(body, 1)
@@ -454,6 +459,7 @@ class SectionMarkersDialog(QDialog):
         self._refresh_views()
         if self._section_list.count():
             self._section_list.setCurrentRow(0)
+        self._section_list.setFocus()
 
     # ── Widget setup helpers ──
 
@@ -628,6 +634,11 @@ class SectionMarkersDialog(QDialog):
     def _update_apply_state(self):
         """Enable Apply only while the working copy differs from the pattern."""
         self._apply_button.setEnabled(self._has_changes())
+        # Qt may promote an enabled accept-role button to the dialog default;
+        # only an explicit click on Apply may apply.
+        for button in self._buttons.buttons():
+            button.setAutoDefault(False)
+            button.setDefault(False)
 
     def _has_changes(self):
         """True when the working copy differs from the pattern's elements."""
