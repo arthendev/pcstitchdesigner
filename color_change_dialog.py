@@ -269,6 +269,12 @@ class ColorChangeMarkersDialog(QDialog):
         self._refresh_views()
         if self._color_list.count():
             self._color_list.setCurrentRow(0)
+        else:
+            # No colour changes yet: start on the first stitch, so a marker
+            # can be added without navigating first.
+            selectable = self._selectable_indices()
+            if selectable:
+                self._select_index(selectable[0])
         self._color_list.setFocus()
 
     # ── Widget setup helpers ──
@@ -428,6 +434,23 @@ class ColorChangeMarkersDialog(QDialog):
             self._marker_index is not None
             and 0 <= self._marker_index < len(self._elements)
             and self._elements[self._marker_index][0] == ELEM_COLOR)
+        self._update_nav_buttons()
+
+    def _update_nav_buttons(self):
+        """Disable navigation at the first/last selectable stitch."""
+        selectable = self._selectable_indices()
+        current = self._current_index
+        if not selectable:
+            at_start = at_end = True
+        elif current is None:
+            at_start = at_end = False
+        else:
+            at_start = current <= selectable[0]
+            at_end = current >= selectable[-1]
+        self._first_button.setEnabled(not at_start)
+        self._previous_button.setEnabled(not at_start)
+        self._next_button.setEnabled(not at_end)
+        self._last_button.setEnabled(not at_end)
 
     def _update_selection_spins(self):
         """Mirror the selected stitch in the stitch-number spin box."""
