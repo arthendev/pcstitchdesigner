@@ -31,6 +31,22 @@
         <source>Stitch %v / %m</source>
         <translation>Steek %v / %m</translation>
     </message>
+    <message>
+        <source>Color change to thread index #{0}</source>
+        <translation>Kleurwissel naar draadnummer #{0}</translation>
+    </message>
+    <message>
+        <source>Pause the animation at every thread colour change</source>
+        <translation>De animatie bij elke kleurwissel pauzeren</translation>
+    </message>
+    <message>
+        <source>Playback speed ({0}–{1} stitches/s, logarithmic)</source>
+        <translation>Afspeelsnelheid ({0}–{1} steken/s, logaritmisch)</translation>
+    </message>
+    <message>
+        <source>Stop on color change</source>
+        <translation>Stoppen bij kleurwissel</translation>
+    </message>
 </context>
 <context>
     <name>AutoStitchLengthDialog</name>

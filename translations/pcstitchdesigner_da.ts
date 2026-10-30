@@ -31,6 +31,22 @@
         <source>Stitch %v / %m</source>
         <translation>Sting %v / %m</translation>
     </message>
+    <message>
+        <source>Color change to thread index #{0}</source>
+        <translation>Farveskift til trådnummer #{0}</translation>
+    </message>
+    <message>
+        <source>Pause the animation at every thread colour change</source>
+        <translation>Sæt animationen på pause ved hvert farveskift</translation>
+    </message>
+    <message>
+        <source>Playback speed ({0}–{1} stitches/s, logarithmic)</source>
+        <translation>Afspilningshastighed ({0}–{1} sting/s, logaritmisk)</translation>
+    </message>
+    <message>
+        <source>Stop on color change</source>
+        <translation>Stop ved farveskift</translation>
+    </message>
 </context>
 <context>
     <name>AutoStitchLengthDialog</name>

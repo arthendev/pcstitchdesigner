@@ -31,6 +31,22 @@
         <source>Stitch %v / %m</source>
         <translation>Puntada %v / %m</translation>
     </message>
+    <message>
+        <source>Color change to thread index #{0}</source>
+        <translation>Cambio de color al hilo número #{0}</translation>
+    </message>
+    <message>
+        <source>Pause the animation at every thread colour change</source>
+        <translation>Pausar la animación en cada cambio de color</translation>
+    </message>
+    <message>
+        <source>Playback speed ({0}–{1} stitches/s, logarithmic)</source>
+        <translation>Velocidad de reproducción ({0}–{1} puntadas/s, logarítmica)</translation>
+    </message>
+    <message>
+        <source>Stop on color change</source>
+        <translation>Detener en el cambio de color</translation>
+    </message>
 </context>
 <context>
     <name>AutoStitchLengthDialog</name>
