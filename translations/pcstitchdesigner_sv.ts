@@ -270,6 +270,26 @@
         <source>Background:</source>
         <translation>Bakgrund:</translation>
     </message>
+    <message>
+        <source>Colors:</source>
+        <translation>Färger:</translation>
+    </message>
+    <message>
+        <source>Default palette:</source>
+        <translation>Standardpalett:</translation>
+    </message>
+    <message>
+        <source>Pastel colors</source>
+        <translation>Pastellfärger</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Trådpalett</translation>
+    </message>
+    <message>
+        <source>VGA palette</source>
+        <translation>VGA-palett</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>

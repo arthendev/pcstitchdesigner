@@ -270,6 +270,26 @@
         <source>Background:</source>
         <translation>Fondo:</translation>
     </message>
+    <message>
+        <source>Colors:</source>
+        <translation>Colores:</translation>
+    </message>
+    <message>
+        <source>Default palette:</source>
+        <translation>Paleta predeterminada:</translation>
+    </message>
+    <message>
+        <source>Pastel colors</source>
+        <translation>Colores pastel</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Paleta de hilos</translation>
+    </message>
+    <message>
+        <source>VGA palette</source>
+        <translation>Paleta VGA</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>

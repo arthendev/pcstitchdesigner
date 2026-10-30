@@ -270,6 +270,26 @@
         <source>Background:</source>
         <translation>Sfondo:</translation>
     </message>
+    <message>
+        <source>Colors:</source>
+        <translation>Colori:</translation>
+    </message>
+    <message>
+        <source>Default palette:</source>
+        <translation>Tavolozza predefinita:</translation>
+    </message>
+    <message>
+        <source>Pastel colors</source>
+        <translation>Colori pastello</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Tavolozza dei fili</translation>
+    </message>
+    <message>
+        <source>VGA palette</source>
+        <translation>Tavolozza VGA</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>

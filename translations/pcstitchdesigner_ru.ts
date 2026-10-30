@@ -270,6 +270,26 @@
         <source>Background:</source>
         <translation>Фон:</translation>
     </message>
+    <message>
+        <source>Colors:</source>
+        <translation>Цвета:</translation>
+    </message>
+    <message>
+        <source>Default palette:</source>
+        <translation>Палитра по умолчанию:</translation>
+    </message>
+    <message>
+        <source>Pastel colors</source>
+        <translation>Пастельные цвета</translation>
+    </message>
+    <message>
+        <source>Thread Palette</source>
+        <translation>Палитра нитей</translation>
+    </message>
+    <message>
+        <source>VGA palette</source>
+        <translation>Палитра VGA</translation>
+    </message>
 </context>
 <context>
     <name>FileIO</name>
