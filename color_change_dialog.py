@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 )
 
 from model import (DEFAULT_PALETTE, ELEM_COLOR, ELEM_SECTION, ELEM_STITCH,
-                   elem_has_coords, is_hoop_stitch_type)
+                   elem_has_coords, is_embroidery_type)
 from section_markers_dialog import StitchPreviewCanvas
 
 
@@ -202,7 +202,7 @@ class ColorChangeMarkersDialog(QDialog):
         # Embroidery designs read better as a thread view, so the points start
         # hidden; they can be switched on for precise picking.
         self._show_points_check = QCheckBox(self.tr("Show stitch points"))
-        self._show_points_check.setChecked(not is_hoop_stitch_type(pattern.stitch_type))
+        self._show_points_check.setChecked(not is_embroidery_type(pattern.stitch_type))
         self._show_points_check.toggled.connect(self._preview.set_show_stitch_points)
         self._preview.set_show_stitch_points(self._show_points_check.isChecked())
 

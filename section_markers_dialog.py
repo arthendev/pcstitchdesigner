@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
 )
 
 from model import (ELEM_COLOR, ELEM_SECTION, ELEM_STITCH, elem_has_coords,
-                   is_hoop_stitch_type)
+                   is_embroidery_type)
 
 
 class StitchPreviewCanvas(QWidget):
@@ -386,7 +386,7 @@ class SectionMarkersDialog(QDialog):
         # Stitch points clutter the thread view of an embroidery design, which
         # is why they start hidden there and visible for the 9 mm / MAXI grids.
         self._show_points_check = QCheckBox(self.tr("Show stitch points"))
-        self._show_points_check.setChecked(not is_hoop_stitch_type(pattern.stitch_type))
+        self._show_points_check.setChecked(not is_embroidery_type(pattern.stitch_type))
         self._show_points_check.toggled.connect(self._preview.set_show_stitch_points)
         self._preview.set_show_stitch_points(self._show_points_check.isChecked())
 

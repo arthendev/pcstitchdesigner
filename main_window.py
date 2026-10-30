@@ -15,7 +15,7 @@ from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QC
 from PyQt5.QtGui import QDesktopServices
 
 from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
-                   ELEM_COLOR, elem_has_coords, is_hoop_stitch_type,
+                   ELEM_COLOR, elem_has_coords, is_embroidery_type,
                    DEFAULT_PALETTE)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
@@ -127,9 +127,9 @@ class MainWindow(QMainWindow):
 
         self._file_path = None
         self._file_info = None  # PatternFileInfo from the last loaded file
-        # Design class ("hoop" / "stitch") the current file was written as. A
+        # Design class ("embroidery" / "9mm" / "MAXI") the current file was written as. A
         # file's extension fixes its format, so it cannot be overwritten once the
-        # design type switches between embroidery and sewing.
+        # design type switches between them (as they normally use different file extension).
         self._file_design_class = None
         self._machine_pattern_name = None  # Name from machine when no file path is known
         self._clipboard = None  # List of elements copied from the selection
@@ -1254,9 +1254,9 @@ class MainWindow(QMainWindow):
 
     # ── Status bar updates ──
 
-    def _is_hoop_type(self):
+    def _is_embroidery_type(self):
         """Return True when the current stitch type is a hoop (embroidery) pattern."""
-        return is_hoop_stitch_type(self._pattern.stitch_type)
+        return is_embroidery_type(self._pattern.stitch_type)
 
     def _design_type_name(self, stitch_type):
         """Return the user-facing name of *stitch_type*."""
@@ -1335,18 +1335,26 @@ class MainWindow(QMainWindow):
         self._update_save_action_state()
 
     def _design_class(self, stitch_type=None):
-        """Return "hoop" or "stitch" for *stitch_type*, defaulting to the pattern's."""
+        """Return the save-format class of *stitch_type*, defaulting to the pattern's.
+
+        Hoop designs share the embroidery format, while 9 mm and MAXI patterns
+        each have their own sewing format. All three are distinct here, so a
+        file written for one of them is not reused for another.
+        """
         stitch_type = stitch_type or self._pattern.stitch_type
-        return "hoop" if is_hoop_stitch_type(stitch_type) else "stitch"
+        if is_embroidery_type(stitch_type):
+            return "embroidery"
+        return stitch_type
 
     def _save_target_is_stale(self):
         """Return True when the current file cannot hold the current design.
 
-        A file's format follows its extension: only the embroidery format can
-        store a thread palette and hoop coordinates, and only the sewing formats
-        can be read by the PFAFF stitch-file programs. After switching between
-        hoop and sewing designs, Save would overwrite the file with data it
-        cannot represent, so the user has to choose a new name through Save As.
+        A file's format follows its extension and stitch-type byte: only the
+        embroidery format can store a thread palette and hoop coordinates, and
+        9 mm and MAXI patterns use separate sewing formats. After switching
+        between hoop and sewing designs, or between 9 mm and MAXI, Save would
+        overwrite the file with data it cannot represent, so the user has to
+        choose a new name through Save As.
         """
         return (self._file_path is not None
                 and self._file_design_class is not None
@@ -1371,7 +1379,7 @@ class MainWindow(QMainWindow):
         caps = self._machine_caps
         p_memory = caps is not None and caps.p_memory
         cards = caps is not None and caps.memory_cards
-        writable = not self._is_hoop_type()
+        writable = not self._is_embroidery_type()
 
         # Loading and deleting never modify the pattern, so only P-Memory
         # support matters.  Sending and inserting also depend on the pattern
@@ -1391,7 +1399,7 @@ class MainWindow(QMainWindow):
         caps = self._machine_caps
         if caps is None or not caps.memory_cards:
             return False
-        if self._is_hoop_type():
+        if self._is_embroidery_type():
             return caps.card_embroidery
         return caps.card_p_muster
 
@@ -1410,7 +1418,7 @@ class MainWindow(QMainWindow):
                 self.tr("No supported machine model is configured.") + "\n" +
                 self.tr("Please check Settings - Preferences - Machine.")
             )
-        elif self._is_hoop_type():
+        elif self._is_embroidery_type():
             message = self.tr(
                 "{0} cannot store embroidery designs on a memory card."
             ).format(caps.name)
@@ -1424,7 +1432,7 @@ class MainWindow(QMainWindow):
     def _on_cursor_moved(self, cx, cy):
         cx_clamped = max(0, min(self._pattern.CANVAS_WIDTH, cx))
         cy_clamped = max(0, min(self._pattern.CANVAS_HEIGHT, cy))
-        if self._is_hoop_type():
+        if self._is_embroidery_type():
             # Hoop designs have different resolution on the machine,
             # so the canvas units (1 unit = 1/6 mm) are meaningless.
             # Show millimetres only.
@@ -1458,7 +1466,7 @@ class MainWindow(QMainWindow):
         else:
             self._size_label.setText("Size: -")
 
-        if self._is_hoop_type():
+        if self._is_embroidery_type():
             # Embroidery designs are stitched in thread colours, so the number
             # of colour changes matters as much as the design size.
             changes = sum(1 for e in self._pattern.elements if e[0] == ELEM_COLOR)
@@ -1663,7 +1671,7 @@ class MainWindow(QMainWindow):
             bool: True when the pattern can be opened, False when it must be
             rejected.
         """
-        if not is_hoop_stitch_type(pattern.stitch_type):
+        if not is_embroidery_type(pattern.stitch_type):
             return True
         bounds = pattern.get_stitch_bounds()
         if bounds is None:
@@ -1737,7 +1745,7 @@ class MainWindow(QMainWindow):
         normalise it. Declining keeps the palette exactly as stored.
         """
         required = file_io.palette_size(path)
-        if required is None or not is_hoop_stitch_type(pattern.stitch_type):
+        if required is None or not is_embroidery_type(pattern.stitch_type):
             return
 
         colors = list(pattern.colors)
@@ -1860,7 +1868,7 @@ class MainWindow(QMainWindow):
                 self._last_auto_stitch_length_mm = gap
 
         # Hoop patterns never use auto-stitches
-        if self._is_hoop_type():
+        if self._is_embroidery_type():
             self._last_auto_stitch_max_dx_active = False
 
         self._ensure_embroidery_palette()
@@ -1872,7 +1880,7 @@ class MainWindow(QMainWindow):
         self._on_pattern_changed()
         self._apply_design_type_rules()
         # For patterns loaded without auto stitches, apply the default max-dx rule
-        if not self._pattern.has_auto_stitches and not self._is_hoop_type():
+        if not self._pattern.has_auto_stitches and not self._is_embroidery_type():
             self._recalculate_auto_if_active()
         self._update_palette_bar()
 
@@ -1949,7 +1957,7 @@ class MainWindow(QMainWindow):
         default colours. Returns False when the save must be cancelled.
         """
         required = file_io.palette_size(path)
-        if required is None or not self._is_hoop_type():
+        if required is None or not self._is_embroidery_type():
             return True
         colors = list(self._pattern.colors)
         if len(colors) == required:
@@ -2672,13 +2680,13 @@ class MainWindow(QMainWindow):
         elif new_pattern.stitch_type == "large hoop":
             self._act_large_hoop.setChecked(True)
 
-        is_hoop = is_hoop_stitch_type(new_pattern.stitch_type)
-        if is_hoop:
+        is_embroidery = is_embroidery_type(new_pattern.stitch_type)
+        if is_embroidery:
             # A design read from the machine is already saved, so the freshly
             # loaded window must not claim unsaved changes.
             new_pattern.modified = False
         self._last_auto_stitch_length_mm = None
-        self._last_auto_stitch_max_dx_active = not is_hoop
+        self._last_auto_stitch_max_dx_active = not is_embroidery
 
         self._ensure_embroidery_palette()
         self._apply_display_settings()
@@ -3246,7 +3254,7 @@ class MainWindow(QMainWindow):
         without a color table — falls back to the machine's default palette.
         This keeps the palette bar populated for every embroidery design.
         """
-        if not self._is_hoop_type():
+        if not self._is_embroidery_type():
             return
         if self._pattern.ensure_palette(MachineComm.DEFAULT_CARD_COLORS):
             self._log_info("Default embroidery color palette applied")
@@ -3307,7 +3315,7 @@ class MainWindow(QMainWindow):
 
     def _apply_display_settings(self):
         d = self._config.get_display_preferences()
-        if self._is_hoop_type():
+        if self._is_embroidery_type():
             line_width = d["embroidery_line_width"]
             point_size = d["embroidery_point_size"]
             grid_color = d["embroidery_grid_color"]

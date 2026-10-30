@@ -38,7 +38,7 @@ def elem_has_coords(e):
     return e[0] in (ELEM_STITCH, ELEM_AUTO, ELEM_SECTION)
 
 
-def is_hoop_stitch_type(stitch_type):
+def is_embroidery_type(stitch_type):
     """Return True when *stitch_type* is an embroidery hoop preset."""
     return stitch_type in ("small hoop", "large hoop")
 

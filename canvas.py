@@ -8,7 +8,7 @@ from PyQt5.QtCore import Qt, QSize, QRect, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QCursor, QPixmap, QPolygon
 
 from model import (StitchPattern, ELEM_AUTO, ELEM_COLOR, ELEM_SECTION,
-                   elem_has_coords, is_hoop_stitch_type)
+                   elem_has_coords, is_embroidery_type)
 
 
 class StitchCanvas(QWidget):
@@ -862,7 +862,7 @@ class StitchCanvas(QWidget):
         """
         if self._show_stitch_points:
             return
-        embroidery = is_hoop_stitch_type(self.pattern.stitch_type)
+        embroidery = is_embroidery_type(self.pattern.stitch_type)
         indices = self._selection_marker_indices(embroidery)
         if not indices:
             return

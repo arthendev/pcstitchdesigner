@@ -7,7 +7,7 @@ from PyQt5.QtGui import (QPen, QColor, QCursor, QPixmap, QBrush, QPainter,
                          QPolygon)
 
 from model import (AddPointCommand, DeletePointCommand, MovePointCommand,
-                   MoveManyPointsCommand, elem_has_coords, is_hoop_stitch_type,
+                   MoveManyPointsCommand, elem_has_coords, is_embroidery_type,
                    ELEM_COLOR, ELEM_SECTION)
 
 # Hit radius, in screen pixels, for grabbing stitch points to move. Screen based
@@ -612,7 +612,7 @@ class SelectSectionTool(SelectionMoveMixin, BaseTool):
             return QColor(*pattern.colors[min(max(index, 0), len(pattern.colors) - 1)])
 
         # Collect the strokes: (screen point, tint, previous screen point).
-        strong = not is_hoop_stitch_type(pattern.stitch_type)
+        strong = not is_embroidery_type(pattern.stitch_type)
         if strong:
             alpha = self.STRONG_PREVIEW_ALPHA
             line_width = canvas._line_width + 2
