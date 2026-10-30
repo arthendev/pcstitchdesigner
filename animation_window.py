@@ -534,9 +534,8 @@ class AnimationWindow(QDialog):
         color_index = min(color_index, len(self._pattern.colors) - 1)
         r, g, b = self._pattern.colors[color_index]
         self._color_change_label.setText(
-            self.tr('<span style="color: rgb({0},{1},{2}); font-size: 18pt;">'
-                    "\u25a0</span>&nbsp;Color change to thread index #{3}")
-            .format(r, g, b, color_index + 1))
+            self.tr("Color change to thread index #{0}").format(color_index + 1) \
+            + ('&nbsp;<span style="color: rgb({0},{1},{2}); font-size: 18pt;">\u25a0</span>').format(r, g, b))
         self._color_change_label.setVisible(True)
 
     def _hide_color_change(self):
