@@ -905,6 +905,60 @@ class StitchPattern:
         if moves:
             self._exec(MoveManyPointsCommand(moves))
 
+    # ── Centring ──
+
+    def center_offsets(self, stitch_type=None):
+        """Return the shift that centres the stitches in a canvas.
+
+        Args:
+            stitch_type: canvas preset to centre in; ``None`` uses the
+                pattern's own type. The hoop switch passes the hoop it is about
+                to switch to, so the design is centred there before the type
+                changes.
+
+        Returns:
+            tuple[int, int] or None: the ``(dx, dy)`` to apply, or None when
+            the pattern has no coordinate-bearing element.
+        """
+        bounds = self.get_stitch_bounds()
+        if bounds is None:
+            return None
+        min_x, min_y, max_x, max_y = bounds
+        canvas_w, canvas_h = self.CANVAS_SIZES[
+            self.stitch_type if stitch_type is None else stitch_type]
+        return (round((canvas_w - (max_x - min_x)) / 2 - min_x),
+                round((canvas_h - (max_y - min_y)) / 2 - min_y))
+
+    def center_design(self, stitch_type=None, undoable=True):
+        """Move the whole design to the centre of a canvas.
+
+        Args:
+            stitch_type: canvas preset to centre in; see
+                :meth:`center_offsets`.
+            undoable: Push the shift as one undo step. The hoop switch passes
+                False, because undoing the shift alone would put the stitches
+                back outside the hoop it has already switched to.
+
+        Returns:
+            tuple[int, int] or None: the applied ``(dx, dy)``, or None when the
+            pattern has no coordinate-bearing element.
+        """
+        offsets = self.center_offsets(stitch_type)
+        if offsets is None:
+            return None
+        dx, dy = offsets
+        if dx == 0 and dy == 0:
+            return offsets
+        moves = [(i, e[1], e[2], e[1] + dx, e[2] + dy)
+                 for i, e in enumerate(self.elements) if elem_has_coords(e)]
+        command = MoveManyPointsCommand(moves)
+        if undoable:
+            self._exec(command)
+        else:
+            command.redo(self)
+            self._rebuild_display_no_auto()
+        return offsets
+
     # ── Element deletion ──
 
     def delete_point(self, index):

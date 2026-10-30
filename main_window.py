@@ -93,6 +93,9 @@ DESIGN_TYPE_RULES = (
     DesignTypeRule("_palette_bar", EMBROIDERY_DESIGN_TYPES),
     DesignTypeRule("_act_edit_color_markers", EMBROIDERY_DESIGN_TYPES),
     DesignTypeRule("_act_edit_palette", EMBROIDERY_DESIGN_TYPES),
+    # Centring puts the design in the middle of its hoop, which only hoop
+    # designs have.
+    DesignTypeRule("_act_center_design", EMBROIDERY_DESIGN_TYPES),
 )
 
 
@@ -335,6 +338,11 @@ class MainWindow(QMainWindow):
         self._act_mirror_horizontal = QAction(self.tr("Mirror &Horizontally"), self)
         self._act_mirror_horizontal.setEnabled(False)
         self._act_mirror_horizontal.triggered.connect(self._edit_mirror_horizontal)
+
+        # Also needs stitches: _update_center_action_state() adds that check.
+        self._act_center_design = QAction(self.tr("Center &design"), self)
+        self._act_center_design.setEnabled(False)
+        self._act_center_design.triggered.connect(self._edit_center_design)
 
         self._act_sel_extend = QAction(self.tr("Extend by 1 stitch"), self)
         self._act_sel_extend.setEnabled(False)
@@ -748,6 +756,8 @@ class MainWindow(QMainWindow):
         transform_submenu.addAction(self._act_mirror_vertical)
         transform_submenu.addAction(self._act_mirror_horizontal)
         transform_submenu.addAction(self._act_sel_xform)
+        transform_submenu.addSeparator()
+        transform_submenu.addAction(self._act_center_design)
         edit_menu.addSeparator()
         sel_submenu = edit_menu.addMenu(self.tr("&Selection"))
         sel_submenu.addAction(self._act_sel_extend)
@@ -1132,19 +1142,15 @@ class MainWindow(QMainWindow):
         if width > canvas_w or height > canvas_h:
             return False
 
-        dx = round((canvas_w - width) / 2 - min_x)
-        dy = round((canvas_h - height) / 2 - min_y)
         QMessageBox.warning(
             self, self.tr("Canvas Size Change"),
             self.tr("The design needs centering to fit the working area.") + "\n\n" +
             self.tr("Centering will be applied automatically.")
         )
-        # Move only after the user has seen what is going to happen.
-        self._pattern.elements = [
-            (e[0], e[1] + dx, e[2] + dy) if elem_has_coords(e) else e
-            for e in self._pattern.elements
-        ]
-        self._pattern._rebuild_display_no_auto()
+        # Move only after the user has seen what is going to happen. The shift is
+        # not an undo step of its own: undoing it would put the stitches back
+        # outside the hoop the caller is about to switch to.
+        dx, dy = self._pattern.center_design(stitch_type, undoable=False)
         self._log_info(
             f"Pattern centred by ({dx}, {dy}) to fit the {stitch_type}")
         return True
@@ -1332,6 +1338,9 @@ class MainWindow(QMainWindow):
         # The file format follows the design class, so a type change can make the
         # current file unusable as a save target.
         self._update_save_action_state()
+        # Type rules only know the design type; actions that also need content
+        # refine their state here so this single pass leaves them correct.
+        self._update_center_action_state()
 
     def _design_class(self, stitch_type=None):
         """Return the save-format class of *stitch_type*, defaulting to the pattern's.
@@ -1487,6 +1496,7 @@ class MainWindow(QMainWindow):
         self._update_undo_redo_state()
         self._update_selection_action_state()
         self._update_section_action_state()
+        self._update_center_action_state()
 
     def _update_undo_redo_state(self):
         """Enable/disable undo and redo actions based on stack availability."""
@@ -1497,6 +1507,12 @@ class MainWindow(QMainWindow):
         """Enable the section actions that need markers in the pattern."""
         has_markers = any(e[0] == ELEM_SECTION for e in self._pattern.elements)
         self._act_remove_section_markers.setEnabled(has_markers)
+
+    def _update_center_action_state(self):
+        """Enable Center design for a non-empty embroidery design."""
+        self._act_center_design.setEnabled(
+            self._design_type_allows("_act_center_design")
+            and any(elem_has_coords(e) for e in self._pattern.elements))
 
     def _update_selection_action_state(self):
         """Enable/disable selection-dependent actions based on whether points are selected."""
@@ -2373,6 +2389,17 @@ class MainWindow(QMainWindow):
             indices, snap=self._canvas.snap_normal_to_grid)
         self._canvas.update()
         self._on_pattern_changed()
+
+    def _edit_center_design(self):
+        """Move the whole design to the centre of its hoop."""
+        offsets = self._pattern.center_design()
+        if offsets is None or offsets == (0, 0):
+            return  # Nothing to move, and centre_design added no undo step.
+        dx, dy = offsets
+        self._canvas.update()
+        self._on_pattern_changed()
+        self._log_info(
+            f"Design centred in the {self._pattern.stitch_type} by ({dx}, {dy})")
 
     # ── Resize/Rotate selection ──
 
