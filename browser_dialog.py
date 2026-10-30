@@ -14,7 +14,25 @@ from PyQt5.QtWidgets import (
 )
 
 import file_io
-from model import ELEM_COLOR, elem_has_coords
+from model import ELEM_COLOR, ELEM_STITCH, elem_has_coords, is_embroidery_type
+
+
+def _used_color_count(pattern):
+    """Return how many distinct thread colours the stitches actually use.
+
+    Colour changes are anchors, not stitches: stitches before the first change
+    use palette index 0, and a change may switch back to an index used earlier,
+    so each index counts once. Section markers are not transmitted to the
+    machine, so they do not use a thread.
+    """
+    current = 0
+    used = set()
+    for elem in pattern.elements:
+        if elem[0] == ELEM_COLOR:
+            current = elem[1]
+        elif elem[0] == ELEM_STITCH:
+            used.add(current)
+    return len(used)
 
 
 class PatternPreviewWidget(QWidget):
@@ -158,14 +176,14 @@ class PatternBrowserDialog(QFileDialog):
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
         self.setNameFilters([
-            self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"),
+            self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)"),
             self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
             self.tr("9mm Stitch Files (*.pcd *.9mm)"),
             self.tr("MAXI Stitch Files (*.pcq *.max)"),
-            self.tr("Embroidery Files (*.pcs)"),
+            self.tr("Embroidery Files (*.pcs *.dst)"),
             self.tr("All Files (*)"),
         ])
-        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"))
+        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)"))
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
@@ -197,7 +215,7 @@ class PatternBrowserDialog(QFileDialog):
             return
 
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".pcd", ".pcq", ".pcs", ".9mm", ".max"):
+        if ext not in (".pcd", ".pcq", ".pcs", ".9mm", ".max", ".dst"):
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))
             self._info_label.setText(self.tr("Unsupported file type"))
@@ -211,15 +229,26 @@ class PatternBrowserDialog(QFileDialog):
             self._info_label.setText(self.tr("Preview unavailable: {0}").format(exc))
             return
 
+        # Hoop designs are always stitched in thread colours. Files that carry
+        # no palette (DST never does) are previewed with the machine's default
+        # palette, the same fallback the editor applies when opening them.
+        if is_embroidery_type(pattern.stitch_type):
+            pattern.ensure_palette()
+
         self._preview_widget.set_pattern(pattern)
         width_mm, height_mm = pattern.get_stitch_size_mm()
         self._size_label.setText(self.tr("Size: {0:.2f} x {1:.2f} mm").format(width_mm, height_mm))
+        # Name the design class the way the formats are grouped: hoop designs
+        # are embroidery, everything else is named after its stitch type.
+        design_class = (self.tr("Embroidery")
+                        if is_embroidery_type(pattern.stitch_type)
+                        else pattern.stitch_type)
         info_text = (
-            self.tr("Type: {0}").format(pattern.stitch_type)
+            self.tr("Type: {0}").format(design_class)
             + self.tr(", Elements: {0}").format(len(pattern.elements))
         )
         if pattern.has_palette:
-            info_text += self.tr(", Colors: {0}").format(len(pattern.colors))
+            info_text += self.tr(", Colors: {0}").format(_used_color_count(pattern))
         self._info_label.setText(info_text)
 
     @staticmethod

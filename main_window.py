@@ -1355,18 +1355,29 @@ class MainWindow(QMainWindow):
         between hoop and sewing designs, or between 9 mm and MAXI, Save would
         overwrite the file with data it cannot represent, so the user has to
         choose a new name through Save As.
+
+        Import-only formats (DST) are never a save target, whatever the design.
         """
-        return (self._file_path is not None
-                and self._file_design_class is not None
+        if self._file_path is None:
+            return False
+        if not file_io.can_save(self._file_path):
+            return True
+        return (self._file_design_class is not None
                 and self._file_design_class != self._design_class())
 
     def _update_save_action_state(self):
         """Enable Save only while the current file can hold the current design."""
         stale = self._save_target_is_stale()
         self._act_save.setEnabled(not stale)
-        self._act_save.setToolTip(
-            self.tr("The design type changed, so the current file cannot store "
-                    "this pattern. Use Save As to choose a new file.") if stale else "")
+        if not stale:
+            tip = ""
+        elif self._file_path is not None and not file_io.can_save(self._file_path):
+            tip = self.tr("This file format can only be opened. "
+                          "Use Save As to choose a new file.")
+        else:
+            tip = self.tr("The design type changed, so the current file cannot "
+                          "store this pattern. Use Save As to choose a new file.")
+        self._act_save.setToolTip(tip)
 
     def _update_machine_capability_actions(self):
         """Enable machine actions that the configured model actually supports.
@@ -1629,11 +1640,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self, self.tr("Open Stitch Pattern"), "",
             ";;".join([
-                self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)"),
+                self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)"),
                 self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
                 self.tr("9mm Stitch Files (*.pcd *.9mm)"),
                 self.tr("MAXI Stitch Files (*.pcq *.max)"),
-                self.tr("Embroidery Files (*.pcs)"),
+                self.tr("Embroidery Files (*.pcs *.dst)"),
                 self.tr("All Files (*)"),
             ]),
         )
@@ -2040,7 +2051,7 @@ class MainWindow(QMainWindow):
             default_ext = ".pcq"
         else:
             file_filter = ";;".join([
-                self.tr("Embroidery Files (*.pcs)"),
+                self.tr("PCS Embroidery Files (*.pcs)"),
                 self.tr("All Files (*)"),
             ])
             default_ext = ".pcs"

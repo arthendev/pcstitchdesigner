@@ -9,6 +9,7 @@ the file content, saving from the file extension:
 
   file_io_pcd_pcq_pcs.py   .pcd, .pcq, .pcs   magic 0x31 / 0x32
   file_io_vcsm_9mm_max.py  .9mm, .max         magic "VCSM"
+  file_io_dst.py           .dst               header record "LA:" (import only)
 
 Conventions shared by both formats:
   * Every loader returns ``(pattern, info)``. PatternFileInfo reports what was
@@ -80,11 +81,14 @@ def load_pattern(path):
     # module for PatternFileInfo and _tr, which would otherwise be a cycle.
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
+    import file_io_dst
 
     if file_io_vcsm_9mm_max.is_format(header):
         return file_io_vcsm_9mm_max.load(path)
     if file_io_pcd_pcq_pcs.is_format(header):
         return file_io_pcd_pcq_pcs.load(path)
+    if file_io_dst.is_format(header):
+        return file_io_dst.load(path)
     raise ValueError(_tr("Invalid file format"))
 
 
@@ -92,8 +96,8 @@ def save_pattern(path, pattern, info=None, image_data=None):
     """Save a StitchPattern, choosing the format from the file extension.
 
     ``.9mm`` and ``.max`` paths are written by file_io_vcsm_9mm_max.save();
-    every other extension is written by file_io_pcd_pcq_pcs.save(). *info* is
-    read by both writers.
+    every other writable extension is written by file_io_pcd_pcq_pcs.save().
+    Import-only formats (DST) raise ValueError — see :func:`can_save`.
 
     *image_data* is the template preview as a raster image (QPixmap), not
     encoded bytes: the writer that can store an image converts it to whatever
@@ -101,6 +105,11 @@ def save_pattern(path, pattern, info=None, image_data=None):
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
+
+    if not can_save(path):
+        raise ValueError(_tr(
+            "This file format can only be opened, not saved. "
+            "Choose another file name."))
 
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         file_io_vcsm_9mm_max.save(path, pattern, info=info, image_data=image_data)
@@ -129,11 +138,26 @@ def palette_size(path):
     Embroidery files hold a fixed thread palette, so a pattern with a
     different number of colors cannot be written before the palette is
     adjusted. The VCSM formats (.9mm/.max) store one thread color and no
-    palette, so they impose no size; this returns None for them.
+    palette, so they impose no size; this returns None for them. DST carries
+    no colour table either, so it returns None as well.
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
+    import file_io_dst
 
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         return None
+    if os.path.splitext(path)[1].lower() in file_io_dst.EXTENSIONS:
+        return None
     return file_io_pcd_pcq_pcs.PALETTE_SIZE
+
+
+def can_save(path):
+    """Return False for import-only formats that save_pattern cannot write.
+
+    Only DST is import-only today; every other supported extension has a
+    writer (or is treated as a PCD file by convention).
+    """
+    import file_io_dst
+
+    return os.path.splitext(path)[1].lower() not in file_io_dst.EXTENSIONS
