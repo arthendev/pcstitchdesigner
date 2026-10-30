@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import (
 
 from machine_comm import MachineComm, MachineCommError
 from machine_models import MODEL_NAMES, find_model
-from PyQt5.QtGui import QColor, QPixmap, QIcon
+from model import DEFAULT_PALETTE_NAME, PALETTES
+from PyQt5.QtGui import QColor, QPainter, QPixmap, QIcon
 from PyQt5.QtCore import Qt
 
 
@@ -45,6 +46,19 @@ def _color_icon(hex_color: str, size: int = 20) -> QIcon:
     px = QPixmap(size, size)
     px.fill(QColor(hex_color))
     return QIcon(px)
+
+
+def _palette_strip(colors, swatch_width: int = 13, height: int = 16) -> QPixmap:
+    """Return one solid swatch per palette entry, laid out side by side."""
+    strip = QPixmap(swatch_width * len(colors), height)
+    strip.fill(QColor("#ffffff"))
+    painter = QPainter(strip)
+    for i, (r, g, b) in enumerate(colors):
+        painter.fillRect(i * swatch_width, 0, swatch_width, height, QColor(r, g, b))
+    painter.setPen(QColor("#808080"))
+    painter.drawRect(0, 0, strip.width() - 1, strip.height() - 1)
+    painter.end()
+    return strip
 
 
 def _list_ports():
@@ -281,7 +295,8 @@ class GeneralTab(QWidget):
 # ── Display tab ───────────────────────────────────────────────────────────────
 
 class DisplayTab(QWidget):
-    def __init__(self, prefs: dict, parent=None):
+    def __init__(self, prefs: dict, parent=None,
+                 default_palette_name: str = DEFAULT_PALETTE_NAME):
         super().__init__(parent)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(12, 12, 12, 12)
@@ -434,6 +449,29 @@ class DisplayTab(QWidget):
 
         outer.addWidget(embroidery_group)
 
+        # The palette is what a design gets when the file or the machine carries
+        # no colour table, so it is a display choice as much as a data default.
+        palette_group = QGroupBox(self.tr("Thread Palette"))
+        palette_form = QFormLayout(palette_group)
+        palette_form.setVerticalSpacing(8)
+        palette_form.setHorizontalSpacing(8)
+
+        self._palette_combo = QComboBox()
+        for label, key in (
+            (self.tr("VGA palette"), "vga"),
+            (self.tr("Pastel colors"), "pastel"),
+        ):
+            self._palette_combo.addItem(label, key)
+        self._select_combo(self._palette_combo, default_palette_name)
+        palette_form.addRow(self.tr("Default palette:"), self._palette_combo)
+
+        self._palette_preview = QLabel()
+        palette_form.addRow(self.tr("Colors:"), self._palette_preview)
+        self._palette_combo.currentIndexChanged.connect(self._update_palette_preview)
+        self._update_palette_preview()
+
+        outer.addWidget(palette_group)
+
         # Restore defaults button
         restore_btn = QPushButton(self.tr("Restore Defaults"))
         restore_btn.clicked.connect(self._restore_defaults)
@@ -449,6 +487,11 @@ class DisplayTab(QWidget):
             if combo.itemData(i) == value:
                 combo.setCurrentIndex(i)
                 return
+
+    def _update_palette_preview(self):
+        """Show the thread colours of the selected default palette."""
+        self._palette_preview.setPixmap(
+            _palette_strip(PALETTES[self._palette_combo.currentData()]))
 
     def _restore_defaults(self):
         self._line_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["line_color"])
@@ -469,6 +512,11 @@ class DisplayTab(QWidget):
         self._embroidery_background_color_btn.set_color(
             EMBROIDERY_DISPLAY_DEFAULTS["background_color"]
         )
+        self._select_combo(self._palette_combo, DEFAULT_PALETTE_NAME)
+
+    def default_palette_name(self) -> str:
+        """Return the palette key chosen as the default for new designs."""
+        return self._palette_combo.currentData()
 
     def values(self) -> dict:
         return {
@@ -564,7 +612,10 @@ class PreferencesDialog(QDialog):
             config.get_machine_preferences(),
             config.get_general_preferences(),
         )
-        self._display_tab = DisplayTab(config.get_display_preferences())
+        self._display_tab = DisplayTab(
+            config.get_display_preferences(),
+            default_palette_name=config.get_default_palette_name(),
+        )
         self._extended_tab = ExtendedTab(config.get_extended_preferences())
         self._tabs.addTab(self._general_tab, self.tr("General"))
         self._tabs.addTab(self._display_tab, self.tr("Display"))
@@ -608,6 +659,7 @@ class PreferencesDialog(QDialog):
             background_color=d["background_color"],
             embroidery_background_color=d["embroidery_background_color"],
         )
+        self._config.set_default_palette_name(self._display_tab.default_palette_name())
         e = self._extended_tab.values()
         self._config.set_extended_preferences(
             log_communication=e["log_communication"],

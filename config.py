@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from model import DEFAULT_PALETTE_NAME, PALETTES
+
 
 class Config:
     """Manages application configuration with file persistence and versioning.
@@ -53,6 +55,8 @@ class Config:
             # General preferences
             "auto_update_check": "weekly",
             "last_update_check": "",
+            # Palette installed in a design that carries no colour table
+            "default_palette": DEFAULT_PALETTE_NAME,
             # Language preference
             "language": "system",
             # Extended preferences
@@ -208,6 +212,32 @@ class Config:
         self._data["embroidery_show_stitch_points"] = bool(embroidery_show_stitch_points)
         self._data["embroidery_show_grid"] = bool(embroidery_show_grid)
         self._data["embroidery_background_color"] = embroidery_background_color
+
+    # ── Thread palette ──
+
+    def get_default_palette_name(self):
+        """Return the key of the palette used for designs without one.
+
+        A stored value that names no registered palette (hand-edited config,
+        or a palette removed in a later version) falls back to the built-in
+        default, so callers can index :data:`model.PALETTES` without checking.
+        """
+        name = self._data.get("default_palette", DEFAULT_PALETTE_NAME)
+        return name if name in PALETTES else DEFAULT_PALETTE_NAME
+
+    def set_default_palette_name(self, name):
+        """Persist the palette key used for designs without one.
+
+        Raises:
+            KeyError: when *name* is not a registered palette.
+        """
+        if name not in PALETTES:
+            raise KeyError(f"Unknown thread palette {name!r}")
+        self._data["default_palette"] = name
+
+    def default_palette(self):
+        """Return the thread colours of the palette selected as the default."""
+        return PALETTES[self.get_default_palette_name()]
 
     def get_general_preferences(self):
         """Return general preference values as a dict."""

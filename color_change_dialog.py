@@ -137,16 +137,18 @@ class ColorChangeMarkersDialog(QDialog):
     selected stitch, Remove deletes the record directly before it.
     """
 
-    def __init__(self, pattern, parent=None):
+    def __init__(self, pattern, parent=None, default_colors=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Edit Color Changes"))
         self.resize(980, 660)
 
         self._pattern = pattern
         self._elements = list(pattern.elements)
-        # Embroidery designs always carry a palette; the default keeps the
-        # swatches meaningful if one is missing (third-party files).
-        self._colors = list(pattern.colors) or list(DEFAULT_PALETTE)
+        # Embroidery designs always carry a palette; the window passes the
+        # palette selected in the preferences, which keeps the swatches
+        # meaningful if one is missing (third-party files).
+        self._colors = list(pattern.colors) or list(
+            default_colors if default_colors else DEFAULT_PALETTE)
         self._current_index = None   # anchor stitch that Add/Remove act on
         self._marker_index = None    # selected ELEM_COLOR element
         self._palette_edits = {}     # palette index -> (r, g, b), applied with Apply

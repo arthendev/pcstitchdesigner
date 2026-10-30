@@ -15,8 +15,7 @@ from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QC
 from PyQt5.QtGui import QDesktopServices
 
 from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
-                   ELEM_COLOR, elem_has_coords, is_embroidery_type,
-                   DEFAULT_PALETTE)
+                   ELEM_COLOR, elem_has_coords, is_embroidery_type)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
                    SelectPointTool, SelectSectionTool, SelectAreaTool)
@@ -1657,7 +1656,8 @@ class MainWindow(QMainWindow):
             return
 
         directory = os.path.dirname(self._file_path) if self._file_path else ""
-        path, _ = PatternBrowserDialog.getOpenFileName(self, directory=directory)
+        path, _ = PatternBrowserDialog.getOpenFileName(
+            self, directory=directory, config=self._config)
         if not path:
             return
         self._open_file(path)
@@ -1751,24 +1751,25 @@ class MainWindow(QMainWindow):
         """Settle the thread palette of a PCS embroidery pattern.
 
         A PCS embroidery file is supposed to carry the machine's 16-colour
-        table. A file without one gets :data:`DEFAULT_PALETTE` and a warning;
-        a file with a different count lets the user decide whether to
-        normalise it. Declining keeps the palette exactly as stored.
+        table. A file without one gets the palette selected in the preferences
+        and a warning; a file with a different count lets the user decide
+        whether to normalise it. Declining keeps the palette exactly as stored.
         """
         required = file_io.palette_size(path)
         if required is None or not is_embroidery_type(pattern.stitch_type):
             return
 
+        palette = self._config.default_palette()
         colors = list(pattern.colors)
         if not colors:
-            pattern.colors = [tuple(c) for c in DEFAULT_PALETTE]
+            pattern.colors = [tuple(c) for c in palette]
             self._log_info(
                 f"Default thread palette applied while loading {path}")
             QMessageBox.warning(
                 self, self.tr("Thread Palette"),
                 self.tr("The file does not define a thread palette.") + "\n\n" +
                 self.tr("The default palette with {0} thread colours was "
-                        "applied.").format(len(DEFAULT_PALETTE)))
+                        "applied.").format(len(palette)))
             return
 
         if len(colors) == required:
@@ -1799,7 +1800,7 @@ class MainWindow(QMainWindow):
         else:
             # Fill each missing slot from the matching default-palette entry,
             # so slot 15/16 receive the machine's own colour for that slot.
-            colors.extend(DEFAULT_PALETTE[i] for i in range(len(colors), required))
+            colors.extend(palette[i] for i in range(len(colors), required))
         pattern.colors = colors
         self._log_info(
             f"Thread palette adjusted to {required} colours while loading {path}")
@@ -1998,8 +1999,9 @@ class MainWindow(QMainWindow):
         else:
             # Cycle through the default palette when more entries are missing
             # than it holds, so any required size can be filled.
+            palette = self._config.default_palette()
             colors.extend(
-                DEFAULT_PALETTE[i % len(DEFAULT_PALETTE)]
+                palette[i % len(palette)]
                 for i in range(len(colors), required)
             )
         self._pattern.set_palette(colors)
@@ -2311,7 +2313,9 @@ class MainWindow(QMainWindow):
 
     def _edit_color_palette(self):
         """Open the palette editor; Apply is one undo step."""
-        dlg = PaletteEditorDialog(self._pattern, parent=self)
+        dlg = PaletteEditorDialog(
+            self._pattern, parent=self,
+            default_colors=self._config.default_palette())
         if dlg.exec_() == QDialog.Accepted:
             self._canvas.update()
             self._update_palette_bar()
@@ -2325,7 +2329,9 @@ class MainWindow(QMainWindow):
                 self.tr("The stitch pattern is empty. Add stitch points first."),
             )
             return
-        dlg = ColorChangeMarkersDialog(self._pattern, parent=self)
+        dlg = ColorChangeMarkersDialog(
+            self._pattern, parent=self,
+            default_colors=self._config.default_palette())
         if dlg.exec_() == QDialog.Accepted:
             # The editor inserts and removes records, so the index-based canvas
             # selection can no longer point at the same elements.
@@ -3262,12 +3268,13 @@ class MainWindow(QMainWindow):
 
         An embroidery design is always drawn in thread colors, so one that was
         created in an empty document — or read from a file or the machine
-        without a color table — falls back to the machine's default palette.
-        This keeps the palette bar populated for every embroidery design.
+        without a color table — falls back to the palette selected in the
+        preferences. This keeps the palette bar populated for every embroidery
+        design.
         """
         if not self._is_embroidery_type():
             return
-        if self._pattern.ensure_palette(MachineComm.DEFAULT_CARD_COLORS):
+        if self._pattern.ensure_palette(self._config.default_palette()):
             self._log_info("Default embroidery color palette applied")
 
     def _drop_stitch_palette(self):

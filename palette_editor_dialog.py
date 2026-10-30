@@ -34,9 +34,14 @@ class PaletteEditorDialog(QDialog):
 
     SWATCH_SIZE = 18
 
-    def __init__(self, pattern, parent=None):
+    def __init__(self, pattern, parent=None, default_colors=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Edit Color Palette"))
+        # Colour offered by Add. The window passes the palette selected in the
+        # preferences; the machine table keeps the dialog self-contained when
+        # it is used on its own.
+        self._default_colors = (list(default_colors) if default_colors
+                                else list(DEFAULT_PALETTE))
         self.resize(420, 480)
 
         self._pattern = pattern
@@ -208,7 +213,7 @@ class PaletteEditorDialog(QDialog):
         """Append a colour and open the picker preset to it."""
         index = len(self._colors)
         self._colors.append(
-            tuple(DEFAULT_PALETTE[index % len(DEFAULT_PALETTE)]))
+            tuple(self._default_colors[index % len(self._default_colors)]))
         self._rebuild(select_index=index)
         self._update_buttons()
         self._pick_color(index)

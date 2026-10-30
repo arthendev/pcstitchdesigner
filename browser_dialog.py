@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
 )
 
 import file_io
+from config import Config
 from model import ELEM_COLOR, ELEM_STITCH, elem_has_coords, is_embroidery_type
 
 
@@ -170,8 +171,9 @@ class PatternPreviewWidget(QWidget):
 class PatternBrowserDialog(QFileDialog):
     """Open-file dialog extended with a live stitch pattern preview panel."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, config=None):
         super().__init__(parent)
+        self._config = config if config is not None else Config()
         self.setWindowTitle(self.tr("Open Stitch Pattern"))
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
@@ -230,10 +232,11 @@ class PatternBrowserDialog(QFileDialog):
             return
 
         # Hoop designs are always stitched in thread colours. Files that carry
-        # no palette (DST never does) are previewed with the machine's default
-        # palette, the same fallback the editor applies when opening them.
+        # no palette (like typically DST) are previewed with the default palette
+        # selected in the preferences, which is the same fallback the editor
+        # applies when opening them.
         if is_embroidery_type(pattern.stitch_type):
-            pattern.ensure_palette()
+            pattern.ensure_palette(self._config.default_palette())
 
         self._preview_widget.set_pattern(pattern)
         width_mm, height_mm = pattern.get_stitch_size_mm()
@@ -252,8 +255,8 @@ class PatternBrowserDialog(QFileDialog):
         self._info_label.setText(info_text)
 
     @staticmethod
-    def getOpenFileName(parent=None, directory=""):
-        dialog = PatternBrowserDialog(parent)
+    def getOpenFileName(parent=None, directory="", config=None):
+        dialog = PatternBrowserDialog(parent, config=config)
         if directory:
             dialog.setDirectory(directory)
 

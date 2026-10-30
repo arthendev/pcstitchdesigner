@@ -10,10 +10,11 @@ ELEM_AUTO   = 2   # (ELEM_AUTO, x, y)    — automatic stitch (hollow circle)
 ELEM_COLOR  = 3   # (ELEM_COLOR, color_index) — color change
 ELEM_SECTION = 4  # (ELEM_SECTION, x, y) — section marker (start/end)
 
-# The machine's 16 standard thread colours. Used when a design names colour
-# numbers but carries no colour table of its own, and as the starting palette
-# of a new embroidery design.
-DEFAULT_PALETTE = (
+# Default 16 thread colours, offered in the preferences as the VGA palette".
+# The card and some embroidery formats name threads by number rather than
+# colour, so a design that carries no colour table of its own falls back to
+# default tables.
+VGA_PALETTE = (
     (0, 0, 0),          # 1  black
     (220, 0, 0),        # 2  red
     (0, 150, 0),        # 3  green
@@ -31,6 +32,41 @@ DEFAULT_PALETTE = (
     (160, 120, 255),    # 15 violet
     (0, 70, 130),       # 16 navy
 )
+
+# A softer 16-thread table offered as "Pastel colors"
+PASTEL_PALETTE = (
+    (128, 128, 128),    # 1  grey
+    (0, 128, 255),      # 2  azure
+    (255, 85, 0),       # 3  orange
+    (0, 240, 112),      # 4  green
+    (255, 128, 0),      # 5  light orange
+    (255, 0, 255),      # 6  magenta
+    (0, 255, 255),      # 7  cyan
+    (249, 219, 86),     # 8  soft yellow
+    (149, 132, 237),    # 9  violet
+    (192, 192, 192),    # 10 silver
+    (205, 127, 50),     # 11 copper
+    (255, 102, 153),    # 12 pink
+    (192, 255, 192),    # 13 pale mint
+    (255, 255, 153),    # 14 pale yellow
+    (223, 222, 220),    # 15 warm white
+    (204, 204, 255),    # 16 lavender
+)
+
+# Default palettes the user chooses between in the preferences. The key is what
+# the config file stores, so renaming one breaks existing settings.
+PALETTES = {
+    "vga": VGA_PALETTE,
+    "pastel": PASTEL_PALETTE,
+}
+
+# Palette used when the stored preference is missing or names no known palette.
+DEFAULT_PALETTE_NAME = "vga"
+
+# The machine's own table, under the name the rest of the code knows it by.
+# Card decoding and encoding mean these 16 threads, not whichever palette the
+# user picked as their working default.
+DEFAULT_PALETTE = VGA_PALETTE
 
 
 def elem_has_coords(e):
@@ -631,7 +667,9 @@ class StitchPattern:
 
         Args:
             colors: fallback palette as ``[(r, g, b), ...]``; defaults to
-                :data:`DEFAULT_PALETTE`.
+                :data:`DEFAULT_PALETTE`. The application passes the palette
+                chosen in the preferences instead, so the default only applies
+                to callers that have no settings access.
 
         Returns:
             bool: True when the fallback palette was applied.
