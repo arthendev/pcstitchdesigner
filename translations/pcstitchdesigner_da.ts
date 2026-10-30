@@ -266,6 +266,18 @@
         <translation>Filen er for kort</translation>
     </message>
     <message>
+        <source>The DST file contains no stitches</source>
+        <translation>DST-filen indeholder ingen sting</translation>
+    </message>
+    <message>
+        <source>Unexpected trailing bytes at the end of the DST file</source>
+        <translation>Uventede efterfølgende bytes i slutningen af DST-filen</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened, not saved. Choose another file name.</source>
+        <translation>Dette filformat kan kun åbnes, ikke gemmes. Vælg et andet filnavn.</translation>
+    </message>
+    <message>
         <source>Invalid file format</source>
         <translation>Ugyldigt filformat</translation>
     </message>
@@ -1307,8 +1319,8 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Broderifiler (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Broderifiler (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1325,6 +1337,14 @@
     <message>
         <source>Save Stitch Pattern</source>
         <translation>Gem stingmønster</translation>
+    </message>
+    <message>
+        <source>PCS Embroidery Files (*.pcs)</source>
+        <translation>PCS-broderifiler (*.pcs)</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened. Use Save As to choose a new file.</source>
+        <translation>Dette filformat kan kun åbnes. Brug Gem som for at vælge en ny fil.</translation>
     </message>
     <message>
         <source>Communication Error</source>
@@ -1499,8 +1519,8 @@
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1865,8 +1885,8 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Broderifiler (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Broderifiler (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1905,12 +1925,16 @@
         <translation>, Farver: {0}</translation>
     </message>
     <message>
+        <source>Embroidery</source>
+        <translation>Broderi</translation>
+    </message>
+    <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

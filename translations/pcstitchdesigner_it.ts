@@ -266,6 +266,18 @@
         <translation>File troppo corto</translation>
     </message>
     <message>
+        <source>The DST file contains no stitches</source>
+        <translation>Il file DST non contiene punti</translation>
+    </message>
+    <message>
+        <source>Unexpected trailing bytes at the end of the DST file</source>
+        <translation>Byte finali inattesi alla fine del file DST</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened, not saved. Choose another file name.</source>
+        <translation>Questo formato di file può solo essere aperto, non salvato. Scegli un altro nome file.</translation>
+    </message>
+    <message>
         <source>Invalid file format</source>
         <translation>Formato di file non valido</translation>
     </message>
@@ -1307,8 +1319,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>File di ricamo (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>File di ricamo (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1325,6 +1337,14 @@
     <message>
         <source>Save Stitch Pattern</source>
         <translation>Salva motivo</translation>
+    </message>
+    <message>
+        <source>PCS Embroidery Files (*.pcs)</source>
+        <translation>File di ricamo PCS (*.pcs)</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened. Use Save As to choose a new file.</source>
+        <translation>Questo formato di file può solo essere aperto. Usa Salva con nome per scegliere un nuovo file.</translation>
     </message>
     <message>
         <source>Communication Error</source>
@@ -1499,8 +1519,8 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1865,8 +1885,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>File di ricamo (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>File di ricamo (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1905,12 +1925,16 @@
         <translation>, Colori: {0}</translation>
     </message>
     <message>
+        <source>Embroidery</source>
+        <translation>Ricamo</translation>
+    </message>
+    <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

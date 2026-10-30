@@ -266,6 +266,18 @@
         <translation>Bestand te kort</translation>
     </message>
     <message>
+        <source>The DST file contains no stitches</source>
+        <translation>Het DST-bestand bevat geen steken</translation>
+    </message>
+    <message>
+        <source>Unexpected trailing bytes at the end of the DST file</source>
+        <translation>Onverwachte extra bytes aan het einde van het DST-bestand</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened, not saved. Choose another file name.</source>
+        <translation>Dit bestandsformaat kan alleen worden geopend, niet opgeslagen. Kies een andere bestandsnaam.</translation>
+    </message>
+    <message>
         <source>Invalid file format</source>
         <translation>Ongeldig bestandsformaat</translation>
     </message>
@@ -1307,8 +1319,8 @@
         <translation>Steekpatroon openen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Borduurbestanden (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Borduurbestanden (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1325,6 +1337,14 @@
     <message>
         <source>Save Stitch Pattern</source>
         <translation>Steekpatroon opslaan</translation>
+    </message>
+    <message>
+        <source>PCS Embroidery Files (*.pcs)</source>
+        <translation>PCS-borduurbestanden (*.pcs)</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened. Use Save As to choose a new file.</source>
+        <translation>Dit bestandsformaat kan alleen worden geopend. Gebruik Opslaan als om een nieuw bestand te kiezen.</translation>
     </message>
     <message>
         <source>Communication Error</source>
@@ -1499,8 +1519,8 @@
         <translation>9mm-steekbestanden (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1865,8 +1885,8 @@
         <translation>Steekpatroon openen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Borduurbestanden (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Borduurbestanden (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1905,12 +1925,16 @@
         <translation>, Kleuren: {0}</translation>
     </message>
     <message>
+        <source>Embroidery</source>
+        <translation>Borduren</translation>
+    </message>
+    <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>9mm-steekbestanden (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

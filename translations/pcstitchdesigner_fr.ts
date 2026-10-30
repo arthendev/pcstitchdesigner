@@ -266,6 +266,18 @@
         <translation>Fichier trop court</translation>
     </message>
     <message>
+        <source>The DST file contains no stitches</source>
+        <translation>Le fichier DST ne contient aucun point</translation>
+    </message>
+    <message>
+        <source>Unexpected trailing bytes at the end of the DST file</source>
+        <translation>Octets finaux inattendus à la fin du fichier DST</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened, not saved. Choose another file name.</source>
+        <translation>Ce format de fichier peut uniquement être ouvert, pas enregistré. Choisissez un autre nom de fichier.</translation>
+    </message>
+    <message>
         <source>Invalid file format</source>
         <translation>Format de fichier non valide</translation>
     </message>
@@ -1307,8 +1319,8 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Fichiers de broderie (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1325,6 +1337,14 @@
     <message>
         <source>Save Stitch Pattern</source>
         <translation>Enregistrer le motif</translation>
+    </message>
+    <message>
+        <source>PCS Embroidery Files (*.pcs)</source>
+        <translation>Fichiers de broderie PCS (*.pcs)</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened. Use Save As to choose a new file.</source>
+        <translation>Ce format de fichier peut uniquement être ouvert. Utilisez Enregistrer sous pour choisir un nouveau fichier.</translation>
     </message>
     <message>
         <source>Communication Error</source>
@@ -1499,8 +1519,8 @@
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1865,8 +1885,8 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Fichiers de broderie (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1905,12 +1925,16 @@
         <translation>, Couleurs : {0}</translation>
     </message>
     <message>
+        <source>Embroidery</source>
+        <translation>Broderie</translation>
+    </message>
+    <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

@@ -266,6 +266,18 @@
         <translation>Файл слишком короткий</translation>
     </message>
     <message>
+        <source>The DST file contains no stitches</source>
+        <translation>Файл DST не содержит стежков</translation>
+    </message>
+    <message>
+        <source>Unexpected trailing bytes at the end of the DST file</source>
+        <translation>Неожиданные завершающие байты в конце файла DST</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened, not saved. Choose another file name.</source>
+        <translation>Этот формат файла можно только открыть, но не сохранить. Выберите другое имя файла.</translation>
+    </message>
+    <message>
         <source>Invalid file format</source>
         <translation>Недопустимый формат файла</translation>
     </message>
@@ -1307,8 +1319,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Файлы вышивки (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Файлы вышивки (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1325,6 +1337,14 @@
     <message>
         <source>Save Stitch Pattern</source>
         <translation>Сохранить узор</translation>
+    </message>
+    <message>
+        <source>PCS Embroidery Files (*.pcs)</source>
+        <translation>Файлы вышивки PCS (*.pcs)</translation>
+    </message>
+    <message>
+        <source>This file format can only be opened. Use Save As to choose a new file.</source>
+        <translation>Этот формат файла можно только открыть. Используйте «Сохранить как», чтобы выбрать новый файл.</translation>
     </message>
     <message>
         <source>Communication Error</source>
@@ -1499,8 +1519,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1865,8 +1885,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs)</source>
-        <translation>Файлы вышивки (*.pcs)</translation>
+        <source>Embroidery Files (*.pcs *.dst)</source>
+        <translation>Файлы вышивки (*.pcs *.dst)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1905,12 +1925,16 @@
         <translation>, цветов: {0}</translation>
     </message>
     <message>
+        <source>Embroidery</source>
+        <translation>Вышивка</translation>
+    </message>
+    <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
