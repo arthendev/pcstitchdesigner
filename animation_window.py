@@ -1,5 +1,6 @@
 """Animation window: step-by-step stitch preview with playback controls."""
 
+import bisect
 import math
 import os
 import time
@@ -7,7 +8,7 @@ import time
 debug = 0
 
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QSlider,
+    QCheckBox, QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QSlider,
     QPushButton, QLabel, QSizePolicy, QWidget, QStyle, QStyleOptionProgressBar,
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
@@ -20,7 +21,7 @@ _ICONS = os.path.join(os.path.dirname(__file__), "icons")
 
 # Playback speed range. The slider itself is logarithmic: embroidery hoops hold
 # thousands of stitches, so their range reaches 1000 st/s while the sewing-machine
-# style designs (9mm / MAXI) stay at the familiar 50 st/s ceiling.
+# style designs (9mm / MAXI) stay at the familiar 100 st/s ceiling.
 SPEED_MIN = 5
 SPEED_MAX_STANDARD = 100
 SPEED_MAX_EMBROIDERY = 1000
@@ -394,6 +395,10 @@ class AnimationWindow(QDialog):
         self._play_start_time = None   # wall-clock time when play began
         self._play_start_step = 0      # step count when play began
 
+        # Thread-change stops (embroidery only). The pattern cannot change while
+        # this modal dialog is open, so the stops are resolved up front.
+        self._color_stop_steps, self._color_stop_index = self._build_color_stops()
+
         # Timer
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
@@ -435,6 +440,12 @@ class AnimationWindow(QDialog):
         # Set after connecting so _speed and the label follow the slider position.
         self._speed_slider.setValue(self._position_for_speed(self._speed))
 
+        self._stop_on_color_change = QCheckBox(self.tr("Stop on color change"))
+        self._stop_on_color_change.setToolTip(
+            self.tr("Pause the animation at every thread colour change"))
+        self._stop_on_color_change.setVisible(embroidery)
+        self._stop_on_color_change.toggled.connect(self._on_stop_on_color_changed)
+
         self._btn_to_start = QPushButton(QIcon(os.path.join(_ICONS, "player_tostart.svg")), "")
         self._btn_to_start.setToolTip(self.tr("To Start"))
         self._btn_to_start.clicked.connect(self._go_to_start)
@@ -458,9 +469,16 @@ class AnimationWindow(QDialog):
         controls.addWidget(self._speed_label)
         controls.addWidget(self._speed_slider, stretch=1)
         controls.addSpacing(12)
+        controls.addWidget(self._stop_on_color_change)
+        controls.addSpacing(12)
         controls.addWidget(self._btn_to_start)
         controls.addWidget(self._btn_play)
         controls.addWidget(self._btn_to_end)
+
+        self._color_change_label = QLabel("")
+        self._color_change_label.setTextFormat(Qt.RichText)
+        self._color_change_label.setAlignment(Qt.AlignCenter)
+        self._color_change_label.setVisible(False)
 
         self._debug_label = QLabel("")
         self._debug_label.setAlignment(Qt.AlignCenter)
@@ -468,6 +486,7 @@ class AnimationWindow(QDialog):
 
         root = QVBoxLayout(self)
         root.addWidget(self._canvas, stretch=1)
+        root.addWidget(self._color_change_label)
         root.addWidget(self._debug_label)
         root.addLayout(controls)
 
@@ -477,6 +496,51 @@ class AnimationWindow(QDialog):
 
     def _total(self):
         return sum(1 for e in self._pattern.elements if elem_has_coords(e))
+
+    def _build_color_stops(self):
+        """Map every thread change to the stitch count at which it takes effect.
+
+        The animation counts coordinate points, so an ELEM_COLOR record found
+        after n stitches is a stop at n — all n stitches still use the previous
+        thread. Records before the first stitch are setup rather than a change
+        (a stop at 0 is dropped), and consecutive records share one step where
+        the last one wins, exactly how the canvas resolves the active colour.
+
+        Returns:
+            (sorted step list, {step: palette index}) for the thread changes.
+        """
+        stops = {}
+        painted = 0
+        for e in self._pattern.elements:
+            if e[0] == ELEM_COLOR:
+                if painted > 0:
+                    stops[painted] = e[1]
+            elif elem_has_coords(e):
+                painted += 1
+        return sorted(stops), stops
+
+    def _next_color_stop(self, after, upto):
+        """Return the first thread change in (after, upto], or None."""
+        i = bisect.bisect_right(self._color_stop_steps, after)
+        if i == len(self._color_stop_steps):
+            return None
+        step = self._color_stop_steps[i]
+        return step if step <= upto else None
+
+    def _show_color_change(self, color_index):
+        """Show the thread change the animation stopped at, with a colour swatch."""
+        if not self._pattern.colors:
+            raise ValueError("Cannot show a thread change without a palette")
+        color_index = min(color_index, len(self._pattern.colors) - 1)
+        r, g, b = self._pattern.colors[color_index]
+        self._color_change_label.setText(
+            self.tr('<span style="color: rgb({0},{1},{2}); font-size: 18pt;">'
+                    "\u25a0</span>&nbsp;Color change to thread index #{3}")
+            .format(r, g, b, color_index + 1))
+        self._color_change_label.setVisible(True)
+
+    def _hide_color_change(self):
+        self._color_change_label.setVisible(False)
 
     def _speed_for_position(self, position):
         """Map a log-scaled slider position to stitches per second."""
@@ -516,6 +580,7 @@ class AnimationWindow(QDialog):
             icon_name = "player_pause.svg"
             tip = self.tr("Pause")
             self._restart_play_clock()
+            self._hide_color_change()
             self._debug_label.setVisible(False)
             self._timer.start(self._timer_interval())
         else:
@@ -535,6 +600,11 @@ class AnimationWindow(QDialog):
             self._restart_play_clock()
             self._timer.setInterval(self._timer_interval())
 
+    def _on_stop_on_color_changed(self, checked):
+        """Drop a stale thread-change notice when the option is switched off."""
+        if not checked:
+            self._hide_color_change()
+
     def _toggle_play(self):
         if self._playing:
             self._set_playing(False)
@@ -547,16 +617,19 @@ class AnimationWindow(QDialog):
 
     def _go_to_start(self):
         self._set_playing(False)
+        self._hide_color_change()
         self._current_step = 0
         self._refresh()
 
     def _go_to_end(self):
         self._set_playing(False)
+        self._hide_color_change()
         self._current_step = self._total()
         self._refresh()
 
     def _on_progress_seek(self, step):
         self._set_playing(False)
+        self._hide_color_change()
         self._current_step = max(0, min(step, self._total()))
         self._refresh()
 
@@ -569,6 +642,17 @@ class AnimationWindow(QDialog):
         # STITCHES_PER_TICK_THRESHOLD (50 st/s -> 5 stitches / 100 ms).
         due = self._play_start_step + int(
             round((time.monotonic() - self._play_start_time) * self._speed))
+        # A batch can cover several thread changes; stop at the first one so the
+        # user sees each colour before the next one is stitched over it.
+        stop = None
+        if self._stop_on_color_change.isChecked():
+            stop = self._next_color_stop(self._current_step, min(due, total))
+        if stop is not None and stop < total:
+            self._current_step = stop
+            self._refresh()
+            self._set_playing(False)
+            self._show_color_change(self._color_stop_index[stop])
+            return
         if due > self._current_step:
             self._current_step = min(total, due)
             self._refresh()
