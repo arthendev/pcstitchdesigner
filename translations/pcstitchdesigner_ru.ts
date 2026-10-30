@@ -1806,6 +1806,10 @@
         <source>{0} × {1} mm</source>
         <translation>{0} × {1} мм</translation>
     </message>
+    <message>
+        <source>Center &amp;design</source>
+        <translation>&amp;Центрировать рисунок</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>

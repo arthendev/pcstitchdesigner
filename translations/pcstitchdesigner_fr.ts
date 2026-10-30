@@ -1806,6 +1806,10 @@
         <source>{0} × {1} mm</source>
         <translation>{0} × {1} mm</translation>
     </message>
+    <message>
+        <source>Center &amp;design</source>
+        <translation>&amp;Centrer le motif</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
