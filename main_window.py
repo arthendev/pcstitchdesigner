@@ -1066,7 +1066,7 @@ class MainWindow(QMainWindow):
     # ── View orientation ──
 
     def _view_animate_stitching(self):
-        dlg = AnimationWindow(self._pattern, parent=self)
+        dlg = AnimationWindow(self._pattern, parent=self, config=self._config)
         dlg.exec_()
 
     def _on_orientation_default(self):

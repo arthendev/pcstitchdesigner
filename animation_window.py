@@ -1,5 +1,6 @@
 """Animation window: step-by-step stitch preview with playback controls."""
 
+import math
 import os
 import time
 
@@ -11,10 +12,25 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QIcon, QPixmap, QPolygon
-from model import ELEM_COLOR, elem_has_coords
+from config import Config
+from model import ELEM_COLOR, elem_has_coords, is_embroidery_type
 
 
 _ICONS = os.path.join(os.path.dirname(__file__), "icons")
+
+# Playback speed range. The slider itself is logarithmic: embroidery hoops hold
+# thousands of stitches, so their range reaches 1000 st/s while the sewing-machine
+# style designs (9mm / MAXI) stay at the familiar 50 st/s ceiling.
+SPEED_MIN = 5
+SPEED_MAX_STANDARD = 100
+SPEED_MAX_EMBROIDERY = 1000
+SPEED_SLIDER_STEPS = 100   # slider positions between SPEED_MIN and the upper bound
+
+# Up to ~20 st/s one stitch per timer tick looks fine. Faster playback would need
+# sub-10 ms timers (unreliable in Qt), so the period is capped and several stitches
+# are painted per tick: 50 st/s -> 5 stitches / 100 ms, 100 st/s -> 10 stitches / 100 ms.
+TICK_MS = 100
+STITCHES_PER_TICK_THRESHOLD = 20
 
 
 class ClickableProgressBar(QProgressBar):
@@ -69,22 +85,37 @@ class AnimationCanvas(QWidget):
     LABEL_HEIGHT = 20   # pixels reserved above the border for the size label
     UNITS_PER_MM = 6    # coordinate units per millimetre
 
-    COLOR_BG = QColor(255, 255, 255)
     COLOR_BORDER = QColor(0, 80, 200)
     COLOR_LABEL = QColor(80, 80, 80)
-    COLOR_LINE = QColor(0, 0, 0)
-    COLOR_POINT = QColor(0, 0, 0)
     COLOR_FIRST = QColor(0, 200, 0)    # green  — first stitch
     COLOR_HEAD  = QColor(255, 140, 0)  # orange — current head during animation
     COLOR_LAST  = QColor(200, 0, 0)    # red    — final stitch (when complete)
 
     _MARKER_STITCH_TYPES = {"9mm", "MAXI"}
 
-    def __init__(self, pattern, parent=None, show_stitches=False):
+    def __init__(self, pattern, background_color, line_color, point_color,
+                 parent=None, show_stitches=False):
+        """Create the preview canvas.
+
+        Args:
+            pattern: The pattern to animate.
+            background_color: QColor filling the whole widget (Display settings).
+            line_color: QColor for stitch lines of designs without a palette
+                (9 mm / MAXI). Embroidery lines follow the thread palette.
+            point_color: QColor for interior stitch points (9 mm / MAXI only).
+            show_stitches: Whether interior stitch points are drawn.
+        """
         super().__init__(parent)
         self._pattern = pattern
         self._visible_count = 0
         self._show_stitches = show_stitches
+
+        # Colours come from the Display preferences so the animation matches the
+        # canvas. Embroidery lines are drawn per palette entry, so line_color and
+        # point_color only show up for 9 mm / MAXI designs.
+        self._color_bg = background_color
+        self._color_line = line_color
+        self._color_point = point_color
 
         # Cached geometry — invalidated on resize
         self._screen_pts = []         # [(sx, sy), ...] for every coord element
@@ -103,10 +134,10 @@ class AnimationCanvas(QWidget):
         self._color_pens = {}
 
         # Pre-built pens / brushes (avoid allocation inside paintEvent)
-        self._pen_line   = QPen(self.COLOR_LINE,   2)
+        self._pen_line   = QPen(self._color_line,   2)
         self._pen_border = QPen(self.COLOR_BORDER, 1)
         self._pen_label  = QPen(self.COLOR_LABEL,  1)
-        self._brush_point = QBrush(self.COLOR_POINT)
+        self._brush_point = QBrush(self._color_point)
         self._brush_first = QBrush(self.COLOR_FIRST)
         self._brush_head  = QBrush(self.COLOR_HEAD)
         self._brush_last  = QBrush(self.COLOR_LAST)
@@ -266,7 +297,7 @@ class AnimationCanvas(QWidget):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(self.rect(), self.COLOR_BG)
+        painter.fillRect(self.rect(), self._color_bg)
 
         bx0, by0, bx1, by1 = self._bbox()
         pw, ph = bx1 - bx0, by1 - by0
@@ -341,7 +372,7 @@ class AnimationCanvas(QWidget):
 class AnimationWindow(QDialog):
     """Stitch animation preview window."""
 
-    def __init__(self, pattern, parent=None):
+    def __init__(self, pattern, parent=None, config=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Animate Stitching"))
         self.resize(860, 580)
@@ -352,9 +383,14 @@ class AnimationWindow(QDialog):
         )
 
         self._pattern = pattern
+        self._config = config if config is not None else Config()
         self._current_step = 0
         self._playing = False
         self._speed = 30  # stitches per second
+        self._max_speed = (
+            SPEED_MAX_EMBROIDERY if is_embroidery_type(pattern.stitch_type)
+            else SPEED_MAX_STANDARD
+        )
         self._play_start_time = None   # wall-clock time when play began
         self._play_start_step = 0      # step count when play began
 
@@ -364,7 +400,19 @@ class AnimationWindow(QDialog):
 
         # ── Widgets ──
 
-        self._canvas = AnimationCanvas(pattern)
+        embroidery = is_embroidery_type(pattern.stitch_type)
+        display = self._config.get_display_preferences()
+        bg_key = "embroidery_background_color" if embroidery else "background_color"
+        points_key = "embroidery_show_stitch_points" if embroidery else "show_stitch_points"
+        # Embroidery stitches are drawn in thread colours, so the line/point
+        # colours from the Display preferences only apply to 9 mm / MAXI.
+        self._canvas = AnimationCanvas(
+            pattern,
+            background_color=QColor(display[bg_key]),
+            line_color=QColor(display["line_color"]),
+            point_color=QColor(display["point_color"]),
+            show_stitches=bool(display[points_key]),
+        )
 
         self._progress = ClickableProgressBar()
         self._progress.setMinimum(0)
@@ -377,13 +425,15 @@ class AnimationWindow(QDialog):
 
         self._speed_label = QLabel(self.tr("Speed: {0} st/s").format(self._speed))
         self._speed_slider = QSlider(Qt.Horizontal)
-        self._speed_slider.setMinimum(5)
-        self._speed_slider.setMaximum(50)
-        self._speed_slider.setValue(self._speed)
-        self._speed_slider.setTickInterval(10)
-        self._speed_slider.setTickPosition(QSlider.TicksBelow)
+        self._speed_slider.setMinimum(0)
+        self._speed_slider.setMaximum(SPEED_SLIDER_STEPS)
         self._speed_slider.setMinimumWidth(120)
+        self._speed_slider.setToolTip(
+            self.tr("Playback speed ({0}–{1} stitches/s, logarithmic)").format(
+                SPEED_MIN, self._max_speed))
         self._speed_slider.valueChanged.connect(self._on_speed_changed)
+        # Set after connecting so _speed and the label follow the slider position.
+        self._speed_slider.setValue(self._position_for_speed(self._speed))
 
         self._btn_to_start = QPushButton(QIcon(os.path.join(_ICONS, "player_tostart.svg")), "")
         self._btn_to_start.setToolTip(self.tr("To Start"))
@@ -428,6 +478,33 @@ class AnimationWindow(QDialog):
     def _total(self):
         return sum(1 for e in self._pattern.elements if elem_has_coords(e))
 
+    def _speed_for_position(self, position):
+        """Map a log-scaled slider position to stitches per second."""
+        ratio = self._max_speed / SPEED_MIN
+        return SPEED_MIN * ratio ** (position / SPEED_SLIDER_STEPS)
+
+    def _position_for_speed(self, speed):
+        """Inverse of :meth:`_speed_for_position` (used to place the slider handle)."""
+        ratio = self._max_speed / SPEED_MIN
+        return int(round(SPEED_SLIDER_STEPS * math.log(speed / SPEED_MIN) / math.log(ratio)))
+
+    def _timer_interval(self):
+        """Timer period in ms for the current speed.
+
+        Below STITCHES_PER_TICK_THRESHOLD the timer fires once per stitch, which
+        looks smooth. Faster playback uses a fixed TICK_MS period and paints all
+        stitches that became due since the last tick in one go (see _on_tick), so
+        the canvas is repainted at most ten times per second.
+        """
+        if self._speed <= STITCHES_PER_TICK_THRESHOLD:
+            return max(1, int(round(1000 / self._speed)))
+        return TICK_MS
+
+    def _restart_play_clock(self):
+        """Anchor the stitch timeline at the current step and wall-clock time."""
+        self._play_start_time = time.monotonic()
+        self._play_start_step = self._current_step
+
     def _refresh(self):
         self._canvas.set_visible_count(self._current_step)
         self._progress.setMaximum(max(1, self._total()))
@@ -438,11 +515,9 @@ class AnimationWindow(QDialog):
         if playing:
             icon_name = "player_pause.svg"
             tip = self.tr("Pause")
-            if debug:
-                self._play_start_time = time.monotonic()
-                self._play_start_step = self._current_step
-                self._debug_label.setVisible(False)
-            self._timer.start(max(1, 1000 // self._speed))
+            self._restart_play_clock()
+            self._debug_label.setVisible(False)
+            self._timer.start(self._timer_interval())
         else:
             icon_name = "player_play.svg"
             tip = self.tr("Play")
@@ -452,11 +527,13 @@ class AnimationWindow(QDialog):
 
     # ── Slots ──
 
-    def _on_speed_changed(self, value):
-        self._speed = value
-        self._speed_label.setText(self.tr("Speed: {0} st/s").format(value))
+    def _on_speed_changed(self, position):
+        self._speed = max(SPEED_MIN, int(round(self._speed_for_position(position))))
+        self._speed_label.setText(self.tr("Speed: {0} st/s").format(self._speed))
         if self._playing:
-            self._timer.setInterval(max(1, 1000 // self._speed))
+            # Re-anchor the clock so the new rate applies from the current step.
+            self._restart_play_clock()
+            self._timer.setInterval(self._timer_interval())
 
     def _toggle_play(self):
         if self._playing:
@@ -484,10 +561,18 @@ class AnimationWindow(QDialog):
         self._refresh()
 
     def _on_tick(self):
-        if self._current_step < self._total():
-            self._current_step += 1
+        total = self._total()
+        if self._play_start_time is None:
+            return
+        # Every stitch owed since the clock was anchored is painted in this one
+        # repaint: one stitch per tick at low speed, a batch per tick above
+        # STITCHES_PER_TICK_THRESHOLD (50 st/s -> 5 stitches / 100 ms).
+        due = self._play_start_step + int(
+            round((time.monotonic() - self._play_start_time) * self._speed))
+        if due > self._current_step:
+            self._current_step = min(total, due)
             self._refresh()
-        if self._current_step >= self._total():
+        if self._current_step >= total:
             self._set_playing(False)
             if debug and self._play_start_time is not None:
                 elapsed = time.monotonic() - self._play_start_time
