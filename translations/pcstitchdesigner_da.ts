@@ -2156,8 +2156,8 @@
         <translation>Farveskift</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rul for at zoome. Klik på et sting for at vælge det.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rul for at zoome</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Annullér</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rul for at zoome. Klik på et sting for at vælge det.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rul for at zoome</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>

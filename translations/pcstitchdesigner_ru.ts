@@ -2156,8 +2156,8 @@
         <translation>Смены цвета</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+колесо — масштабирование. Щёлкните по стежку, чтобы выделить его.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+колесо — масштабирование</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Отмена</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+колесо — масштабирование. Щёлкните по стежку, чтобы выделить его.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+колесо — масштабирование</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>

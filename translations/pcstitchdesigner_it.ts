@@ -2156,8 +2156,8 @@
         <translation>Cambi colore</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rotella per zoomare. Fai clic su un punto per selezionarlo.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rotella per zoomare</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Annulla</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rotella per zoomare. Fai clic su un punto per selezionarlo.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rotella per zoomare</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>

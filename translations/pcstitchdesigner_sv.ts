@@ -2156,8 +2156,8 @@
         <translation>Färgbyten</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rulla för att zooma. Klicka på ett stygn för att markera det.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rulla för att zooma</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Avbryt</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rulla för att zooma. Klicka på ett stygn för att markera det.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rulla för att zooma</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>

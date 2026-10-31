@@ -2156,8 +2156,8 @@
         <translation>Kleurwissels</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+scrollen om te zoomen. Klik op een steek om deze te selecteren.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+scrollen om te zoomen</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Annuleren</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+scrollen om te zoomen. Klik op een steek om deze te selecteren.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+scrollen om te zoomen</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>

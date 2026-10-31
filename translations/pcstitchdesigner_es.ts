@@ -2156,8 +2156,8 @@
         <translation>Cambios de color</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rueda para ampliar. Haga clic en una puntada para seleccionarla.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rueda para ampliar</translation>
     </message>
     <message>
         <source>Edit</source>
@@ -2313,8 +2313,8 @@
         <translation>Cancelar</translation>
     </message>
     <message>
-        <source>Ctrl+scroll to zoom. Click a stitch to select it.</source>
-        <translation>Ctrl+rueda para ampliar. Haga clic en una puntada para seleccionarla.</translation>
+        <source>Ctrl+scroll to zoom</source>
+        <translation>Ctrl+rueda para ampliar</translation>
     </message>
     <message>
         <source>Edit Section Markers</source>
