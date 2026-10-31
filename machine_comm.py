@@ -1975,10 +1975,16 @@ class MachineComm:
         it; the fractional part is kept because embroidery resolution is finer
         than one canvas unit.
 
-        A colour change is stored as a block of its own (jump marker, resync,
-        tie-off, colour stitch), so the decoded point list repeats the change
-        position three times — those are real stitches on the card, exactly as
-        the machine sews them.
+        A colour change is a block of its own: a jump marker, an absolute
+        resync to the last stitch of the colour that ends, a tie-off, and then
+        the colour command, which names the same position once more.  The
+        position is therefore transmitted twice but names one stitch, and that
+        stitch is never also sent as a relative step — the block replaces its
+        ordinary record.  Reading adds exactly one stitch for the block, with
+        the colour that ends there; any further record at the same position is
+        a stitch the design really has.  Cards that use the short form
+        ``80 2E P 3n 80`` put the first stitch of the new colour in the block,
+        and that point is kept the same way.
 
         Args:
             raw_bytes (bytes): Pattern payload returned by
@@ -2010,28 +2016,35 @@ class MachineComm:
         origin = None
         colour_table = []
 
+        tokens = MachineComm._tokenize_embroidery(data)
         index = 0
-        while index < len(data):
-            if data[index] != MachineComm.EMBROIDERY_GROUP_MARK:
-                # Plain relative step: two signed bytes (dy, dx), one stitch.
-                # Only checked at step boundaries, so an 0x80 inside a delta
-                # byte is not mistaken for a group.
-                if index + 2 > len(data):
-                    break
-                y += _s8(data[index])
-                x += _s8(data[index + 1])
+        while index < len(tokens):
+            kind, token = tokens[index]
+
+            if kind == 'step':
+                dy, dx = token
+                y += dy
+                x += dx
                 values.append((x, y))
                 colours_of_point.append(colour)
-                index += 2
+                index += 1
                 continue
 
-            parsed = MachineComm._parse_embroidery_group(data, index)
-            if parsed is None:
-                # Unknown or truncated group: stop rather than invent stitches.
-                break
-            commands, index = parsed
+            commands = token
+            block = MachineComm._colour_block_after(tokens, index)
+            if block is not None:
+                # Long form: the block names the stitch that ends the old
+                # colour twice - a resync and the colour command - with the
+                # tie-off between them.  It replaces that stitch's ordinary
+                # record, so exactly one stitch comes out of it; a later
+                # record at the same position is a stitch of its own.
+                point, new_colour, index = block
+                values.append(point)
+                colours_of_point.append(colour)
+                colour = new_colour
+                x, y = point
+                continue
 
-            group_colour = None
             group_points = []
             end_of_design = False
             for marker, payload in commands:
@@ -2043,9 +2056,6 @@ class MachineComm:
                     y += _s8(payload[0])
                     x += _s8(payload[1])
                     group_points.append((x, y))
-                elif (MachineComm.EMBROIDERY_CMD_COLOUR_MIN <= marker
-                      <= MachineComm.EMBROIDERY_CMD_COLOUR_MAX):
-                    group_colour = marker - 0x2F
                 elif marker == MachineComm.EMBROIDERY_CMD_EXTRA:
                     if (len(payload) >= 5
                             and payload[0] == MachineComm.EMBROIDERY_EXTRA_ORIGIN):
@@ -2059,14 +2069,14 @@ class MachineComm:
                 elif marker == MachineComm.EMBROIDERY_CMD_END:
                     end_of_design = True
 
-            # A colour command covers the stitches of its own group: the short
-            # form "80 2E P 3n 80" already places the first point of the new
-            # colour in the group, the long form has a group of its own.
-            if group_colour is not None:
-                colour = group_colour
-            for point in group_points:
-                values.append(point)
-                colours_of_point.append(colour)
+            new_colour = MachineComm._group_colour_number(commands)
+            if new_colour is not None:
+                # Short form "80 2E P 3n 80": the group's point is the first
+                # stitch of the new colour, so it is kept.
+                colour = new_colour
+            values.extend(group_points)
+            colours_of_point.extend([colour] * len(group_points))
+            index += 1
             if end_of_design:
                 break
 
@@ -2171,6 +2181,80 @@ class MachineComm:
             else:
                 return None
         return None                 # the group never closed
+
+    @staticmethod
+    def _tokenize_embroidery(data):
+        """Split an embroidery payload into relative steps and command groups.
+
+        Returns a list of ``('step', (dy, dx))`` and ``('group', commands)``
+        entries, in stream order.  An unknown or truncated group ends the walk,
+        so a damaged payload still yields the stitches read up to that point.
+        """
+        tokens = []
+        index = 0
+        while index < len(data):
+            if data[index] != MachineComm.EMBROIDERY_GROUP_MARK:
+                # Plain relative step: two signed bytes (dy, dx), one stitch.
+                # Only checked at step boundaries, so an 0x80 inside a delta
+                # byte is not mistaken for a group.
+                if index + 2 > len(data):
+                    break
+                tokens.append(('step', (_s8(data[index]), _s8(data[index + 1]))))
+                index += 2
+                continue
+            parsed = MachineComm._parse_embroidery_group(data, index)
+            if parsed is None:
+                break
+            commands, index = parsed
+            tokens.append(('group', commands))
+        return tokens
+
+    @staticmethod
+    def _group_colour_number(commands):
+        """Return the thread colour a command group selects, or ``None``."""
+        for marker, _payload in commands:
+            if (MachineComm.EMBROIDERY_CMD_COLOUR_MIN <= marker
+                    <= MachineComm.EMBROIDERY_CMD_COLOUR_MAX):
+                return marker - 0x2F
+        return None
+
+    @staticmethod
+    def _absolute_position(commands):
+        """Return the last absolute position a command group names, or ``None``."""
+        point = None
+        for marker, payload in commands:
+            if marker == MachineComm.EMBROIDERY_CMD_ABS_POS:
+                point = (_u16be_at(payload, 2), _u16be_at(payload, 0))
+        return point
+
+    @staticmethod
+    def _colour_block_after(tokens, index):
+        """Describe the colour-change block that starts at ``tokens[index]``.
+
+        The long form is a group that only moves to the stitch ending the old
+        colour, an optional zero-length tie-off, and then a colour group naming
+        the same position.  Returns ``(point, colour, next_index)``, or
+        ``None`` when the tokens do not have that shape — then the groups are
+        ordinary stitches and the colour group keeps its own point.
+        """
+        kind, commands = tokens[index]
+        if kind != 'group' or MachineComm._group_colour_number(commands) is not None:
+            return None
+        point = MachineComm._absolute_position(commands)
+        if point is None:
+            return None
+
+        position = index + 1
+        while (position < len(tokens) and tokens[position][0] == 'step'
+               and tokens[position][1] == (0, 0)):
+            position += 1
+        if position >= len(tokens) or tokens[position][0] != 'group':
+            return None
+        colour_commands = tokens[position][1]
+        colour = MachineComm._group_colour_number(colour_commands)
+        if colour is None or MachineComm._absolute_position(colour_commands) != point:
+            return None
+        return point, colour, position + 1
 
     @staticmethod
     def _parse_card_preview_descriptor(descriptor):
@@ -2695,10 +2779,11 @@ class MachineComm:
                 before the end marker.  PC-Designer card writes do not use
                 these, so the default is off.
 
-        The colour-change block *replaces* the ordinary record of the change
-        point (jump marker, absolute resync, tie-off, colour stitch).  That is
-        what real card slots contain; emitting it after the ordinary record
-        would add two bytes per change and does not match the format.
+        The colour-change block *replaces* the ordinary record of the stitch
+        that ends the colour: jump marker, absolute resync to that point,
+        tie-off, then the colour command naming the same position again.  The
+        change point is therefore transmitted twice and never a third time as a
+        relative step.  The reader keeps one stitch out of it.
         """
         out = bytearray()
 
@@ -2721,23 +2806,26 @@ class MachineComm:
                 out += bytes([r, g, b, 0x00])
             out += bytes([0x80])
 
-        out += bytes([0x80, 0x2E])
-        out += _u16be(values[0][1]) + _u16be(values[0][0])
-        out += bytes([0x2F + sections[0][1], 0x80])
-
         changes = {start: colour for start, colour in sections[1:]}
         tie_offs = 0
         prev = values[0]
-        for index in range(1, len(values)):
-            cur = values[index]
-            if index in changes:
+        for index, cur in enumerate(values):
+            next_colour = changes.get(index + 1)
+            if next_colour is not None:
+                # The block carries this stitch and the new thread colour, so
+                # it takes the place of the stitch's ordinary record; the
+                # position must not also be sent as a relative step.
                 tie_offs += 1
                 out += bytes([0x80, 0x20, 0x80])            # jump marker
                 out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
                 out += bytes([0x80])                        # resync to the change point
                 out += bytes([0x00, 0x00])                  # tie-off
                 out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
-                out += bytes([0x2F + changes[index], 0x80])  # new thread colour
+                out += bytes([0x2F + next_colour, 0x80])    # new thread colour
+            elif index == 0:
+                # First stitch: absolute position plus the starting colour.
+                out += bytes([0x80, 0x2E]) + _u16be(cur[1]) + _u16be(cur[0])
+                out += bytes([0x2F + sections[0][1], 0x80])
             else:
                 dy, dx = cur[1] - prev[1], cur[0] - prev[0]
                 if -127 <= dy <= 127 and -127 <= dx <= 127:
