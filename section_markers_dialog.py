@@ -15,7 +15,7 @@ from model import (ELEM_COLOR, ELEM_SECTION, ELEM_STITCH, elem_has_coords,
 
 
 class StitchPreviewCanvas(QWidget):
-    """Read-only stitch preview with click-to-select and Ctrl+wheel zoom.
+    """Read-only stitch preview with click-to-select, right-drag pan and Ctrl+wheel zoom.
 
     The widget reads the dialog's working element list live, so changing that
     list only requires a call to ``update()``.
@@ -57,6 +57,8 @@ class StitchPreviewCanvas(QWidget):
         self._selected_indices = []
         self._current_index = None
         self._show_stitch_points = True
+        self._panning = False
+        self._pan_last_global_pos = None
 
         self.setCursor(Qt.ArrowCursor)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -153,6 +155,14 @@ class StitchPreviewCanvas(QWidget):
         scroll.verticalScrollBar().setValue(int(sy - view_y))
 
     def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            # Right-drag pans the preview, like the main canvas.
+            if self._scroll_area is not None:
+                self._panning = True
+                self._pan_last_global_pos = event.globalPos()
+                self.setCursor(Qt.ClosedHandCursor)
+                event.accept()
+                return
         if event.button() != Qt.LeftButton:
             super().mousePressEvent(event)
             return
@@ -160,6 +170,29 @@ class StitchPreviewCanvas(QWidget):
         if index is not None:
             self.point_clicked.emit(index)
         event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._panning and self._pan_last_global_pos is not None:
+            current_pos = event.globalPos()
+            delta = self._pan_last_global_pos - current_pos
+            scroll = self._scroll_area
+            scroll.horizontalScrollBar().setValue(
+                scroll.horizontalScrollBar().value() + delta.x())
+            scroll.verticalScrollBar().setValue(
+                scroll.verticalScrollBar().value() + delta.y())
+            self._pan_last_global_pos = current_pos
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.RightButton and self._panning:
+            self._panning = False
+            self._pan_last_global_pos = None
+            self.setCursor(Qt.ArrowCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def _nearest_selectable(self, sx, sy):
         """Return the index of the closest stitch/section marker within reach.
@@ -395,7 +428,8 @@ class SectionMarkersDialog(QDialog):
         self._auto_center_check.setToolTip(
             self.tr("Scroll the preview so the selected stitch stays centred."))
 
-        hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it."))
+        hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it.")
+                      + "  " + self.tr("Right-drag to pan."))
         hint.setStyleSheet("color: gray;")
 
         self._spins_syncing = False

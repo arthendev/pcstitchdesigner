@@ -213,7 +213,8 @@ class ColorChangeMarkersDialog(QDialog):
         self._auto_center_check.setToolTip(
             self.tr("Scroll the preview so the selected stitch stays centred."))
 
-        hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it."))
+        hint = QLabel(self.tr("Ctrl+scroll to zoom. Click a stitch to select it.")
+                      + "  " + self.tr("Right-drag to pan."))
         hint.setStyleSheet("color: gray;")
 
         self._spins_syncing = False
