@@ -909,8 +909,8 @@ class MainWindow(QMainWindow):
         self._selection_toolbar.addAction(self._act_sel_tb_move_last)
 
         # Selection indices. The numbers are 1-based (the way stitch points are
-        # counted in the UI). A single selected point gets one box; a range shows
-        # "<start> to <end>".
+        # counted in the UI). A single selected point gets one box; a selection
+        # with two or more endpoints shows "<first> to <last>".
         self._sel_spins_syncing = False
         self._sel_start_spin = self._make_selection_spin(
             self.tr("First selected stitch point"))
@@ -1531,21 +1531,26 @@ class MainWindow(QMainWindow):
         indices = self._canvas.get_selected_indices()
         has_selection = bool(indices)
         has_multiple_selection = len(indices) >= 2
-        # An area selection is an explicit set, so the range-only operations
-        # (extend/reduce/shift, invert, paste over the range) stay off.
-        sparse = self._canvas.has_index_selection()
+        # An area selection is an explicit set. It can still drive the range-only
+        # operations (extend/reduce/shift, range editor) when it happens to cover
+        # one unbroken run of stitch points — those operations set a plain range
+        # afterwards, so the set only has to be expressible as one.
+        explicit_set = self._canvas.has_index_selection()
+        continuous = self._canvas.selection_is_continuous()
         start, end = self._canvas.get_selection()
 
         n = len(self._pattern.elements)
         self._act_copy.setEnabled(has_multiple_selection)
         self._act_cut.setEnabled(has_multiple_selection)
-        self._act_paste.setEnabled(self._clipboard_has_pasteable() and not sparse)
+        self._act_paste.setEnabled(
+            self._clipboard_has_pasteable() and not explicit_set)
         self._act_clear_selection.setEnabled(has_selection)
         self._act_delete_selected.setEnabled(has_selection)
-        self._act_invert_selected.setEnabled(has_multiple_selection and not sparse)
+        self._act_invert_selected.setEnabled(
+            has_multiple_selection and not explicit_set)
         self._act_mirror_vertical.setEnabled(has_multiple_selection)
         self._act_mirror_horizontal.setEnabled(has_multiple_selection)
-        range_ops = has_selection and not sparse
+        range_ops = has_selection and continuous
         self._act_sel_extend.setEnabled(range_ops and end < n - 1)
         self._act_sel_reduce.setEnabled(range_ops and has_multiple_selection)
         self._act_sel_move_backward.setEnabled(range_ops and start > 0)
@@ -1563,8 +1568,9 @@ class MainWindow(QMainWindow):
 
         # Index spin boxes mirror the selection (1-based). Colour-change records
         # are not stitch points, so the numbering counts only the coordinate
-        # elements. An area selection is an explicit set, so a range editor
-        # cannot represent it; leave it off.
+        # elements. A scattered area selection shows the numbers of its first
+        # and last stitch so the extent stays readable, but its numbers cannot
+        # be edited: there is no range to grow or shrink.
         coord_indices = self._selectable_stitch_indices()
         numbering = {index: number
                      for number, index in enumerate(coord_indices, start=1)}
@@ -1576,18 +1582,22 @@ class MainWindow(QMainWindow):
                            if end is not None and i <= end), None)
         start_number = numbering.get(first_index)
         end_number = numbering.get(last_index)
-        spins_enabled = has_selection and not sparse and start_number is not None
-        is_range = (spins_enabled and end_number is not None
+        # Visibility follows the number of stitch ends: one stitch gets a single
+        # box, two or more get "<first> to <last>" — sparse or not.
+        show_end = (has_selection and start_number is not None
+                    and end_number is not None
                     and end_number > start_number)
+        spins_enabled = (has_selection and continuous
+                         and start_number is not None)
         self._sel_spins_syncing = True
         try:
             limit = max(1, len(coord_indices))
             # The range ends must never cross: From stops at To, To stops at
             # From, so a value can only shrink the range or grow it outwards.
-            self._sel_start_spin.setMaximum(end_number if is_range else limit)
+            self._sel_start_spin.setMaximum(end_number if show_end else limit)
             self._sel_start_spin.setMinimum(1)
             self._sel_end_spin.setMaximum(limit)
-            self._sel_end_spin.setMinimum(start_number if is_range else 1)
+            self._sel_end_spin.setMinimum(start_number if show_end else 1)
             self._sel_start_spin.setValue(start_number if start_number else 1)
             self._sel_end_spin.setValue(
                 end_number if end_number else (start_number or 1))
@@ -1596,10 +1606,16 @@ class MainWindow(QMainWindow):
         for widget in (self._sel_start_spin, self._sel_to_label,
                        self._sel_end_spin):
             widget.setEnabled(spins_enabled)
-        self._sel_to_label_action.setVisible(is_range)
-        self._sel_end_spin_action.setVisible(is_range)
-        if is_range != self._sel_range_shown:
-            self._sel_range_shown = is_range
+        # The toolbar takes the enabled state of a shown widget action from the
+        # action itself, so the actions have to agree with the widgets — and the
+        # visibility change must come first, or showing the end box re-enables it.
+        self._sel_to_label_action.setVisible(show_end)
+        self._sel_end_spin_action.setVisible(show_end)
+        for action in (self._sel_start_spin_action, self._sel_to_label_action,
+                       self._sel_end_spin_action):
+            action.setEnabled(spins_enabled)
+        if show_end != self._sel_range_shown:
+            self._sel_range_shown = show_end
             if self._selection_toolbar.isVisible():
                 self._update_selection_toolbar_width()
 

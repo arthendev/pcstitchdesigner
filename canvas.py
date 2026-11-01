@@ -785,6 +785,26 @@ class StitchCanvas(QWidget):
             return []
         return list(range(self._selection_start, self._selection_end + 1))
 
+    def selection_is_continuous(self):
+        """True when the selection is one unbroken run of stitch points.
+
+        A range selection is continuous by construction. An explicit set (area
+        selection) is continuous only when it holds every stitch point between
+        its first and its last one — a lasso over a straight section qualifies,
+        a lasso over both passes of a back-and-forth fill does not. Colour
+        records inside the span are no gap: they carry no stitch of their own.
+        """
+        if self._selection_indices is None:
+            return self._selection_start is not None and self._selection_end is not None
+        elements = self.pattern.elements
+        selected = [i for i in sorted(self._selection_indices)
+                    if 0 <= i < len(elements)]
+        if not selected:
+            return False
+        return all(i in self._selection_indices
+                   for i in range(selected[0], selected[-1] + 1)
+                   if elem_has_coords(elements[i]))
+
     def _update_size(self):
         if self._view_orientation == "default":
             w = int(self.pattern.CANVAS_WIDTH * self._scale + 2 * self.MARGIN)
