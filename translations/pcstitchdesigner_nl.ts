@@ -1818,6 +1818,18 @@
         <source>Size: {0} × {1} mm</source>
         <translation>Grootte: {0} × {1} mm</translation>
     </message>
+    <message>
+        <source>Design &amp;Info…</source>
+        <translation>&amp;Ontwerpinformatie…</translation>
+    </message>
+    <message>
+        <source>Embroidery ({0})</source>
+        <translation>Borduurwerk ({0})</translation>
+    </message>
+    <message>
+        <source>Show a summary of the current design</source>
+        <translation>Een overzicht van het huidige ontwerp tonen</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2383,6 +2395,77 @@
     <message>
         <source>to</source>
         <translation>tot</translation>
+    </message>
+</context>
+<context>
+    <name>DesignInfoDialog</name>
+    <message>
+        <source>Color changes:</source>
+        <translation>Kleurwissels:</translation>
+    </message>
+    <message>
+        <source>Color palette:</source>
+        <translation>Kleurenpalet:</translation>
+    </message>
+    <message>
+        <source>Colors used:</source>
+        <translation>Gebruikte kleuren:</translation>
+    </message>
+    <message>
+        <source>Design Info</source>
+        <translation>Ontwerpinformatie</translation>
+    </message>
+    <message>
+        <source>Design size:</source>
+        <translation>Ontwerpformaat:</translation>
+    </message>
+    <message>
+        <source>Design type:</source>
+        <translation>Ontwerptype:</translation>
+    </message>
+    <message>
+        <source>File path:</source>
+        <translation>Bestandspad:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Naam:</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Nog niet opgeslagen</translation>
+    </message>
+    <message>
+        <source>Section markers:</source>
+        <translation>Sectiemarkeringen:</translation>
+    </message>
+    <message>
+        <source>Stitches:</source>
+        <translation>Steken:</translation>
+    </message>
+    <message>
+        <source>Thread colors the design can use</source>
+        <translation>Draadkleuren die het ontwerp kan gebruiken</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>Naamloos</translation>
+    </message>
+    <message>
+        <source>Working area:</source>
+        <translation>Werkgebied:</translation>
+    </message>
+    <message>
+        <source>{0} ({1} normal, {2} automatic)</source>
+        <translation>{0} ({1} normale, {2} automatische)</translation>
+    </message>
+    <message>
+        <source>{0} colors</source>
+        <translation>{0} kleuren</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 </TS>

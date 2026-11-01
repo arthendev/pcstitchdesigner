@@ -1818,6 +1818,18 @@
         <source>Size: {0} × {1} mm</source>
         <translation>Storlek: {0} × {1} mm</translation>
     </message>
+    <message>
+        <source>Design &amp;Info…</source>
+        <translation>Mönster&amp;information…</translation>
+    </message>
+    <message>
+        <source>Embroidery ({0})</source>
+        <translation>Broderi ({0})</translation>
+    </message>
+    <message>
+        <source>Show a summary of the current design</source>
+        <translation>Visa en sammanfattning av aktuellt mönster</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2383,6 +2395,77 @@
     <message>
         <source>to</source>
         <translation>till</translation>
+    </message>
+</context>
+<context>
+    <name>DesignInfoDialog</name>
+    <message>
+        <source>Color changes:</source>
+        <translation>Färgbyten:</translation>
+    </message>
+    <message>
+        <source>Color palette:</source>
+        <translation>Färgpalett:</translation>
+    </message>
+    <message>
+        <source>Colors used:</source>
+        <translation>Använda färger:</translation>
+    </message>
+    <message>
+        <source>Design Info</source>
+        <translation>Mönsterinformation</translation>
+    </message>
+    <message>
+        <source>Design size:</source>
+        <translation>Mönsterstorlek:</translation>
+    </message>
+    <message>
+        <source>Design type:</source>
+        <translation>Mönstertyp:</translation>
+    </message>
+    <message>
+        <source>File path:</source>
+        <translation>Filsökväg:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Namn:</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Inte sparad än</translation>
+    </message>
+    <message>
+        <source>Section markers:</source>
+        <translation>Sektionsmarkeringar:</translation>
+    </message>
+    <message>
+        <source>Stitches:</source>
+        <translation>Stygn:</translation>
+    </message>
+    <message>
+        <source>Thread colors the design can use</source>
+        <translation>Trådfärger som mönstret kan använda</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>Namnlös</translation>
+    </message>
+    <message>
+        <source>Working area:</source>
+        <translation>Arbetsområde:</translation>
+    </message>
+    <message>
+        <source>{0} ({1} normal, {2} automatic)</source>
+        <translation>{0} ({1} normala, {2} automatiska)</translation>
+    </message>
+    <message>
+        <source>{0} colors</source>
+        <translation>{0} färger</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 </TS>

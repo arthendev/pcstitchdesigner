@@ -1818,6 +1818,18 @@
         <source>Size: {0} × {1} mm</source>
         <translation>Размер: {0} × {1} мм</translation>
     </message>
+    <message>
+        <source>Design &amp;Info…</source>
+        <translation>&amp;Информация об узоре…</translation>
+    </message>
+    <message>
+        <source>Embroidery ({0})</source>
+        <translation>Вышивка ({0})</translation>
+    </message>
+    <message>
+        <source>Show a summary of the current design</source>
+        <translation>Показать сводку текущего узора</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2383,6 +2395,77 @@
     <message>
         <source>to</source>
         <translation>по</translation>
+    </message>
+</context>
+<context>
+    <name>DesignInfoDialog</name>
+    <message>
+        <source>Color changes:</source>
+        <translation>Смены цвета:</translation>
+    </message>
+    <message>
+        <source>Color palette:</source>
+        <translation>Палитра цветов:</translation>
+    </message>
+    <message>
+        <source>Colors used:</source>
+        <translation>Использовано цветов:</translation>
+    </message>
+    <message>
+        <source>Design Info</source>
+        <translation>Информация об узоре</translation>
+    </message>
+    <message>
+        <source>Design size:</source>
+        <translation>Размер узора:</translation>
+    </message>
+    <message>
+        <source>Design type:</source>
+        <translation>Тип узора:</translation>
+    </message>
+    <message>
+        <source>File path:</source>
+        <translation>Путь к файлу:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Имя:</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Ещё не сохранено</translation>
+    </message>
+    <message>
+        <source>Section markers:</source>
+        <translation>Маркеры секций:</translation>
+    </message>
+    <message>
+        <source>Stitches:</source>
+        <translation>Стежки:</translation>
+    </message>
+    <message>
+        <source>Thread colors the design can use</source>
+        <translation>Цвета нитей, доступные узору</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>Без имени</translation>
+    </message>
+    <message>
+        <source>Working area:</source>
+        <translation>Рабочая область:</translation>
+    </message>
+    <message>
+        <source>{0} ({1} normal, {2} automatic)</source>
+        <translation>{0} ({1} обычных, {2} автоматических)</translation>
+    </message>
+    <message>
+        <source>{0} colors</source>
+        <translation>{0} цветов</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} мм</translation>
     </message>
 </context>
 </TS>

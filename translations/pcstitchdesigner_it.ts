@@ -1818,6 +1818,18 @@
         <source>Size: {0} × {1} mm</source>
         <translation>Dimensione: {0} × {1} mm</translation>
     </message>
+    <message>
+        <source>Design &amp;Info…</source>
+        <translation>&amp;Informazioni sul disegno…</translation>
+    </message>
+    <message>
+        <source>Embroidery ({0})</source>
+        <translation>Ricamo ({0})</translation>
+    </message>
+    <message>
+        <source>Show a summary of the current design</source>
+        <translation>Mostra un riepilogo del disegno corrente</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2383,6 +2395,77 @@
     <message>
         <source>to</source>
         <translation>a</translation>
+    </message>
+</context>
+<context>
+    <name>DesignInfoDialog</name>
+    <message>
+        <source>Color changes:</source>
+        <translation>Cambi colore:</translation>
+    </message>
+    <message>
+        <source>Color palette:</source>
+        <translation>Palette colori:</translation>
+    </message>
+    <message>
+        <source>Colors used:</source>
+        <translation>Colori usati:</translation>
+    </message>
+    <message>
+        <source>Design Info</source>
+        <translation>Informazioni sul disegno</translation>
+    </message>
+    <message>
+        <source>Design size:</source>
+        <translation>Dimensione del disegno:</translation>
+    </message>
+    <message>
+        <source>Design type:</source>
+        <translation>Tipo di disegno:</translation>
+    </message>
+    <message>
+        <source>File path:</source>
+        <translation>Percorso del file:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Nome:</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Non ancora salvato</translation>
+    </message>
+    <message>
+        <source>Section markers:</source>
+        <translation>Indicatori di sezione:</translation>
+    </message>
+    <message>
+        <source>Stitches:</source>
+        <translation>Punti:</translation>
+    </message>
+    <message>
+        <source>Thread colors the design can use</source>
+        <translation>Colori del filo che il disegno può usare</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>Senza titolo</translation>
+    </message>
+    <message>
+        <source>Working area:</source>
+        <translation>Area di lavoro:</translation>
+    </message>
+    <message>
+        <source>{0} ({1} normal, {2} automatic)</source>
+        <translation>{0} ({1} normali, {2} automatici)</translation>
+    </message>
+    <message>
+        <source>{0} colors</source>
+        <translation>{0} colori</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 </TS>

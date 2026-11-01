@@ -1818,6 +1818,18 @@
         <source>Size: {0} × {1} mm</source>
         <translation>Størrelse: {0} × {1} mm</translation>
     </message>
+    <message>
+        <source>Design &amp;Info…</source>
+        <translation>Design-&amp;info…</translation>
+    </message>
+    <message>
+        <source>Embroidery ({0})</source>
+        <translation>Broderi ({0})</translation>
+    </message>
+    <message>
+        <source>Show a summary of the current design</source>
+        <translation>Vis en oversigt over det aktuelle design</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2383,6 +2395,77 @@
     <message>
         <source>to</source>
         <translation>til</translation>
+    </message>
+</context>
+<context>
+    <name>DesignInfoDialog</name>
+    <message>
+        <source>Color changes:</source>
+        <translation>Farveskift:</translation>
+    </message>
+    <message>
+        <source>Color palette:</source>
+        <translation>Farvepalet:</translation>
+    </message>
+    <message>
+        <source>Colors used:</source>
+        <translation>Brugte farver:</translation>
+    </message>
+    <message>
+        <source>Design Info</source>
+        <translation>Designinfo</translation>
+    </message>
+    <message>
+        <source>Design size:</source>
+        <translation>Designstørrelse:</translation>
+    </message>
+    <message>
+        <source>Design type:</source>
+        <translation>Designtype:</translation>
+    </message>
+    <message>
+        <source>File path:</source>
+        <translation>Filsti:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Navn:</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Endnu ikke gemt</translation>
+    </message>
+    <message>
+        <source>Section markers:</source>
+        <translation>Sektionsmarkeringer:</translation>
+    </message>
+    <message>
+        <source>Stitches:</source>
+        <translation>Sting:</translation>
+    </message>
+    <message>
+        <source>Thread colors the design can use</source>
+        <translation>Trådfarver, som designet kan bruge</translation>
+    </message>
+    <message>
+        <source>Untitled</source>
+        <translation>Uden titel</translation>
+    </message>
+    <message>
+        <source>Working area:</source>
+        <translation>Arbejdsområde:</translation>
+    </message>
+    <message>
+        <source>{0} ({1} normal, {2} automatic)</source>
+        <translation>{0} ({1} normale, {2} automatiske)</translation>
+    </message>
+    <message>
+        <source>{0} colors</source>
+        <translation>{0} farver</translation>
+    </message>
+    <message>
+        <source>{0} × {1} mm</source>
+        <translation>{0} × {1} mm</translation>
     </message>
 </context>
 </TS>
