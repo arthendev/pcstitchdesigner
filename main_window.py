@@ -1035,10 +1035,11 @@ class MainWindow(QMainWindow):
         """The tools that work from the selection and keep its toolbar up.
 
         Move belongs here because it drags the selected points as a block and
-        its Ctrl+arrow keys step the selection.
+        its Ctrl+arrow keys step the selection; Add belongs here because the
+        new stitch is inserted relative to the selected point or range.
         """
         return (self._select_tool, self._select_section_tool,
-                self._select_area_tool, self._move_tool)
+                self._select_area_tool, self._add_tool, self._move_tool)
 
     def _tool_shows_selection_toolbar(self):
         """True when the active tool keeps the selection toolbar on screen."""
