@@ -15,25 +15,7 @@ from PyQt5.QtWidgets import (
 
 import file_io
 from config import Config
-from model import ELEM_COLOR, ELEM_STITCH, elem_has_coords, is_embroidery_type
-
-
-def _used_color_count(pattern):
-    """Return how many distinct thread colours the stitches actually use.
-
-    Colour changes are anchors, not stitches: stitches before the first change
-    use palette index 0, and a change may switch back to an index used earlier,
-    so each index counts once. Section markers are not transmitted to the
-    machine, so they do not use a thread.
-    """
-    current = 0
-    used = set()
-    for elem in pattern.elements:
-        if elem[0] == ELEM_COLOR:
-            current = elem[1]
-        elif elem[0] == ELEM_STITCH:
-            used.add(current)
-    return len(used)
+from model import ELEM_COLOR, elem_has_coords, is_embroidery_type
 
 
 class PatternPreviewWidget(QWidget):
@@ -248,10 +230,10 @@ class PatternBrowserDialog(QFileDialog):
                         else pattern.stitch_type)
         info_text = (
             self.tr("Type: {0}").format(design_class)
-            + self.tr(", Elements: {0}").format(len(pattern.elements))
+            + ", " + self.tr("Stitches: {0}").format(pattern.stitch_count())
         )
         if pattern.has_palette:
-            info_text += self.tr(", Colors: {0}").format(_used_color_count(pattern))
+            info_text += self.tr(", Colors: {0}").format(pattern.used_color_count())
         self._info_label.setText(info_text)
 
     @staticmethod

@@ -608,6 +608,37 @@ class StitchPattern:
         """Backward-compatible alias for get_color_at."""
         return self.get_color_at(i)
 
+    def used_color_count(self):
+        """Return how many distinct thread colours the stitches actually use.
+
+        Colour changes are anchors, not stitches: stitches before the first
+        change use palette index 0, and a change may switch back to an index
+        used earlier, so each index counts once. Section markers are not
+        transmitted to the machine, so they do not use a thread.
+        """
+        current = 0
+        used = set()
+        for elem in self.elements:
+            if elem[0] == ELEM_COLOR:
+                current = elem[1]
+            elif elem[0] == ELEM_STITCH:
+                used.add(current)
+        return len(used)
+
+    def auto_stitch_count(self):
+        """Return how many of the stitches are generated automatically."""
+        return sum(1 for e in self._display_elements if e[0] == ELEM_AUTO)
+
+    def stitch_count(self):
+        """Return the number of stitches the machine will sew.
+
+        This is the figure the status bar reports: every element carrying
+        coordinates in the base layer (section markers included, as they are
+        needle positions) plus the auto-stitches generated between them.
+        """
+        base = sum(1 for e in self.elements if elem_has_coords(e))
+        return base + self.auto_stitch_count()
+
     def set_palette_color(self, index, rgb):
         """Change one thread-color palette entry, undoably.
 

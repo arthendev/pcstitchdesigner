@@ -168,20 +168,24 @@ class MainWindow(QMainWindow):
         self._tool_label = QLabel(self.tr("Tool: -"))
         self._coord_label = QLabel("x: - y: -")
         self._design_type_label = QLabel()
-        self._size_label = QLabel("Size: -")
+        self._size_label = QLabel(self.tr("Size: -"))
+        self._colors_label = QLabel()
         self._count_label = QLabel(self.tr("Stitches: {0}").format(0))
         self.statusBar().addWidget(self._tool_label)
         self.statusBar().addPermanentWidget(self._coord_label)
         self.statusBar().addPermanentWidget(self._size_label)
+        self.statusBar().addPermanentWidget(self._colors_label)
         self.statusBar().addPermanentWidget(self._count_label)
         self.statusBar().addPermanentWidget(self._design_type_label)
 
         # Add more space between elements in the status bar
         for label in (self._tool_label, self._coord_label,
                       self._design_type_label, 
-                      self._size_label, self._count_label):
+                      self._size_label, self._colors_label,
+                      self._count_label):
             label.setContentsMargins(10, 0, 10, 0)
         self._update_design_type_label()
+        self._update_colors_label()
 
         self._build_actions()
         self._build_menus()
@@ -1285,6 +1289,18 @@ class MainWindow(QMainWindow):
             self.tr("Type: {0}").format(
                 self._design_type_name(self._pattern.stitch_type)))
 
+    def _update_colors_label(self):
+        """Show how many thread colours the design uses (embroidery only).
+
+        9 mm / MAXI patterns are stitched in the machine's own thread, so they
+        have no palette and the field is hidden for them.
+        """
+        is_embroidery = self._is_embroidery_type()
+        self._colors_label.setVisible(is_embroidery)
+        if is_embroidery:
+            self._colors_label.setText(
+                self.tr("Colors: {0}").format(self._pattern.used_color_count()))
+
     # ── Design-type dependent UI ──
 
     def _design_type_allows(self, target):
@@ -1472,25 +1488,21 @@ class MainWindow(QMainWindow):
         self._coord_label.setText(f"{coord_str}  ({cx_mm:.2f} mm, {cy_mm:.2f} mm)")
 
     def _on_pattern_changed(self):
-        stitch_count = sum(1 for e in self._pattern.elements if elem_has_coords(e))
-        auto_count = sum(1 for e in self._pattern.display_elements if e[0] == ELEM_AUTO)
-        total = stitch_count + auto_count
-        count_label = self.tr("Stitches: {0}").format(total) + (
+        auto_count = self._pattern.auto_stitch_count()
+        count_label = self.tr("Stitches: {0}").format(
+            self._pattern.stitch_count()) + (
             self.tr(" ({0} auto)").format(auto_count) if auto_count else ""
         )
         self._update_design_type_label()
         x_mm, y_mm = self._pattern.get_stitch_size_mm()
         if x_mm or y_mm:
-            self._size_label.setText(f"Size: {x_mm:.1f} × {y_mm:.1f} mm")
+            size_text = self.tr("Size: {0} × {1} mm").format(
+                f"{x_mm:.1f}", f"{y_mm:.1f}")
         else:
-            self._size_label.setText("Size: -")
+            size_text = self.tr("Size: -")
 
-        if self._is_embroidery_type():
-            # Embroidery designs are stitched in thread colours, so the number
-            # of colour changes matters as much as the design size.
-            changes = sum(1 for e in self._pattern.elements if e[0] == ELEM_COLOR)
-            count_label += ", " + self.tr("color changes: {0}").format(changes)
-            
+        self._size_label.setText(size_text)
+        self._update_colors_label()
         self._count_label.setText(count_label)
         self._update_title()
         self._update_undo_redo_state()
