@@ -1787,10 +1787,6 @@
         <translation>Typ: {0}</translation>
     </message>
     <message>
-        <source>color changes: {0}</source>
-        <translation>färgbyten: {0}</translation>
-    </message>
-    <message>
         <source>to</source>
         <translation>till</translation>
     </message>
@@ -1809,6 +1805,18 @@
     <message>
         <source>Center &amp;design</source>
         <translation>&amp;Centrera mönstret</translation>
+    </message>
+    <message>
+        <source>Colors: {0}</source>
+        <translation>Färger: {0}</translation>
+    </message>
+    <message>
+        <source>Size: -</source>
+        <translation>Storlek: -</translation>
+    </message>
+    <message>
+        <source>Size: {0} × {1} mm</source>
+        <translation>Storlek: {0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1957,10 +1965,6 @@
         <translation>Typ: {0}</translation>
     </message>
     <message>
-        <source>, Elements: {0}</source>
-        <translation>, Element: {0}</translation>
-    </message>
-    <message>
         <source>, Colors: {0}</source>
         <translation>, Färger: {0}</translation>
     </message>
@@ -1987,6 +1991,10 @@
     <message>
         <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
         <translation>Stygnfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Stitches: {0}</source>
+        <translation>Stygn: {0}</translation>
     </message>
 </context>
 <context>

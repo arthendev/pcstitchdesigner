@@ -1787,10 +1787,6 @@
         <translation>Tipo: {0}</translation>
     </message>
     <message>
-        <source>color changes: {0}</source>
-        <translation>cambios de color: {0}</translation>
-    </message>
-    <message>
         <source>to</source>
         <translation>a</translation>
     </message>
@@ -1809,6 +1805,18 @@
     <message>
         <source>Center &amp;design</source>
         <translation>&amp;Centrar el diseño</translation>
+    </message>
+    <message>
+        <source>Colors: {0}</source>
+        <translation>Colores: {0}</translation>
+    </message>
+    <message>
+        <source>Size: -</source>
+        <translation>Tamaño: -</translation>
+    </message>
+    <message>
+        <source>Size: {0} × {1} mm</source>
+        <translation>Tamaño: {0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1957,10 +1965,6 @@
         <translation>Tipo: {0}</translation>
     </message>
     <message>
-        <source>, Elements: {0}</source>
-        <translation>, Elementos: {0}</translation>
-    </message>
-    <message>
         <source>, Colors: {0}</source>
         <translation>, Colores: {0}</translation>
     </message>
@@ -1987,6 +1991,10 @@
     <message>
         <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
         <translation>Archivos de puntadas (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Stitches: {0}</source>
+        <translation>Puntadas: {0}</translation>
     </message>
 </context>
 <context>

@@ -1787,10 +1787,6 @@
         <translation>Тип: {0}</translation>
     </message>
     <message>
-        <source>color changes: {0}</source>
-        <translation>смены цвета: {0}</translation>
-    </message>
-    <message>
         <source>to</source>
         <translation>по</translation>
     </message>
@@ -1809,6 +1805,18 @@
     <message>
         <source>Center &amp;design</source>
         <translation>&amp;Центрировать рисунок</translation>
+    </message>
+    <message>
+        <source>Colors: {0}</source>
+        <translation>Цвета: {0}</translation>
+    </message>
+    <message>
+        <source>Size: -</source>
+        <translation>Размер: -</translation>
+    </message>
+    <message>
+        <source>Size: {0} × {1} mm</source>
+        <translation>Размер: {0} × {1} мм</translation>
     </message>
 </context>
 <context>
@@ -1957,10 +1965,6 @@
         <translation>Тип: {0}</translation>
     </message>
     <message>
-        <source>, Elements: {0}</source>
-        <translation>, элементов: {0}</translation>
-    </message>
-    <message>
         <source>, Colors: {0}</source>
         <translation>, цветов: {0}</translation>
     </message>
@@ -1987,6 +1991,10 @@
     <message>
         <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
         <translation>Файлы узоров (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Stitches: {0}</source>
+        <translation>Стежки: {0}</translation>
     </message>
 </context>
 <context>

@@ -1787,10 +1787,6 @@
         <translation>Type: {0}</translation>
     </message>
     <message>
-        <source>color changes: {0}</source>
-        <translation>farveskift: {0}</translation>
-    </message>
-    <message>
         <source>to</source>
         <translation>til</translation>
     </message>
@@ -1809,6 +1805,18 @@
     <message>
         <source>Center &amp;design</source>
         <translation>Centrér &amp;designet</translation>
+    </message>
+    <message>
+        <source>Colors: {0}</source>
+        <translation>Farver: {0}</translation>
+    </message>
+    <message>
+        <source>Size: -</source>
+        <translation>Størrelse: -</translation>
+    </message>
+    <message>
+        <source>Size: {0} × {1} mm</source>
+        <translation>Størrelse: {0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1957,10 +1965,6 @@
         <translation>Type: {0}</translation>
     </message>
     <message>
-        <source>, Elements: {0}</source>
-        <translation>, Elementer: {0}</translation>
-    </message>
-    <message>
         <source>, Colors: {0}</source>
         <translation>, Farver: {0}</translation>
     </message>
@@ -1987,6 +1991,10 @@
     <message>
         <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
         <translation>Stingfiler (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Stitches: {0}</source>
+        <translation>Sting: {0}</translation>
     </message>
 </context>
 <context>

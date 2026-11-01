@@ -1787,10 +1787,6 @@
         <translation>Type: {0}</translation>
     </message>
     <message>
-        <source>color changes: {0}</source>
-        <translation>kleurwissels: {0}</translation>
-    </message>
-    <message>
         <source>to</source>
         <translation>tot</translation>
     </message>
@@ -1809,6 +1805,18 @@
     <message>
         <source>Center &amp;design</source>
         <translation>Ontwerp &amp;centreren</translation>
+    </message>
+    <message>
+        <source>Colors: {0}</source>
+        <translation>Kleuren: {0}</translation>
+    </message>
+    <message>
+        <source>Size: -</source>
+        <translation>Grootte: -</translation>
+    </message>
+    <message>
+        <source>Size: {0} × {1} mm</source>
+        <translation>Grootte: {0} × {1} mm</translation>
     </message>
 </context>
 <context>
@@ -1957,10 +1965,6 @@
         <translation>Type: {0}</translation>
     </message>
     <message>
-        <source>, Elements: {0}</source>
-        <translation>, Elementen: {0}</translation>
-    </message>
-    <message>
         <source>, Colors: {0}</source>
         <translation>, Kleuren: {0}</translation>
     </message>
@@ -1987,6 +1991,10 @@
     <message>
         <source>Stitch Files (*.pcd *.pcq *.9mm *.max)</source>
         <translation>Steekbestanden (*.pcd *.pcq *.9mm *.max)</translation>
+    </message>
+    <message>
+        <source>Stitches: {0}</source>
+        <translation>Steken: {0}</translation>
     </message>
 </context>
 <context>
