@@ -31,6 +31,7 @@ from cardmemory_dialog import CardMemoryDialog
 from section_markers_dialog import SectionMarkersDialog
 from color_change_dialog import ColorChangeMarkersDialog
 from palette_editor_dialog import PaletteEditorDialog
+from design_info_dialog import DesignInfoDialog
 from animation_window import AnimationWindow
 from browser_dialog import PatternBrowserDialog
 from color_palette_bar import ColorPaletteBar
@@ -688,6 +689,13 @@ class MainWindow(QMainWindow):
         self._act_template_edit_cancel.setToolTip(self.tr("Cancel changes"))
         self._act_template_edit_cancel.triggered.connect(self._template_edit_cancel)
 
+        # Design – Design Info (available for every design type)
+        self._act_design_info = QAction(
+            QIcon(os.path.join(_icons, "info.svg")), self.tr("Design &Info…"), self)
+        self._act_design_info.setToolTip(
+            self.tr("Show a summary of the current design"))
+        self._act_design_info.triggered.connect(self._design_info)
+
         # Machine
         self._act_machine_load_pmem = QAction(self.tr("Load P-Memory"), self)
         self._act_machine_load_pmem.triggered.connect(self._machine_load_pmemory)
@@ -844,6 +852,8 @@ class MainWindow(QMainWindow):
         template_menu.addAction(self._act_template_resize)
         template_menu.addSeparator()
         template_menu.addAction(self._act_template_delete)
+        design_menu.addSeparator()
+        design_menu.addAction(self._act_design_info)
 
         machine_menu = mb.addMenu(self.tr("&Machine"))
         machine_menu.addAction(self._act_machine_load_pmem)
@@ -900,6 +910,8 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_animate)
         tb.addSeparator()
         tb.addAction(self._act_preferences)
+        tb.addSeparator()
+        tb.addAction(self._act_design_info)
 
         # Compact template-editing toolbar (shown only in resize/rotate mode)
         self.addToolBarBreak(Qt.TopToolBarArea)
@@ -1649,13 +1661,20 @@ class MainWindow(QMainWindow):
             if self._selection_toolbar.isVisible():
                 self._update_selection_toolbar_width()
 
-    def _update_title(self):
+    def _pattern_display_name(self):
+        """Return the name of the current pattern for the title and dialogs.
+
+        A pattern read from the machine has no file of its own, so the name the
+        machine reported stands in for the file name.
+        """
         if self._file_path:
-            name = os.path.basename(self._file_path)
-        elif self._machine_pattern_name:
-            name = self._machine_pattern_name
-        else:
-            name = self.tr("Untitled")
+            return os.path.basename(self._file_path)
+        if self._machine_pattern_name:
+            return self._machine_pattern_name
+        return self.tr("Untitled")
+
+    def _update_title(self):
+        name = self._pattern_display_name()
         mod = " *" if self._pattern.modified else ""
         self.setWindowTitle(f"{name}{mod} - PC Stitch Designer")
 
@@ -3454,6 +3473,21 @@ class MainWindow(QMainWindow):
         self._sync_auto_stitch_point_visibility()
 
     # ── Design ──
+
+    def _design_info(self):
+        """Show a read-only summary of the current design."""
+        design_type = self._design_type_name(self._pattern.stitch_type)
+        if self._is_embroidery_type():
+            # The hoop tells the machine which working area applies, so it is
+            # part of the design type for embroidery patterns.
+            design_type = self.tr("Embroidery ({0})").format(design_type)
+        dlg = DesignInfoDialog(
+            self._pattern, design_type,
+            file_path=self._file_path,
+            name=self._pattern_display_name(),
+            parent=self,
+        )
+        dlg.exec_()
 
     def _design_remove_auto_stitches(self):
         if not self._pattern.has_auto_stitches:

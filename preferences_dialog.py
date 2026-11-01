@@ -48,8 +48,12 @@ def _color_icon(hex_color: str, size: int = 20) -> QIcon:
     return QIcon(px)
 
 
-def _palette_strip(colors, swatch_width: int = 13, height: int = 16) -> QPixmap:
-    """Return one solid swatch per palette entry, laid out side by side."""
+def palette_strip(colors, swatch_width: int = 13, height: int = 16) -> QPixmap:
+    """Return one solid swatch per palette entry, laid out side by side.
+
+    Used wherever a palette has to be shown at a glance — the default palette in
+    the preferences and the thread palette in the design info dialog.
+    """
     strip = QPixmap(swatch_width * len(colors), height)
     strip.fill(QColor("#ffffff"))
     painter = QPainter(strip)
@@ -491,7 +495,7 @@ class DisplayTab(QWidget):
     def _update_palette_preview(self):
         """Show the thread colours of the selected default palette."""
         self._palette_preview.setPixmap(
-            _palette_strip(PALETTES[self._palette_combo.currentData()]))
+            palette_strip(PALETTES[self._palette_combo.currentData()]))
 
     def _restore_defaults(self):
         self._line_color_btn.set_color(STITCH_DISPLAY_DEFAULTS["line_color"])
