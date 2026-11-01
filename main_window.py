@@ -3398,7 +3398,7 @@ class MainWindow(QMainWindow):
             self.tr(
                 "The design is larger than one card segment (32 kB) and does not fit into a single memory card slot."
                 ) + "\n" +
-                self.tr("It can be split into {1} parts, each stored as a separate pattern on the card.").format(part_count) + "\n\n" +
+                self.tr("It can be split into {0} parts, each stored as a separate pattern on the card.").format(part_count) + "\n\n" +
                 self.tr("Do you want to split the design?"),
             QMessageBox.Ok | QMessageBox.Cancel,
             QMessageBox.Ok,

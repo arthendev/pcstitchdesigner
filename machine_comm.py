@@ -2806,11 +2806,14 @@ class MachineComm:
         parts share everything that places the design in the hoop, so the
         machine stitches them as one design.
 
-        The split points are chosen for the user: colour changes are where a
-        design is easiest to re-hoop, so the parts follow the colour changes
-        while that needs at most two segments, or while it uses the first
-        segment at least :attr:`CARD_SPLIT_MIN_FILL`.  Otherwise each segment is
-        filled with as many stitches as it holds, which wastes the least card
+        The split points are chosen for the user.  A colour change is the best
+        place to cut - the parts are easiest to re-hoop afterwards - so the parts
+        follow the colour changes while that needs at most two segments, or
+        while it uses the first segment at least :attr:`CARD_SPLIT_MIN_FILL`.
+        If that does not pay off, the cut moves to an absolute position record
+        (``80 2E``), where the design re-anchors the needle anyway, and the same
+        fill rule is checked again.  Only when neither works are the segments
+        filled with as many stitches as they hold, which wastes the least card
         space.
 
         Args:
@@ -2852,6 +2855,7 @@ class MachineComm:
         # Candidate splits are sized from the payload structure, so testing one
         # costs nothing beyond the preview block count.
         payload_size = MachineComm._embroidery_size_model(values, sections, bool(colours))
+        resync_points = MachineComm._embroidery_resync_points(values)
 
         def preview_block_count(start, end):
             used = set(point_colours[start:end + 1])
@@ -2868,7 +2872,8 @@ class MachineComm:
         elif not allow_split:
             raise self._card_too_large_error(part_size(0, last, 0))
         else:
-            ranges = MachineComm._plan_embroidery_ranges(len(values), sections, part_size)
+            ranges = MachineComm._plan_embroidery_ranges(
+                len(values), sections, resync_points, part_size)
 
         # Every part's thumbnails show the same area, so the parts of a split
         # design stay comparable and each keeps its place in the picture.
@@ -2929,12 +2934,22 @@ class MachineComm:
         return name.encode('latin-1', errors='replace') + b'\x00'
 
     @staticmethod
-    def _plan_embroidery_ranges(point_count, sections, part_size):
+    def _plan_embroidery_ranges(point_count, sections, resync_points, part_size):
         """Return the inclusive ranges that split a design into card parts.
+
+        The strategies are tried in the order that costs the user least.  A
+        colour change is the best cut, so a colour plan is kept while it needs at
+        most two segments or fills the first one at least
+        :attr:`CARD_SPLIT_MIN_FILL`.  Next come the points whose record is an
+        absolute position (``80 2E``): the design already re-anchors the needle
+        there, so cutting there costs no stitch continuity - that plan is judged
+        by the same fill rule.  Only when neither works are the segments filled
+        with as many stitches as they take.
 
         Args:
             point_count (int): Number of design points.
             sections (list[tuple[int, int]]): Colour sections of the design.
+            resync_points (set[int]): Indices whose record is an absolute resync.
             part_size: ``(start, end, part_index)`` callable returning the
                 transfer size of a part holding points ``start…end``.
 
@@ -2943,12 +2958,31 @@ class MachineComm:
                 :meth:`_plan_fill_ranges`).
         """
         colour_ranges = MachineComm._plan_colour_ranges(point_count, sections, part_size)
-        if colour_ranges is not None:
-            first_fill = (part_size(colour_ranges[0][0], colour_ranges[0][1], 0)
-                          / MachineComm.CARD_MAX_PAYLOAD)
-            if len(colour_ranges) <= 2 or first_fill >= MachineComm.CARD_SPLIT_MIN_FILL:
-                return colour_ranges
+        if MachineComm._split_plan_fills_first_segment(colour_ranges, part_size):
+            return colour_ranges
+
+        resync_ranges = MachineComm._plan_resync_ranges(point_count, resync_points,
+                                                        part_size)
+        if MachineComm._split_plan_fills_first_segment(resync_ranges, part_size):
+            return resync_ranges
+
         return MachineComm._plan_fill_ranges(point_count, sections, part_size)
+
+    @staticmethod
+    def _split_plan_fills_first_segment(ranges, part_size):
+        """Return True when *ranges* is usable and worth keeping.
+
+        A plan needing at most two segments is always accepted; a longer plan
+        only when its first segment carries at least
+        :attr:`CARD_SPLIT_MIN_FILL` of the slot, because otherwise it wastes card
+        space that filling the segments would save.
+        """
+        if ranges is None:
+            return False
+        if len(ranges) <= 2:
+            return True
+        first = part_size(ranges[0][0], ranges[0][1], 0)
+        return first >= MachineComm.CARD_SPLIT_MIN_FILL * MachineComm.CARD_MAX_PAYLOAD
 
     @staticmethod
     def _plan_colour_ranges(point_count, sections, part_size):
@@ -2957,7 +2991,28 @@ class MachineComm:
         Each part takes the largest number of whole colour sections that still
         fits one segment, so every part ends on a finished thread colour.
         """
-        change_starts = [start for start, _colour in sections[1:]]
+        return MachineComm._plan_breakpoint_ranges(
+            point_count, [start for start, _colour in sections[1:]], part_size)
+
+    @staticmethod
+    def _plan_resync_ranges(point_count, resync_points, part_size):
+        """Split only at absolute position records; ``None`` when impossible.
+
+        The payload writes ``80 2E`` when a step is too large for two bytes, so
+        the needle is re-anchored absolutely at that point anyway; starting a
+        part there leaves the stitch stream of the design untouched.
+        """
+        return MachineComm._plan_breakpoint_ranges(
+            point_count, sorted(resync_points), part_size)
+
+    @staticmethod
+    def _plan_breakpoint_ranges(point_count, breakpoints, part_size):
+        """Split only at *breakpoints*; ``None`` when a part must be cut elsewhere.
+
+        Each part takes as many whole spans between breakpoints as still fit one
+        segment, so every cut lands on a point the design already treats as a
+        fresh start.
+        """
         ranges = []
         start = 0
         while start < point_count:
@@ -2967,16 +3022,16 @@ class MachineComm:
                 ranges.append((start, last))
                 break
             end = None
-            for change in change_starts:
-                if change <= start:
+            for breakpoint in breakpoints:
+                if breakpoint <= start:
                     continue
-                # A part grows with every point it holds, so once a change does
-                # not fit, no later one can either.
-                if part_size(start, change - 1, index) > MachineComm.CARD_MAX_PAYLOAD:
+                # A part grows with every point it holds, so once a breakpoint
+                # does not fit, no later one can either.
+                if part_size(start, breakpoint - 1, index) > MachineComm.CARD_MAX_PAYLOAD:
                     break
-                end = change - 1
+                end = breakpoint - 1
             if end is None:
-                return None         # the next part has to be cut mid-colour
+                return None         # the next part has to be cut inside a span
             ranges.append((start, end))
             start = end + 1
         return ranges
@@ -3081,6 +3136,24 @@ class MachineComm:
         return sliced
 
     @staticmethod
+    def _embroidery_resync_points(values):
+        """Return the indices whose payload record is an absolute position.
+
+        The builder writes ``80 2E <y> <x> 80`` instead of a two-byte step when
+        the jump is larger than 127 units on either axis, so the needle is
+        re-anchored absolutely at that point.  Starting a card part there leaves
+        the stitch stream untouched, which makes these points a good place to
+        cut a design when no colour change fits.
+        """
+        resync_points = set()
+        for index in range(1, len(values)):
+            dy = values[index][1] - values[index - 1][1]
+            dx = values[index][0] - values[index - 1][0]
+            if not (-127 <= dy <= 127 and -127 <= dx <= 127):
+                resync_points.add(index)
+        return resync_points
+
+    @staticmethod
     def _embroidery_size_model(values, sections, has_colour_table):
         """Return a ``(start, end) -> payload size`` function for card parts.
 
@@ -3092,14 +3165,13 @@ class MachineComm:
         that ends, i.e. to the point *before* the section start.
         """
         change_starts = {start for start, _colour in sections[1:]}
+        resync_points = MachineComm._embroidery_resync_points(values)
         plain = [0] * len(values)
         prefix = [0] * (len(values) + 1)
         for index in range(1, len(values)):
-            dy = values[index][1] - values[index - 1][1]
-            dx = values[index][0] - values[index - 1][0]
-            plain[index] = (MachineComm.EMBROIDERY_STEP_RECORD_SIZE
-                            if -127 <= dy <= 127 and -127 <= dx <= 127
-                            else MachineComm.EMBROIDERY_ABS_RECORD_SIZE)
+            plain[index] = (MachineComm.EMBROIDERY_ABS_RECORD_SIZE
+                            if index in resync_points
+                            else MachineComm.EMBROIDERY_STEP_RECORD_SIZE)
             prefix[index + 1] = prefix[index] + (
                 MachineComm.EMBROIDERY_COLOUR_BLOCK_SIZE
                 if index + 1 in change_starts else plain[index])
