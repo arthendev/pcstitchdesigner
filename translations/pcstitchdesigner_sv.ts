@@ -306,6 +306,18 @@
         <translation>DST-filen innehåller inga stygn</translation>
     </message>
     <message>
+        <source>The JEF file contains no stitches</source>
+        <translation>JEF-filen innehåller inga stygn</translation>
+    </message>
+    <message>
+        <source>Unsupported JEF command 0x{0:02X}; reading stopped</source>
+        <translation>JEF-kommando 0x{0:02X} stöds inte; läsningen avbröts</translation>
+    </message>
+    <message>
+        <source>The JEF file ends in the middle of a stitch record</source>
+        <translation>JEF-filen slutar mitt i en stygnpost</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Oväntade avslutande byte i slutet av DST-filen</translation>
     </message>
@@ -1355,8 +1367,8 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Broderifiler (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1555,8 +1567,8 @@
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1735,10 +1747,6 @@
         <translation>Filen kan inte öppnas.</translation>
     </message>
     <message>
-        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
-        <translation>Filen definierar {0} trådfärger, men ett broderimönster för Creative 7500-serien behöver {1}.</translation>
-    </message>
-    <message>
         <source>The file does not define a thread palette.</source>
         <translation>Filen definierar ingen trådpalett.</translation>
     </message>
@@ -1829,6 +1837,10 @@
     <message>
         <source>Show a summary of the current design</source>
         <translation>Visa en sammanfattning av aktuellt mönster</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
+        <translation>Filen definierar {0} trådfärger, men ett PCS-format använder vanligtvis {1}.</translation>
     </message>
 </context>
 <context>
@@ -1945,8 +1957,8 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Broderifiler (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1989,8 +2001,8 @@
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

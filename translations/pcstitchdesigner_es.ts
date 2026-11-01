@@ -306,6 +306,18 @@
         <translation>El archivo DST no contiene puntadas</translation>
     </message>
     <message>
+        <source>The JEF file contains no stitches</source>
+        <translation>El archivo JEF no contiene puntadas</translation>
+    </message>
+    <message>
+        <source>Unsupported JEF command 0x{0:02X}; reading stopped</source>
+        <translation>Comando JEF no admitido 0x{0:02X}; se detuvo la lectura</translation>
+    </message>
+    <message>
+        <source>The JEF file ends in the middle of a stitch record</source>
+        <translation>El archivo JEF termina en medio de un registro de puntada</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Bytes finales inesperados al final del archivo DST</translation>
     </message>
@@ -1355,8 +1367,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Archivos de bordado (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1555,8 +1567,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1735,10 +1747,6 @@
         <translation>No se puede abrir el archivo.</translation>
     </message>
     <message>
-        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
-        <translation>El archivo define {0} colores de hilo, pero un patrón de bordado para la máquina Creative serie 7500 necesita {1}.</translation>
-    </message>
-    <message>
         <source>The file does not define a thread palette.</source>
         <translation>El archivo no define una paleta de hilos.</translation>
     </message>
@@ -1829,6 +1837,10 @@
     <message>
         <source>Show a summary of the current design</source>
         <translation>Mostrar un resumen del diseño actual</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
+        <translation>El archivo define {0} colores de hilo, pero un formato PCS suele usar {1}.</translation>
     </message>
 </context>
 <context>
@@ -1945,8 +1957,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Archivos de bordado (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1989,8 +2001,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

@@ -306,6 +306,18 @@
         <translation>Файл DST не содержит стежков</translation>
     </message>
     <message>
+        <source>The JEF file contains no stitches</source>
+        <translation>Файл JEF не содержит стежков</translation>
+    </message>
+    <message>
+        <source>Unsupported JEF command 0x{0:02X}; reading stopped</source>
+        <translation>Неподдерживаемая команда JEF 0x{0:02X}; чтение остановлено</translation>
+    </message>
+    <message>
+        <source>The JEF file ends in the middle of a stitch record</source>
+        <translation>Файл JEF заканчивается посередине записи стежка</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Неожиданные завершающие байты в конце файла DST</translation>
     </message>
@@ -1355,8 +1367,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Файлы вышивки (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1555,8 +1567,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1735,10 +1747,6 @@
         <translation>Не удаётся открыть файл.</translation>
     </message>
     <message>
-        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
-        <translation>Файл задаёт {0} цветов нити, но узору вышивки для машины серии Creative 7500 требуется {1}.</translation>
-    </message>
-    <message>
         <source>The file does not define a thread palette.</source>
         <translation>Файл не задаёт палитру нитей.</translation>
     </message>
@@ -1829,6 +1837,10 @@
     <message>
         <source>Show a summary of the current design</source>
         <translation>Показать сводку текущего узора</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
+        <translation>Файл задаёт {0} цветов нити, но формат PCS обычно использует {1}.</translation>
     </message>
 </context>
 <context>
@@ -1945,8 +1957,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Файлы вышивки (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1989,8 +2001,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

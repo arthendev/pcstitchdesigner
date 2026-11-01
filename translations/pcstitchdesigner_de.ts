@@ -306,6 +306,18 @@
         <translation>Die DST-Datei enthält keine Stiche</translation>
     </message>
     <message>
+        <source>The JEF file contains no stitches</source>
+        <translation>Die JEF-Datei enthält keine Stiche</translation>
+    </message>
+    <message>
+        <source>Unsupported JEF command 0x{0:02X}; reading stopped</source>
+        <translation>Nicht unterstützter JEF-Befehl 0x{0:02X}; Lesen abgebrochen</translation>
+    </message>
+    <message>
+        <source>The JEF file ends in the middle of a stitch record</source>
+        <translation>Die JEF-Datei endet mitten in einem Stichdatensatz</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Unerwartete zusätzliche Bytes am Ende der DST-Datei</translation>
     </message>
@@ -1355,8 +1367,8 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Stickdateiformate (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1555,8 +1567,8 @@
         <translation>9mm-Muster (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1735,10 +1747,6 @@
         <translation>Die Datei kann nicht geöffnet werden.</translation>
     </message>
     <message>
-        <source>The file defines {0} thread colours, but an embroidery pattern for Creative 7500-Series machine needs {1}.</source>
-        <translation>Die Datei definiert {0} Fadenfarben, ein Stickmuster für die Creative-7500-Serie benötigt jedoch {1}.</translation>
-    </message>
-    <message>
         <source>The file does not define a thread palette.</source>
         <translation>Die Datei definiert keine Fadenpalette.</translation>
     </message>
@@ -1829,6 +1837,10 @@
     <message>
         <source>Show a summary of the current design</source>
         <translation>Eine Übersicht des aktuellen Designs anzeigen</translation>
+    </message>
+    <message>
+        <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
+        <translation>Die Datei definiert {0} Fadenfarben, ein PCS-Format enthält jedoch normalerweise {1}.</translation>
     </message>
 </context>
 <context>
@@ -1945,8 +1957,8 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst)</source>
-        <translation>Stickdateiformate (*.pcs *.dst)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1989,8 +2001,8 @@
         <translation>9mm-Muster (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
