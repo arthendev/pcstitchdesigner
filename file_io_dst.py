@@ -193,38 +193,12 @@ def load(path):
 
     color_changes -= _drop_trailing_color_changes(all_elems)
 
-    # Place the design in the smallest hoop that holds it. DST coordinates are
-    # relative to the design origin, so they are shifted to the hoop centre.
-    xs = [e[1] for e in all_elems if e[0] == ELEM_STITCH]
-    ys = [e[2] for e in all_elems if e[0] == ELEM_STITCH]
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-    width = (max_x - min_x) * DST_TO_CANVAS
-    height = (max_y - min_y) * DST_TO_CANVAS
-
-    for candidate in ("small hoop", "large hoop"):
-        canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[candidate]
-        if width <= canvas_w and height <= canvas_h:
-            pattern.stitch_type = candidate
-            break
-    else:
-        # Keep the most of an oversized design visible; the window refuses it
-        # after the hoop-size check so the user sees why.
-        pattern.stitch_type = "large hoop"
-        info.warnings.append(_tr(
-            "Pattern size exceeds all supported stitch types; using large hoop"
-        ))
-    canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[pattern.stitch_type]
-
-    offset_x = round((canvas_w - width) / 2 - min_x * DST_TO_CANVAS)
-    offset_y = round((canvas_h - height) / 2 - min_y * DST_TO_CANVAS)
-    converted = [
-        elem if elem[0] == ELEM_COLOR
-        else (elem[0],
-              elem[1] * DST_TO_CANVAS + offset_x,
-              elem[2] * DST_TO_CANVAS + offset_y)
-        for elem in all_elems
-    ]
+    # DST coordinates are relative to the design origin, so the design is
+    # centred in the smallest hoop that holds it.
+    pattern.stitch_type, converted, warning = file_io.place_in_hoop(
+        all_elems, DST_TO_CANVAS)
+    if warning:
+        info.warnings.append(warning)
 
     info.stitch_type = pattern.stitch_type
     info.stitch_count = stitches
@@ -234,7 +208,6 @@ def load(path):
 
     pattern._load_elements(converted)
     if file_io.DEBUG:
-        print(f"DST design placed in {pattern.stitch_type} at "
-              f"({offset_x}, {offset_y}); {stitches} stitches, "
+        print(f"DST design placed in {pattern.stitch_type}; {stitches} stitches, "
               f"{jumps} jumps, {color_changes} colour changes")
     return pattern, info

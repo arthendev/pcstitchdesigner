@@ -160,14 +160,14 @@ class PatternBrowserDialog(QFileDialog):
         self.resize(1100, 600)
         self.setFileMode(QFileDialog.ExistingFile)
         self.setNameFilters([
-            self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)"),
+            self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)"),
             self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
             self.tr("9mm Stitch Files (*.pcd *.9mm)"),
             self.tr("MAXI Stitch Files (*.pcq *.max)"),
-            self.tr("Embroidery Files (*.pcs *.dst)"),
+            self.tr("Embroidery Files (*.pcs *.dst *.jef)"),
             self.tr("All Files (*)"),
         ])
-        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst)"))
+        self.selectNameFilter(self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)"))
         self.setOption(QFileDialog.DontUseNativeDialog, True)
 
         self._preview_widget = PatternPreviewWidget(self)
@@ -199,7 +199,8 @@ class PatternBrowserDialog(QFileDialog):
             return
 
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".pcd", ".pcq", ".pcs", ".9mm", ".max", ".dst"):
+        if ext not in (".pcd", ".pcq", ".pcs", ".9mm", ".max", ".dst",
+                       ".jef"):
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))
             self._info_label.setText(self.tr("Unsupported file type"))

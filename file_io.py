@@ -10,8 +10,9 @@ the file content, saving from the file extension:
   file_io_pcd_pcq_pcs.py   .pcd, .pcq, .pcs   magic 0x31 / 0x32
   file_io_vcsm_9mm_max.py  .9mm, .max         magic "VCSM"
   file_io_dst.py           .dst               header record "LA:" (import only)
+  file_io_jef.py           .jef               header layout (import only)
 
-Conventions shared by both formats:
+Conventions shared by all formats:
   * Every loader returns ``(pattern, info)``. PatternFileInfo reports what was
     actually read, so callers can compare it with what the header claims.
   * A file that ends before its declared record count is still loaded: the
@@ -28,6 +29,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from PyQt5.QtCore import QCoreApplication
+
+from model import ELEM_STITCH, StitchPattern, elem_has_coords
 
 # DEBUG print
 # 1: print details of each element record
@@ -72,8 +75,10 @@ def load_pattern(path):
     that ends before the header's record count is loaded partially and reported
     through ``info.warnings``.
     """
+    # 0x20 bytes: JEF has no magic number and is recognised from its header
+    # layout, which names the thread table length at 0x18.
     with open(path, 'rb') as f:
-        header = f.read(5)
+        header = f.read(0x20)
     if len(header) < 2:
         raise ValueError(_tr("File too short"))
 
@@ -82,6 +87,7 @@ def load_pattern(path):
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
     import file_io_dst
+    import file_io_jef
 
     if file_io_vcsm_9mm_max.is_format(header):
         return file_io_vcsm_9mm_max.load(path)
@@ -89,6 +95,13 @@ def load_pattern(path):
         return file_io_pcd_pcq_pcs.load(path)
     if file_io_dst.is_format(header):
         return file_io_dst.load(path)
+    if file_io_jef.is_format(header):
+        return file_io_jef.load(path)
+    # JEF writers that pad the header do not match the layout signature, so a
+    # file with the format's own extension is handed to it anyway; the reader
+    # validates the header again.
+    if os.path.splitext(path)[1].lower() in file_io_jef.EXTENSIONS:
+        return file_io_jef.load(path)
     raise ValueError(_tr("Invalid file format"))
 
 
@@ -97,7 +110,7 @@ def save_pattern(path, pattern, info=None, image_data=None):
 
     ``.9mm`` and ``.max`` paths are written by file_io_vcsm_9mm_max.save();
     every other writable extension is written by file_io_pcd_pcq_pcs.save().
-    Import-only formats (DST) raise ValueError — see :func:`can_save`.
+    Import-only formats (DST, JEF) raise ValueError — see :func:`can_save`.
 
     *image_data* is the template preview as a raster image (QPixmap), not
     encoded bytes: the writer that can store an image converts it to whatever
@@ -115,6 +128,55 @@ def save_pattern(path, pattern, info=None, image_data=None):
         file_io_vcsm_9mm_max.save(path, pattern, info=info, image_data=image_data)
     else:
         file_io_pcd_pcq_pcs.save(path, pattern, info=info)
+
+
+def place_in_hoop(elements, scale):
+    """Centre a design stored relative to its own origin in a supported hoop.
+
+    Third-party embroidery files store stitch positions as deltas from the
+    design origin, while the model positions them inside a hoop of fixed size.
+    The smallest hoop that holds the design is chosen and the coordinates are
+    scaled and shifted so the design's bounding box is centred in it.
+
+    Args:
+        elements: ``(type, x, y)`` / ``(ELEM_COLOR, index)`` records in the
+            source format's units, with the design starting at its origin.
+        scale: canvas units (1/6 mm) per source unit.
+
+    Returns:
+        tuple: ``(stitch_type, converted_elements, warning)``. *warning* is a
+        message when the design is larger than every hoop — the large hoop is
+        used so most of it stays visible — and None otherwise.
+    """
+    xs = [e[1] for e in elements if e[0] == ELEM_STITCH]
+    ys = [e[2] for e in elements if e[0] == ELEM_STITCH]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    width = (max_x - min_x) * scale
+    height = (max_y - min_y) * scale
+
+    warning = None
+    for candidate in ("small hoop", "large hoop"):
+        canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[candidate]
+        if width <= canvas_w and height <= canvas_h:
+            stitch_type = candidate
+            break
+    else:
+        # Keep the most of an oversized design visible; the window refuses it
+        # after the hoop-size check so the user sees why.
+        stitch_type = "large hoop"
+        warning = _tr("Pattern size exceeds all supported stitch types; "
+                      "using large hoop")
+    canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[stitch_type]
+
+    offset_x = round((canvas_w - width) / 2 - min_x * scale)
+    offset_y = round((canvas_h - height) / 2 - min_y * scale)
+    converted = [
+        elem if not elem_has_coords(elem)
+        else (elem[0], elem[1] * scale + offset_x, elem[2] * scale + offset_y)
+        for elem in elements
+    ]
+    return stitch_type, converted, warning
 
 
 def note_max_length(path):
@@ -139,15 +201,19 @@ def palette_size(path):
     different number of colors cannot be written before the palette is
     adjusted. The VCSM formats (.9mm/.max) store one thread color and no
     palette, so they impose no size; this returns None for them. DST carries
-    no colour table either, so it returns None as well.
+    no colour table, and a JEF file holds only the threads it uses, so both
+    return None as well.
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
     import file_io_dst
+    import file_io_jef
 
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         return None
     if os.path.splitext(path)[1].lower() in file_io_dst.EXTENSIONS:
+        return None
+    if os.path.splitext(path)[1].lower() in file_io_jef.EXTENSIONS:
         return None
     return file_io_pcd_pcq_pcs.PALETTE_SIZE
 
@@ -155,9 +221,11 @@ def palette_size(path):
 def can_save(path):
     """Return False for import-only formats that save_pattern cannot write.
 
-    Only DST is import-only today; every other supported extension has a
-    writer (or is treated as a PCD file by convention).
+    Only DST and JEF are import-only today; every other supported extension
+    has a writer (or is treated as a PCD file by convention).
     """
     import file_io_dst
+    import file_io_jef
 
-    return os.path.splitext(path)[1].lower() not in file_io_dst.EXTENSIONS
+    extension = os.path.splitext(path)[1].lower()
+    return extension not in file_io_dst.EXTENSIONS + file_io_jef.EXTENSIONS
