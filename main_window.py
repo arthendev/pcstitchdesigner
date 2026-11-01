@@ -1876,8 +1876,8 @@ class MainWindow(QMainWindow):
                 "The missing colours will be filled from the default palette.")
         answer = QMessageBox.question(
             self, self.tr("Thread Palette"),
-            self.tr("The file defines {0} thread colours, but an embroidery pattern "
-                    "for Creative 7500-Series machine needs {1}.").format(len(colors), required) + "\n\n" +
+            self.tr("The file defines {0} thread colours, but a PCS format "
+                    "typically uses {1}.").format(len(colors), required) + "\n\n" +
             change + "\n\n" +
             self.tr("Do you want to adjust the palette to {0} colours?").format(
                 required),
@@ -1891,8 +1891,6 @@ class MainWindow(QMainWindow):
         if len(colors) > required:
             del colors[required:]
         else:
-            # Fill each missing slot from the matching default-palette entry,
-            # so slot 15/16 receive the machine's own colour for that slot.
             colors.extend(palette[i] for i in range(len(colors), required))
         pattern.colors = colors
         self._log_info(
