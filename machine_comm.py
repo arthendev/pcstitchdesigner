@@ -181,7 +181,7 @@ class MachineComm:
     # ~32500 B; the exact limit is unknown).  The cap covers the whole KN
     # transfer - filename, preview block(s) and stitch stream - not just the
     # stitch stream, because the machine stores all of it in the slot.
-    CARD_MAX_PAYLOAD = 32500
+    CARD_MAX_PAYLOAD = 32000
 
     # Splitting an oversized hoop design across several card slots.  This is a
     # hard-coded switch: while it is False an oversized design is rejected
