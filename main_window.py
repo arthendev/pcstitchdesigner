@@ -1011,28 +1011,45 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._pan_tool)
         self._tool_label.setText(self.tr("Tool: Pan"))
-        self._selection_toolbar.setVisible(False)
+        self._show_selection_toolbar()
 
     def _on_tool_select(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_tool)
         self._tool_label.setText(self.tr("Tool: Select Stitch Points"))
-        self._selection_toolbar.setVisible(True)
-        self._update_selection_toolbar_width()
+        self._show_selection_toolbar()
 
     def _on_tool_select_section(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_section_tool)
         self._tool_label.setText(self.tr("Tool: Select Section"))
-        self._selection_toolbar.setVisible(True)
-        self._update_selection_toolbar_width()
+        self._show_selection_toolbar()
 
     def _on_tool_select_area(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._select_area_tool)
         self._tool_label.setText(self.tr("Tool: Select Area"))
-        self._selection_toolbar.setVisible(True)
-        self._update_selection_toolbar_width()
+        self._show_selection_toolbar()
+
+    def _selection_toolbar_tools(self):
+        """The tools that work from the selection and keep its toolbar up.
+
+        Move belongs here because it drags the selected points as a block and
+        its Ctrl+arrow keys step the selection.
+        """
+        return (self._select_tool, self._select_section_tool,
+                self._select_area_tool, self._move_tool)
+
+    def _tool_shows_selection_toolbar(self):
+        """True when the active tool keeps the selection toolbar on screen."""
+        return self._canvas._tool in self._selection_toolbar_tools()
+
+    def _show_selection_toolbar(self):
+        """Show or hide the selection toolbar for the active tool."""
+        visible = self._tool_shows_selection_toolbar()
+        self._selection_toolbar.setVisible(visible)
+        if visible:
+            self._update_selection_toolbar_width()
 
     def _update_selection_toolbar_width(self):
         """Keep the compact toolbar wide enough for its visible items.
@@ -1048,19 +1065,19 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._add_tool)
         self._tool_label.setText(self.tr("Tool: Add Stitch Points"))
-        self._selection_toolbar.setVisible(False)
+        self._show_selection_toolbar()
 
     def _on_tool_move(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._move_tool)
         self._tool_label.setText(self.tr("Tool: Move Stitch Points"))
-        self._selection_toolbar.setVisible(False)
+        self._show_selection_toolbar()
 
     def _on_tool_delete(self):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._delete_tool)
         self._tool_label.setText(self.tr("Tool: Delete Stitch Points"))
-        self._selection_toolbar.setVisible(False)
+        self._show_selection_toolbar()
 
     # ── Design selection ──
 
@@ -2450,7 +2467,7 @@ class MainWindow(QMainWindow):
         results = self._canvas.get_sel_xform_result(snap=snap)
         self._canvas.exit_sel_xform_mode()
         self._sel_xform_toolbar.setVisible(False)
-        if self._canvas._tool is self._select_tool:
+        if self._tool_shows_selection_toolbar():
             self._selection_toolbar.setVisible(True)
             self._update_selection_toolbar_width()
         if results:
@@ -2465,7 +2482,7 @@ class MainWindow(QMainWindow):
         """Exit resize/rotate mode, reverting any changes."""
         self._canvas.exit_sel_xform_mode()
         self._sel_xform_toolbar.setVisible(False)
-        if self._canvas._tool is self._select_tool:
+        if self._tool_shows_selection_toolbar():
             self._selection_toolbar.setVisible(True)
             self._update_selection_toolbar_width()
         self._update_selection_action_state()
