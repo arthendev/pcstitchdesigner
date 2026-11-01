@@ -196,10 +196,9 @@ class MainWindow(QMainWindow):
         self._palette_bar.color_clicked.connect(self._edit_palette_color)
         self.addToolBar(Qt.LeftToolBarArea, self._palette_bar)
 
-        # Temporary Ctrl→SelectPoint state (while AddPointTool is active)
-        self._ctrl_select_active = False
-        # Temporary Ctrl→MovePoint state (while SelectPointTool is active)
-        self._ctrl_move_active = False
+        # Temporary Ctrl→Move tool switch: the tool to return to, stored as
+        # (action, handler), or None while Ctrl is not held.
+        self._ctrl_restore_tool = None
 
         # Install event filter to watch Ctrl key on the canvas
         self._canvas.installEventFilter(self)
@@ -224,32 +223,45 @@ class MainWindow(QMainWindow):
 
     # ── Ctrl temporary tool switch ──
 
+    def _ctrl_move_source(self):
+        """Return ``(action, handler)`` of the tool Ctrl temporarily replaces.
+
+        Holding Ctrl turns a drawing or selection tool into the Move tool, so
+        points can be nudged without leaving the tool. ``None`` means the
+        current tool has no such shortcut.
+        """
+        tool = self._canvas._tool
+        if tool is self._add_tool:
+            return self._act_add, self._on_tool_add
+        if tool is self._select_tool:
+            return self._act_select, self._on_tool_select
+        if tool is self._select_section_tool:
+            return self._act_select_section, self._on_tool_select_section
+        if tool is self._select_area_tool:
+            return self._act_select_area, self._on_tool_select_area
+        return None
+
     def eventFilter(self, obj, event):
         if obj is self._canvas:
             if (event.type() == QEvent.KeyPress
                     and event.key() == Qt.Key_Control
                     and not event.isAutoRepeat()):
-                if self._canvas._tool is self._add_tool:
-                    self._ctrl_select_active = True
-                    self._act_move.setChecked(True)
-                    self._on_tool_move()
-                elif self._canvas._tool is self._select_tool:
-                    self._ctrl_move_active = True
+                source = self._ctrl_move_source()
+                if source is not None and self._ctrl_restore_tool is None:
+                    self._ctrl_restore_tool = source
                     self._act_move.setChecked(True)
                     self._on_tool_move()
             elif (event.type() == QEvent.KeyRelease
                     and event.key() == Qt.Key_Control
                     and not event.isAutoRepeat()):
-                if self._ctrl_select_active:
-                    self._ctrl_select_active = False
+                if self._ctrl_restore_tool is not None:
+                    action, handler = self._ctrl_restore_tool
+                    self._ctrl_restore_tool = None
+                    # Only undo the switch while the Move tool is still active;
+                    # a toolbar click may have chosen another tool meanwhile.
                     if self._canvas._tool is self._move_tool:
-                        self._act_add.setChecked(True)
-                        self._on_tool_add()
-                elif self._ctrl_move_active:
-                    self._ctrl_move_active = False
-                    if self._canvas._tool is self._move_tool:
-                        self._act_select.setChecked(True)
-                        self._on_tool_select()
+                        action.setChecked(True)
+                        handler()
         return super().eventFilter(obj, event)
 
     def createPopupMenu(self):
