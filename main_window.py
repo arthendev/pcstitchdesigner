@@ -3247,6 +3247,18 @@ class MainWindow(QMainWindow):
             if filename is None:
                 return  # user cancelled
 
+        # ── Plan the write; an oversized hoop design may need several slots ──
+        parts = None
+        if stitch_type in MachineComm.EMBROIDERY_HOOPS:
+            try:
+                parts = self._machine_comm.plan_card_write(self._pattern, filename)
+            except MachineCommError as exc:
+                self._log_error(str(exc))
+                QMessageBox.critical(self, self.tr("Send Card Stitch"), str(exc))
+                return
+            if len(parts) > 1 and not self._confirm_card_split(len(parts)):
+                return  # user cancelled
+
         # ── Open machine connection and query card ────────────────────────
         if not self._open_machine_connection():
             return
@@ -3287,7 +3299,7 @@ class MainWindow(QMainWindow):
         try:
             self._machine_comm.send_card_slot(
                 card_info['card_no_bytes'], self._pattern, filename,
-                progress_callback=_send_progress,
+                progress_callback=_send_progress, parts=parts,
             )
         except MachineCommError as exc:
             self._log_error(str(exc))
@@ -3334,15 +3346,25 @@ class MainWindow(QMainWindow):
         }
         count_key  = count_key_map.get(stitch_type, '')
         other_keys = [k for k in ('n_9mm', 'n_maxi', 'n_embr') if k != count_key]
+        new_entries = len(parts) if parts else 1
 
         success = (
             count_key
             and new_card_info['card_no'] == card_info['card_no']
-            and new_card_info[count_key] == card_info[count_key] + 1
+            and new_card_info[count_key] == card_info[count_key] + new_entries
             and all(new_card_info[k] == card_info[k] for k in other_keys)
         )
 
-        if success:
+        if success and new_entries > 1:
+            QMessageBox.information(
+                self,
+                self.tr("Send Card Stitch"),
+                self.tr(
+                    'Pattern "{0}" was split into {1} parts and successfully '
+                    'written to the memory card.'
+                ).format(filename, new_entries),
+            )
+        elif success:
             QMessageBox.information(
                 self,
                 self.tr("Send Card Stitch"),
@@ -3356,6 +3378,32 @@ class MainWindow(QMainWindow):
                 + "\n" +
                 self.tr("Please verify the card contents."),
             )
+
+    def _confirm_card_split(self, part_count):
+        """Ask whether an oversized embroidery design may be split.
+
+        A design larger than :attr:`MachineComm.CARD_MAX_PAYLOAD` does not fit
+        one card segment; it can only be stored as several patterns that the
+        machine sews one after the other.
+
+        Args:
+            part_count (int): Number of parts the design would be split into.
+
+        Returns:
+            bool: True when the user agreed to the split.
+        """
+        answer = QMessageBox.question(
+            self,
+            self.tr("Send Card Stitch"),
+            self.tr(
+                "The design is larger than one card segment (32 kB) and does not fit into a single memory card slot."
+                ) + "\n" +
+                self.tr("It can be split into {1} parts, each stored as a separate pattern on the card.").format(part_count) + "\n\n" +
+                self.tr("Do you want to split the design?"),
+            QMessageBox.Ok | QMessageBox.Cancel,
+            QMessageBox.Ok,
+        )
+        return answer == QMessageBox.Ok
 
     def _machine_insert_card(self):
         self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_INSERT)

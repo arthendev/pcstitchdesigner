@@ -2,6 +2,8 @@
 
 import re
 import time
+from dataclasses import dataclass
+
 import serial
 import serial.tools.list_ports
 from PyQt5.QtCore import QCoreApplication
@@ -43,6 +45,68 @@ def _u16be_at(data, offset):
 
 class MachineCommError(Exception):
     """Raised when communication with the machine fails or gives an unexpected response."""
+
+
+@dataclass(frozen=True)
+class EmbroideryPart:
+    """One ``KN`` transfer: a slice of a hoop design written to one card slot.
+
+    A design that fits a single card segment is a single part, so the same
+    description covers the unsplit case.  Everything that places the design in
+    the hoop - span, margins, hoop byte and the payload origin - is identical
+    for every part, because the machine stitches the parts as one design.  Only
+    the fields that describe the stitches of this part (its preview blocks, its
+    colour mask, its first and last position, its payload) differ.
+    """
+
+    filename_bytes: bytes      # latin-1, NUL terminated, at most 33 bytes
+    previews: bytes            # whole preview area, 288 bytes per block
+    payload: bytes             # the stitch stream
+    first_y: int               # V_y of the part's first stitch
+    last_y: int                # V_y of the part's last stitch
+    first_x: int               # V_x of the part's first stitch
+    first_index: int           # design point index of the part's first stitch
+    last_index: int            # design point index of the part's last stitch
+    colour_mask: int           # 16-bit mask of the colours this part uses
+    block_count: int           # number of EMBROIDERY_PREVIEW_SIZE blocks
+    span_x: int                # design-wide span, identical for every part
+    span_y: int                #
+    margin_x: int              # design-wide hoop margin, identical everywhere
+    margin_y: int              #
+    hoop_byte: int             # 1 = small hoop, 2 = large hoop
+
+    @property
+    def transfer_size(self):
+        """Return the number of data bytes one KN transfer carries."""
+        return len(self.filename_bytes) + len(self.previews) + len(self.payload)
+
+    def build_header(self, card_no_bytes, previous_slot):
+        """Return the 30-byte KN header of this part.
+
+        Args:
+            card_no_bytes (bytes): Raw 2-byte card number.
+            previous_slot (int | None): Slot byte the machine assigned to the
+                part written before this one, or ``None`` for the first part.
+                The machine stores it in header byte 5 so it can stitch the
+                parts in order; PC-Designer leaves that byte 0x00 in the first
+                part of a design.
+        """
+        return MachineComm._build_embroidery_header(
+            card_no_bytes,
+            0x00 if previous_slot is None else previous_slot,
+            first_y=self.first_y,
+            last_y=self.last_y,
+            first_x=self.first_x,
+            span_x=self.span_x,
+            span_y=self.span_y,
+            margin_x=self.margin_x,
+            margin_y=self.margin_y,
+            hoop_byte=self.hoop_byte,
+            colour_mask=self.colour_mask,
+            block_count=self.block_count,
+            pattern_size=len(self.payload),
+            filename_length=len(self.filename_bytes),
+        )
 
 
 class _LoggedSerial:
@@ -119,6 +183,16 @@ class MachineComm:
     # stitch stream, because the machine stores all of it in the slot.
     CARD_MAX_PAYLOAD = 32500
 
+    # Splitting an oversized hoop design across several card slots.  This is a
+    # hard-coded switch: while it is False an oversized design is rejected
+    # exactly as before, so no split write ever reaches the machine.
+    CARD_SPLIT_ENABLED = True
+    # A colour-change split that needs more than two segments is only kept when
+    # it also uses the first segment at least this much.  Otherwise the design
+    # is cut at the stitch that fills a segment best, which is what PC-Designer
+    # does for its own multi-part slots.
+    CARD_SPLIT_MIN_FILL = 0.80
+
     # Embroidery (hoop) card encoding.  Canvas units are 1/6 mm, payload units
     # are ~1/10 mm; the conversion is a truncating scale, never a rounding.
     EMBROIDERY_SCALE = 256 / 153
@@ -126,6 +200,39 @@ class MachineComm:
         # stitch_type: (header hoop byte, width, height) in payload units
         "small hoop": (1, 803, 803),
         "large hoop": (2, 1204, 1154),
+    }
+
+    # Byte sizes of the payload blocks, used to size a card part without
+    # encoding it.  They mirror _build_embroidery_payload exactly; the verifier
+    # temp/verify_embroidery_card_split.py compares them with the real lengths.
+    EMBROIDERY_ORIGIN_GROUP_SIZE = 9      # 80 28 05 00 <Oy LE16> <Ox LE16> 80
+    EMBROIDERY_COLOUR_TABLE_SIZE = 69     # 80 28 41 01 + 16 x (R,G,B,00) + 80
+    EMBROIDERY_END_GROUP_SIZE = 3         # 80 2F 80
+    EMBROIDERY_FIRST_RECORD_SIZE = 8      # 80 2E <Vy> <Vx> <colour> 80
+    EMBROIDERY_STEP_RECORD_SIZE = 2       # <dy> <dx>
+    EMBROIDERY_ABS_RECORD_SIZE = 7        # 80 2E <Vy> <Vx> 80
+    EMBROIDERY_COLOUR_BLOCK_SIZE = 20     # 80 20 80 | resync | 00 00 | colour
+
+    # A split design's parts are named "NAME-2", "NAME-3", ...; the part
+    # number is also drawn into the composite preview with a 5x7 font inside a
+    # white box, so the card list shows which segment is which.  The box is
+    # EMBROIDERY_BADGE_INSET pixels from the image border, and the digits keep
+    # EMBROIDERY_BADGE_PADDING pixels of white around them.
+    CARD_PART_NAME_MAX = 32
+    CARD_PART_NAME_SUFFIX = "-{0}"
+    EMBROIDERY_BADGE_INSET = 1
+    EMBROIDERY_BADGE_PADDING = 1
+    EMBROIDERY_BADGE_FONT = {
+        "0": ("01110", "10001", "10011", "10101", "11001", "10001", "01110"),
+        "1": ("00100", "01100", "00100", "00100", "00100", "00100", "01110"),
+        "2": ("01110", "10001", "00001", "00010", "00100", "01000", "11111"),
+        "3": ("11111", "00010", "00100", "00010", "00001", "10001", "01110"),
+        "4": ("00010", "00110", "01010", "10010", "11111", "00010", "00010"),
+        "5": ("11111", "10000", "11110", "00001", "00001", "10001", "01110"),
+        "6": ("00110", "01000", "10000", "11110", "10001", "10001", "01110"),
+        "7": ("11111", "00001", "00010", "00100", "01000", "01000", "01000"),
+        "8": ("01110", "10001", "10001", "01110", "10001", "10001", "01110"),
+        "9": ("01110", "10001", "10001", "01111", "00001", "00010", "01100"),
     }
 
     # Embroidery payload opcodes.  A 0x80 byte opens a command group that runs
@@ -1580,7 +1687,8 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_card_slot(self, card_no_bytes, pattern, filename, chunk_size=128, timeout=1.0, max_retries=3, progress_callback=None):
+    def send_card_slot(self, card_no_bytes, pattern, filename, chunk_size=128, timeout=1.0,
+                       max_retries=3, progress_callback=None, parts=None):
         """Write a new pattern to the next free card slot (KN command).
 
         The machine assigns the physical slot automatically; the caller
@@ -1605,8 +1713,11 @@ class MachineComm:
         Data payload = ``<filename_bytes> + <preview_bytes> + <pattern_raw>``
 
         The whole data payload must fit the slot's capacity
-        (:attr:`CARD_MAX_PAYLOAD`); an oversized embroidery design is rejected
-        here, before the machine is contacted.
+        (:attr:`CARD_MAX_PAYLOAD`).  An oversized embroidery design is written
+        in several parts when splitting is enabled
+        (:attr:`CARD_SPLIT_ENABLED`) - each part is its own pattern in its own
+        slot and names the slot of the part before it.  Without splitting such
+        a design is rejected here, before the machine is contacted.
 
         Data chunks::
 
@@ -1623,15 +1734,20 @@ class MachineComm:
             timeout (float): Per-read timeout in seconds.  Default: 1.0.
             max_retries (int): Maximum number of retries for each chunk.  Default: 3.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable.
+                A split design reports progress over all of its parts.
+            parts (list[EmbroideryPart] | None): Hoop designs only - the plan to
+                write, from :meth:`plan_card_write`.  Planning here and there
+                again is safe (it is deterministic), so the caller may pass the
+                plan it already showed to the user.
 
         Returns:
-            int: The slot number assigned by the machine.
+            int: The slot number assigned by the machine to the last part.
 
         Raises:
             serial.SerialException: If the port is not open.
             MachineCommError: On timeout, CTRL_NAK, checksum error, unexpected
                 response, or when the pattern payload exceeds the card slot
-                capacity.
+                capacity and cannot be split.
         """
         self._require_open()
 
@@ -1640,177 +1756,209 @@ class MachineComm:
 
         stitch_type = pattern.stitch_type
 
-        # Null-terminated, max 33 bytes (32 chars + '\0')
-        # PCD supported max. 8 chars, but the machine seems to accept more
-        # Here we truncate to 32 chars which should be enough for most use cases
-        filename_bytes = filename[:32].encode('latin-1', errors='replace') + b'\x00'
-
-        # ── Build preview image(s), pattern data and header (before connecting) ──
-        if stitch_type == '9mm':
-            preview_bytes = self.encode_card_preview(pattern)
-            stitch_data, final_points = MachineComm.encode_card_pattern_9mm(pattern)
-            header = self.encode_card_header(
-                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes,
-                points=final_points)
-        elif stitch_type == 'MAXI':
-            preview_bytes = self.encode_card_preview(pattern)
-            stitch_data, final_points = MachineComm.encode_card_pattern_maxi(pattern)
-            header = self.encode_card_header(
-                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes,
-                points=final_points)
-        elif stitch_type in MachineComm.EMBROIDERY_HOOPS:
-            # Embroidery carries one extra preview block per colour.
-            preview_bytes = b"".join(MachineComm.encode_card_previews_embroidery(pattern))
-            stitch_data, _points = MachineComm.encode_card_pattern_embroidery(pattern)
-
-            # Check the complete payload before a connection is opened: the
-            # machine would otherwise accept the KN command and then run out
-            # of slot space halfway through the transfer.
-            payload_size = len(filename_bytes) + len(preview_bytes) + len(stitch_data)
-            if payload_size > MachineComm.CARD_MAX_PAYLOAD:
-                self._logger.log_error(
-                    f"Embroidery payload too large: {payload_size} bytes "
-                    f"(limit {MachineComm.CARD_MAX_PAYLOAD})"
-                )
-                raise MachineCommError(_tr(
-                    "The pattern file size is too large and cannot be stored on "
-                    "the memory card: {0} bytes are needed, but a card slot holds "
-                    "at most {1} bytes. Split the design into smaller parts."
-                ).format(payload_size, MachineComm.CARD_MAX_PAYLOAD))
-
-            header = MachineComm.encode_card_header_embroidery(
-                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes)
+        if stitch_type in MachineComm.EMBROIDERY_HOOPS:
+            # Planning rejects an oversized design before the port is touched.
+            planned = parts if parts is not None else self.plan_card_write(pattern, filename)
         else:
-            raise MachineCommError(_tr("Unsupported stitch type for card writing: {0}").format(repr(stitch_type)))
-
-        cmd = (
-            bytes([self.CTRL_ETX]) + b"KN" +
-            header +
-            bytes([self.CTRL_ETX])
-        )
+            planned = None
 
         saved_timeout = self._serial.timeout
         self._serial.timeout = timeout
         try:
             self.flush()
-            self._serial.write(cmd)
 
-            # Machine replies: CTRL_ACK + <BANK> + <SLOT>
-            resp = self._serial.read(3)
-            if not resp:
+            if planned is not None:
+                return self._send_card_parts(card_no_bytes, planned, chunk_size,
+                                             max_retries, progress_callback)
+
+            # ── 9 mm / MAXI: one slot, encoded from the pattern ────────────
+            if stitch_type not in ('9mm', 'MAXI'):
                 raise MachineCommError(
-                    _tr("No response to card write command.")
-                )
-            
-            if resp[0] == self.CTRL_NAK:
-                err_code = resp[1] if len(resp) > 1 else None
+                    _tr("Unsupported stitch type for card writing: {0}").format(
+                        repr(stitch_type)))
 
-                if not err_code:
-                    raise MachineCommError(
-                        _tr("Machine rejected the card write command.")
-                    )
+            filename_bytes = MachineComm._card_part_filename(filename, 0)
+            preview_bytes = self.encode_card_preview(pattern)
+            if stitch_type == '9mm':
+                stitch_data, final_points = MachineComm.encode_card_pattern_9mm(pattern)
+            else:
+                stitch_data, final_points = MachineComm.encode_card_pattern_maxi(pattern)
 
-                if err_code == 0x00:
-                    # 0x00 — card is copyright protected ("read-only stitch card")
-                    raise MachineCommError(
-                        _tr("The card is copyright protected. "
-                            "It is not allowed to read or modify the content of this card.")
-                    )
-                elif err_code == 0x04:
-                    # 0x04 — card is write-protected (write-protect tab on the card is set)
-                    raise MachineCommError(
-                        _tr("The memory card is write-protected. "
-                            "Please switch the write-protection off (slide write-protect tab on the card) and try again."))
-                elif err_code == 0x05:
-                    # 0x05 — card is not writable
-                    raise MachineCommError(
-                        _tr("The memory card is not writable. "
-                            "Please use a writable card and try again."))
-                elif err_code == 0x08:
-                    # 0x08 — no memory card inserted
-                    raise MachineCommError(_tr("No memory card inserted in the machine."))
-                elif err_code == 0x09:
-                    # 0x09 — card is not initialized
-                    raise MachineCommError(
-                        _tr("The memory card is not initialized. "
-                            "Please initialize the card and try again."))
-                elif err_code == 0x0C:
-                    # 0x0C — card has not enough free space
-                    raise MachineCommError(
-                        _tr("The memory card has not enough free space."))
-                else:
-                    # Unknown second byte — treat as an unexpected response
-                    raise MachineCommError(
-                        _tr("Unexpected response to card query: NAK followed by 0x{0}.").format(
-                            f"{err_code:02X}")
-                    )
-
-            if resp[0] != self.CTRL_ACK:
-                raise MachineCommError(
-                    _tr("Unexpected response 0x{0} to card write command.").format(f"{resp[0]:02X}")
-                )
-            if len(resp) < 3:
-                raise MachineCommError(
-                    _tr("Incomplete acknowledgement to card write command ({0} byte(s) received, expected 3).").format(
-                        len(resp))
-                )
-            assigned_slot = resp[2]
-
-            # ── Send data in chunks ───────────────────────────────────────
-            data  = bytes(filename_bytes) + bytes(preview_bytes) + bytes(stitch_data)
-            total = len(data)
-            done  = 0
-
-            for offset in range(0, max(total, 1), chunk_size):
-                chunk     = data[offset:offset + chunk_size]
-                size_byte = len(chunk)
-                cs_input  = bytes([size_byte]) + chunk + bytes([size_byte])
-                cs_hex    = f"{self.checksum(cs_input):02X}".encode('ascii')
-
-                for attempt in range(max_retries + 1):
-                    if offset == 0 and attempt == 0:
-                        frame = (
-                            bytes([size_byte]) +
-                            chunk +
-                            bytes([size_byte, self.CTRL_ETB]) +
-                            cs_hex
-                        )
-                    else:
-                        frame = (
-                            bytes([self.CTRL_ENQ, size_byte]) +
-                            chunk +
-                            bytes([size_byte, self.CTRL_ETB]) +
-                            cs_hex
-                        )
-                    self._serial.write(frame)
-                    ack = self._serial.read(1)
-                    if not ack:
-                        raise MachineCommError(
-                            _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
-                                offset // chunk_size + 1)
-                        )
-                    if ack[0] == self.CTRL_ACK:
-                        done += size_byte
-                        if progress_callback is not None:
-                            progress_callback(min(done, total), total)
-                        break
-                    if ack[0] == self.CTRL_NAK:
-                        if attempt == max_retries:
-                            raise MachineCommError(
-                                _tr("Machine rejected chunk {0} after {1} retries.").format(
-                                    offset // chunk_size + 1, max_retries)
-                            )
-                        # Retry the same chunk
-                        continue
-                    raise MachineCommError(
-                        _tr("Unexpected response 0x{0} after chunk {1}.").format(
-                            f"{ack[0]:02X}", offset // chunk_size + 1)
-                    )
-            # After the final chunk, send CTRL_ETX to indicate completion
-            self._serial.write(bytes([self.CTRL_ETX]))
-            return assigned_slot
+            header = self.encode_card_header(
+                pattern, card_no_bytes, preview_bytes, stitch_data, filename_bytes,
+                points=final_points)
+            data = filename_bytes + preview_bytes + stitch_data
+            return self._write_card_transfer(header, data, chunk_size, max_retries,
+                                            progress_callback)
         finally:
             self._serial.timeout = saved_timeout
+
+    def _send_card_parts(self, card_no_bytes, parts, chunk_size, max_retries,
+                         progress_callback=None):
+        """Write every part of a hoop design, one KN transfer per part.
+
+        Each part names the slot the machine assigned to the part before it in
+        header byte 5, which is how the machine stitches them in order.
+
+        Returns:
+            int: The slot byte the machine assigned to the last part.
+
+        Raises:
+            MachineCommError: On any transfer failure (see
+                :meth:`_write_card_transfer`).
+        """
+        total = sum(part.transfer_size for part in parts)
+        if len(parts) > 1:
+            self._logger.log_info(
+                f"Multi-part card write: {len(parts)} parts, {total} bytes in total")
+
+        assigned = None
+        sent = 0
+        for index, part in enumerate(parts):
+            previous = "none" if assigned is None else f"{assigned:#04x}"
+            self._logger.log_info(
+                f"Writing card part {index + 1}/{len(parts)}: "
+                f"{part.transfer_size} bytes, previous part slot {previous}")
+
+            header = part.build_header(card_no_bytes, assigned)
+            data = part.filename_bytes + part.previews + part.payload
+            base = sent
+
+            def _report(done, _part_total, base=base):
+                if progress_callback is not None:
+                    progress_callback(min(base + done, total), total)
+
+            try:
+                assigned = self._write_card_transfer(header, data, chunk_size,
+                                                    max_retries, _report)
+            except (MachineCommError, serial.SerialException):
+                if index:
+                    # The parts before this one are committed to the card; a
+                    # retry would add a second copy of them.
+                    self._logger.log_error(
+                        f"Card write aborted after part {index} of {len(parts)}; "
+                        "the parts already written remain on the card")
+                raise
+            sent += len(data)
+        return assigned
+
+    def _write_card_transfer(self, header, data, chunk_size, max_retries,
+                             progress_callback=None):
+        """Send one KN command with its header and data chunks.
+
+        The machine replies to the KN command with ``CTRL_ACK + <BANK> + <SLOT>``
+        and acknowledges every data chunk with CTRL_ACK; a chunk rejected with
+        CTRL_NAK is retransmitted.  After the last chunk CTRL_ETX commits the
+        write.
+
+        Args:
+            header (bytes): The 30-byte KN header.
+            data (bytes): ``<filename> + <previews> + <stitch payload>``.
+            chunk_size (int): Data bytes per chunk.
+            max_retries (int): Retransmissions allowed per chunk.
+            progress_callback: Optional ``(done_bytes, total_bytes)`` callable.
+
+        Returns:
+            int: The slot byte the machine assigned to the pattern.
+
+        Raises:
+            MachineCommError: On timeout, CTRL_NAK, or an unexpected response.
+        """
+        self._serial.write(bytes([self.CTRL_ETX]) + b"KN" + header + bytes([self.CTRL_ETX]))
+
+        resp = self._serial.read(3)
+        if not resp:
+            raise MachineCommError(_tr("No response to card write command."))
+        if resp[0] == self.CTRL_NAK:
+            self._raise_card_write_nak(resp[1] if len(resp) > 1 else None)
+        if resp[0] != self.CTRL_ACK:
+            raise MachineCommError(
+                _tr("Unexpected response 0x{0} to card write command.").format(f"{resp[0]:02X}"))
+        if len(resp) < 3:
+            raise MachineCommError(
+                _tr("Incomplete acknowledgement to card write command ({0} byte(s) received, expected 3).").format(
+                    len(resp)))
+        assigned_slot = resp[2]
+
+        total = len(data)
+        done = 0
+        for offset in range(0, max(total, 1), chunk_size):
+            chunk = data[offset:offset + chunk_size]
+            size_byte = len(chunk)
+            cs_input = bytes([size_byte]) + chunk + bytes([size_byte])
+            cs_hex = f"{self.checksum(cs_input):02X}".encode('ascii')
+
+            for attempt in range(max_retries + 1):
+                # The first chunk omits CTRL_ENQ; every later chunk and every
+                # retransmission needs it.
+                if offset == 0 and attempt == 0:
+                    frame = (bytes([size_byte]) + chunk
+                             + bytes([size_byte, self.CTRL_ETB]) + cs_hex)
+                else:
+                    frame = (bytes([self.CTRL_ENQ, size_byte]) + chunk
+                             + bytes([size_byte, self.CTRL_ETB]) + cs_hex)
+                self._serial.write(frame)
+                ack = self._serial.read(1)
+                if not ack:
+                    raise MachineCommError(
+                        _tr("Timeout waiting for acknowledgement after chunk {0}.").format(
+                            offset // chunk_size + 1))
+                if ack[0] == self.CTRL_ACK:
+                    done += size_byte
+                    if progress_callback is not None:
+                        progress_callback(min(done, total), total)
+                    break
+                if ack[0] == self.CTRL_NAK:
+                    if attempt == max_retries:
+                        raise MachineCommError(
+                            _tr("Machine rejected chunk {0} after {1} retries.").format(
+                                offset // chunk_size + 1, max_retries))
+                    continue            # retransmit the same chunk
+                raise MachineCommError(
+                    _tr("Unexpected response 0x{0} after chunk {1}.").format(
+                        f"{ack[0]:02X}", offset // chunk_size + 1))
+
+        # After the final chunk, send CTRL_ETX to indicate completion
+        self._serial.write(bytes([self.CTRL_ETX]))
+        return assigned_slot
+
+    def _raise_card_write_nak(self, err_code):
+        """Raise the MachineCommError that explains a KN rejection.
+
+        Args:
+            err_code (int | None): Second byte of the CTRL_NAK reply, or ``None``
+                when the machine sent no more bytes.
+
+        Raises:
+            MachineCommError: Always.
+        """
+        if err_code is None:
+            raise MachineCommError(_tr("Machine rejected the card write command."))
+
+        reasons = {
+            # 0x00 — card is copyright protected ("read-only stitch card")
+            0x00: _tr("The card is copyright protected. "
+                      "It is not allowed to read or modify the content of this card."),
+            # 0x04 — write-protect tab on the card is set
+            0x04: _tr("The memory card is write-protected. "
+                      "Please switch the write-protection off (slide write-protect tab on the card) and try again."),
+            # 0x05 — card is not writable
+            0x05: _tr("The memory card is not writable. "
+                      "Please use a writable card and try again."),
+            # 0x08 — no memory card inserted
+            0x08: _tr("No memory card inserted in the machine."),
+            # 0x09 — card is not initialized
+            0x09: _tr("The memory card is not initialized. "
+                      "Please initialize the card and try again."),
+            # 0x0C — card has not enough free space
+            0x0C: _tr("The memory card has not enough free space."),
+        }
+        message = reasons.get(err_code)
+        if message is None:
+            raise MachineCommError(
+                _tr("Unexpected response to card query: NAK followed by 0x{0}.").format(
+                    f"{err_code:02X}"))
+        raise MachineCommError(message)
 
     # ── Memory Card encoding/decoding ──
 
@@ -2648,6 +2796,335 @@ class MachineComm:
 
     # ── Embroidery (hoop) card encoding ──
 
+    def plan_card_write(self, pattern, filename, allow_split=None):
+        """Return the KN transfers that store a hoop design on a memory card.
+
+        A design that fits one card segment gives a single part.  A design that
+        exceeds :attr:`CARD_MAX_PAYLOAD` is split into several parts when
+        splitting is enabled (:attr:`CARD_SPLIT_ENABLED`, or *allow_split*), and
+        each part is written as an independent pattern into its own slot.  The
+        parts share everything that places the design in the hoop, so the
+        machine stitches them as one design.
+
+        The split points are chosen for the user: colour changes are where a
+        design is easiest to re-hoop, so the parts follow the colour changes
+        while that needs at most two segments, or while it uses the first
+        segment at least :attr:`CARD_SPLIT_MIN_FILL`.  Otherwise each segment is
+        filled with as many stitches as it holds, which wastes the least card
+        space.
+
+        Args:
+            pattern: StitchPattern with a hoop ``stitch_type``.
+            filename (str): Card filename (at most 32 characters).  Parts after
+                the first get a "-#" suffix.
+            allow_split (bool | None): Overrides :attr:`CARD_SPLIT_ENABLED`.
+
+        Returns:
+            list[EmbroideryPart]: At least one part, in stitching order.
+
+        Raises:
+            MachineCommError: If the design is not a hoop design, does not fit
+                its hoop, does not fit one segment while splitting is disabled,
+                or cannot be split at all.
+        """
+        if pattern.stitch_type not in MachineComm.EMBROIDERY_HOOPS:
+            raise MachineCommError(
+                _tr("Only embroidery designs can be split into card parts: {0}").format(
+                    repr(pattern.stitch_type)))
+        if allow_split is None:
+            allow_split = MachineComm.CARD_SPLIT_ENABLED
+
+        points, sections = MachineComm._embroidery_design(pattern)
+        values, origin = MachineComm._embroidery_values(points)
+        colours = pattern.colors if pattern.colors else None
+        point_colours = MachineComm._embroidery_colour_of_point(sections, len(points))
+
+        hoop_byte, hoop_width, hoop_height = MachineComm.EMBROIDERY_HOOPS[
+            pattern.stitch_type]
+        xs = [value[0] for value in values]
+        ys = [value[1] for value in values]
+        span_x = max(xs) - min(xs)
+        span_y = max(ys) - min(ys)
+        if span_x > hoop_width or span_y > hoop_height:
+            raise MachineCommError(_tr(
+                "The embroidery design is larger than the selected hoop."))
+
+        # Candidate splits are sized from the payload structure, so testing one
+        # costs nothing beyond the preview block count.
+        payload_size = MachineComm._embroidery_size_model(values, sections, bool(colours))
+
+        def preview_block_count(start, end):
+            used = set(point_colours[start:end + 1])
+            return 1 if len(used) == 1 else len(used) + 1
+
+        def part_size(start, end, part_index):
+            return (len(MachineComm._card_part_filename(filename, part_index))
+                    + preview_block_count(start, end) * MachineComm.EMBROIDERY_PREVIEW_SIZE
+                    + payload_size(start, end))
+
+        last = len(values) - 1
+        if part_size(0, last, 0) <= MachineComm.CARD_MAX_PAYLOAD:
+            ranges = [(0, last)]
+        elif not allow_split:
+            raise self._card_too_large_error(part_size(0, last, 0))
+        else:
+            ranges = MachineComm._plan_embroidery_ranges(len(values), sections, part_size)
+
+        # Every part's thumbnails show the same area, so the parts of a split
+        # design stay comparable and each keeps its place in the picture.
+        preview_bounds = (min(xs), max(xs), min(ys), max(ys))
+
+        parts = []
+        for index, (start, end) in enumerate(ranges):
+            part = MachineComm._embroidery_part(
+                values, sections, point_colours, origin, colours,
+                start, end,
+                filename_bytes=MachineComm._card_part_filename(filename, index),
+                span_x=span_x,
+                span_y=span_y,
+                margin_x=(hoop_width - span_x) // 2,
+                margin_y=(hoop_height - span_y) // 2,
+                hoop_byte=hoop_byte,
+                badge=index + 1 if len(ranges) > 1 else None,
+                preview_bounds=preview_bounds)
+            if part.transfer_size > MachineComm.CARD_MAX_PAYLOAD:
+                # The size model and the payload builder disagree; the machine
+                # would run out of slot space, so stop before writing.
+                raise MachineCommError(_tr(
+                    "Internal error: card part {0} needs {1} bytes, but a card "
+                    "slot holds at most {2} bytes."
+                ).format(index + 1, part.transfer_size, MachineComm.CARD_MAX_PAYLOAD))
+            parts.append(part)
+
+        if len(parts) > 1:
+            self._logger.log_info(
+                f"Split embroidery design {filename!r} into {len(parts)} card parts")
+        return parts
+
+    def _card_too_large_error(self, size):
+        """Return the error for a design that does not fit one card segment."""
+        self._logger.log_error(
+            f"Embroidery payload too large: {size} bytes "
+            f"(limit {MachineComm.CARD_MAX_PAYLOAD})")
+        return MachineCommError(_tr(
+            "The pattern file size is too large and cannot be stored on "
+            "the memory card: {0} bytes are needed, but a card slot holds "
+            "at most {1} bytes. Split the design into smaller parts."
+        ).format(size, MachineComm.CARD_MAX_PAYLOAD))
+
+    @staticmethod
+    def _card_part_filename(filename, part_index):
+        """Return the NUL-terminated card name of part *part_index*.
+
+        The first part keeps the plain name; later parts get a "-#" suffix so
+        the card list shows which segment is which.  Characters that latin-1
+        cannot carry become '?', which is what the machine displays.
+        """
+        if part_index == 0:
+            name = filename[:MachineComm.CARD_PART_NAME_MAX]
+        else:
+            suffix = MachineComm.CARD_PART_NAME_SUFFIX.format(part_index + 1)
+            keep = MachineComm.CARD_PART_NAME_MAX - len(suffix)
+            name = filename[:max(keep, 1)] + suffix
+        return name.encode('latin-1', errors='replace') + b'\x00'
+
+    @staticmethod
+    def _plan_embroidery_ranges(point_count, sections, part_size):
+        """Return the inclusive ranges that split a design into card parts.
+
+        Args:
+            point_count (int): Number of design points.
+            sections (list[tuple[int, int]]): Colour sections of the design.
+            part_size: ``(start, end, part_index)`` callable returning the
+                transfer size of a part holding points ``start…end``.
+
+        Raises:
+            MachineCommError: If the design cannot be split (see
+                :meth:`_plan_fill_ranges`).
+        """
+        colour_ranges = MachineComm._plan_colour_ranges(point_count, sections, part_size)
+        if colour_ranges is not None:
+            first_fill = (part_size(colour_ranges[0][0], colour_ranges[0][1], 0)
+                          / MachineComm.CARD_MAX_PAYLOAD)
+            if len(colour_ranges) <= 2 or first_fill >= MachineComm.CARD_SPLIT_MIN_FILL:
+                return colour_ranges
+        return MachineComm._plan_fill_ranges(point_count, sections, part_size)
+
+    @staticmethod
+    def _plan_colour_ranges(point_count, sections, part_size):
+        """Split only after colour changes; ``None`` when that is impossible.
+
+        Each part takes the largest number of whole colour sections that still
+        fits one segment, so every part ends on a finished thread colour.
+        """
+        change_starts = [start for start, _colour in sections[1:]]
+        ranges = []
+        start = 0
+        while start < point_count:
+            index = len(ranges)
+            last = point_count - 1
+            if part_size(start, last, index) <= MachineComm.CARD_MAX_PAYLOAD:
+                ranges.append((start, last))
+                break
+            end = None
+            for change in change_starts:
+                if change <= start:
+                    continue
+                # A part grows with every point it holds, so once a change does
+                # not fit, no later one can either.
+                if part_size(start, change - 1, index) > MachineComm.CARD_MAX_PAYLOAD:
+                    break
+                end = change - 1
+            if end is None:
+                return None         # the next part has to be cut mid-colour
+            ranges.append((start, end))
+            start = end + 1
+        return ranges
+
+    @staticmethod
+    def _plan_fill_ranges(point_count, sections, part_size):
+        """Split each segment at the stitch that fills it best.
+
+        Cutting mid-colour is what wastes the least card space.  A boundary that
+        lands exactly on a colour change moves back by one stitch, because a
+        part that starts at a thread change would be a colour split - those are
+        only used while they pay off (see :meth:`_plan_embroidery_ranges`).
+
+        Raises:
+            MachineCommError: If not even a single stitch fits a segment.
+        """
+        change_starts = {start for start, _colour in sections[1:]}
+        ranges = []
+        start = 0
+        while start < point_count:
+            index = len(ranges)
+            last = point_count - 1
+            if part_size(start, last, index) <= MachineComm.CARD_MAX_PAYLOAD:
+                ranges.append((start, last))
+                break
+
+            low, high = start, last        # largest end that still fits
+            while low < high:
+                middle = (low + high + 1) // 2
+                if part_size(start, middle, index) <= MachineComm.CARD_MAX_PAYLOAD:
+                    low = middle
+                else:
+                    high = middle - 1
+            if part_size(start, low, index) > MachineComm.CARD_MAX_PAYLOAD:
+                raise MachineCommError(_tr(
+                    "The design cannot be split into card segments: a single "
+                    "stitch already needs more space than a card slot holds."
+                ))
+
+            end = low
+            while end > start and end + 1 in change_starts:
+                end -= 1
+            ranges.append((start, end))
+            start = end + 1
+        return ranges
+
+    @staticmethod
+    def _embroidery_part(values, sections, point_colours, origin, colours,
+                         start, end, filename_bytes, span_x, span_y,
+                         margin_x, margin_y, hoop_byte, badge=None,
+                         preview_bounds=None):
+        """Encode points ``start…end`` as one independently writable card part.
+
+        The payload origin and the four hoop fields come from the complete
+        design, so the parts keep their place in the hoop; previews, colour mask
+        and the position fields describe this part alone.  *preview_bounds* is
+        the area the previews show - the complete design's, so every part is
+        drawn at the same scale.
+        """
+        part_values = values[start:end + 1]
+        part_sections = MachineComm._embroidery_section_slice(sections, start, end)
+        blocks = MachineComm._embroidery_preview_blocks(
+            part_values, part_sections, point_colours[start:end + 1],
+            badge=badge, bounds=preview_bounds)
+        used = sorted({colour for _start, colour in part_sections})
+        return EmbroideryPart(
+            filename_bytes=filename_bytes,
+            previews=b"".join(blocks),
+            payload=MachineComm._build_embroidery_payload(
+                part_values, part_sections, origin, colours=colours),
+            first_y=part_values[0][1],
+            last_y=part_values[-1][1],
+            first_x=part_values[0][0],
+            first_index=start,
+            last_index=end,
+            colour_mask=MachineComm._embroidery_colour_mask(used),
+            block_count=len(blocks),
+            span_x=span_x,
+            span_y=span_y,
+            margin_x=margin_x,
+            margin_y=margin_y,
+            hoop_byte=hoop_byte,
+        )
+
+    @staticmethod
+    def _embroidery_section_slice(sections, start, end):
+        """Return the colour sections of points ``start…end``, rebased to 0.
+
+        A part that begins inside a colour section starts with that section's
+        colour; one that begins exactly at a colour change starts with the new
+        colour, so the change needs no block of its own.
+        """
+        first_colour = sections[0][1]
+        for section_start, colour in sections:
+            if section_start > start:
+                break
+            first_colour = colour
+        sliced = [(0, first_colour)]
+        for section_start, colour in sections:
+            if start < section_start <= end:
+                sliced.append((section_start - start, colour))
+        return sliced
+
+    @staticmethod
+    def _embroidery_size_model(values, sections, has_colour_table):
+        """Return a ``(start, end) -> payload size`` function for card parts.
+
+        The model mirrors :meth:`_build_embroidery_payload` without building
+        anything, so the split planner can try hundreds of cut points.  A point
+        costs 2 bytes as a relative step, 7 when the step is too large and the
+        position is written absolutely, and 20 when its record is replaced by a
+        colour-change block; the block belongs to the last stitch of the colour
+        that ends, i.e. to the point *before* the section start.
+        """
+        change_starts = {start for start, _colour in sections[1:]}
+        plain = [0] * len(values)
+        prefix = [0] * (len(values) + 1)
+        for index in range(1, len(values)):
+            dy = values[index][1] - values[index - 1][1]
+            dx = values[index][0] - values[index - 1][0]
+            plain[index] = (MachineComm.EMBROIDERY_STEP_RECORD_SIZE
+                            if -127 <= dy <= 127 and -127 <= dx <= 127
+                            else MachineComm.EMBROIDERY_ABS_RECORD_SIZE)
+            prefix[index + 1] = prefix[index] + (
+                MachineComm.EMBROIDERY_COLOUR_BLOCK_SIZE
+                if index + 1 in change_starts else plain[index])
+
+        overhead = (MachineComm.EMBROIDERY_ORIGIN_GROUP_SIZE
+                    + MachineComm.EMBROIDERY_END_GROUP_SIZE
+                    + (MachineComm.EMBROIDERY_COLOUR_TABLE_SIZE
+                       if has_colour_table else 0))
+
+        def payload_size(start, end):
+            size = overhead + prefix[end + 1] - prefix[start + 1]
+            if start + 1 in change_starts and start + 1 <= end:
+                # The block of the following point takes the place of the
+                # part's first record.
+                size += MachineComm.EMBROIDERY_COLOUR_BLOCK_SIZE
+            else:
+                size += MachineComm.EMBROIDERY_FIRST_RECORD_SIZE
+            if end + 1 in change_starts:
+                # That block belongs to a point outside the part, so the last
+                # point keeps its plain record.
+                size -= MachineComm.EMBROIDERY_COLOUR_BLOCK_SIZE - plain[end]
+            return size
+
+        return payload_size
+
     @staticmethod
     def _embroidery_design(pattern):
         """Return ``(points, sections)`` for a hoop pattern.
@@ -2843,12 +3320,19 @@ class MachineComm:
         return bytes(out)
 
     @staticmethod
-    def _rasterize_embroidery_preview(values, point_colours, only_colour=None):
+    def _rasterize_embroidery_preview(values, point_colours, only_colour=None,
+                                     badge=None, bounds=None):
         """Pack one embroidery preview block from payload-space *values*.
 
         ``point_colours`` holds the 1-based colour number of each point.  With
         *only_colour* set, only points of that colour are plotted and a line is
-        drawn only between two consecutive points of that colour.
+        drawn only between two consecutive points of that colour.  *badge* draws
+        that part number into the top-left corner of the image.
+
+        *bounds* is the ``(min_x, max_x, min_y, max_y)`` payload-space area the
+        image shows.  The parts of a split design pass the bounds of the whole
+        design, so every thumbnail uses the same scale and a part appears in its
+        own corner; ``None`` fits the image to *values*.
 
         The block geometry comes from :attr:`PREVIEW_SIZES`.  The stored bitmap
         is the display image rotated by 180°, so a raster pixel ``(px, py)`` in
@@ -2860,10 +3344,13 @@ class MachineComm:
         if not values:
             return bytes(block)
 
-        xs = [value[0] for value in values]
-        ys = [value[1] for value in values]
-        min_x, max_x = min(xs), max(xs)
-        min_y, max_y = min(ys), max(ys)
+        if bounds is None:
+            xs = [value[0] for value in values]
+            ys = [value[1] for value in values]
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+        else:
+            min_x, max_x, min_y, max_y = bounds
         span_x, span_y = max_x - min_x, max_y - min_y
 
         # One pixel margin per side; the same scale on both axes keeps the
@@ -2885,6 +3372,10 @@ class MachineComm:
         def put(px, py):
             if 0 <= px < width and 0 <= py < height:
                 block[px * bytes_per_col + py // 8] |= 1 << (py % 8)
+
+        def clear(px, py):
+            if 0 <= px < width and 0 <= py < height:
+                block[px * bytes_per_col + py // 8] &= ~(1 << (py % 8)) & 0xFF
 
         def draw_line(x0, y0, x1, y1):
             dx, dy = abs(x1 - x0), abs(y1 - y0)
@@ -2919,7 +3410,79 @@ class MachineComm:
                 continue
             draw_line(pixels[index - 1][0], pixels[index - 1][1],
                       pixels[index][0], pixels[index][1])
+
+        if badge is not None:
+            # The badge sits in the top-left corner of the displayed image.  The
+            # display column is mirrored relative to the stored block (which is
+            # rotated by 180°), the display row is not: rows count from the top,
+            # which is the stored block's bit order.  Its background is cleared
+            # first, so the number stays readable on top of the stitches.
+            (left, top, box_width, box_height), badge_pixels = (
+                MachineComm._preview_badge_pixels(badge))
+            for row in range(box_height):
+                for column in range(box_width):
+                    clear(width - 1 - (left + column), top + row)
+            for column, row in badge_pixels:
+                put(width - 1 - column, row)
         return bytes(block)
+
+    @staticmethod
+    def _preview_badge_pixels(number):
+        """Describe a part-number badge in display pixels.
+
+        Returns ``((left, top, width, height), pixels)``.  The box is inset by
+        :attr:`EMBROIDERY_BADGE_INSET` from the image border and holds the digits
+        of :attr:`EMBROIDERY_BADGE_FONT` with :attr:`EMBROIDERY_BADGE_PADDING`
+        pixels of background around them; ``pixels`` are its border and glyphs,
+        counted from the image's top-left corner.
+        """
+        text = str(int(number))
+        glyph_width, glyph_height = 5, 7
+        spacing = 1                     # blank column between two digits
+        inner_width = glyph_width * len(text) + spacing * (len(text) - 1)
+        frame = 1 + MachineComm.EMBROIDERY_BADGE_PADDING
+        box_width = inner_width + 2 * frame
+        box_height = glyph_height + 2 * frame
+        left = top = MachineComm.EMBROIDERY_BADGE_INSET
+
+        pixels = set()
+        for offset in range(box_width):
+            pixels.add((left + offset, top))
+            pixels.add((left + offset, top + box_height - 1))
+        for offset in range(box_height):
+            pixels.add((left, top + offset))
+            pixels.add((left + box_width - 1, top + offset))
+
+        glyph_left = left + frame
+        glyph_top = top + frame
+        for position, character in enumerate(text):
+            glyph = MachineComm.EMBROIDERY_BADGE_FONT[character]
+            for row, bits in enumerate(glyph):
+                for column, bit in enumerate(bits):
+                    if bit == "1":
+                        pixels.add((glyph_left + position * (glyph_width + spacing) + column,
+                                    glyph_top + row))
+        return (left, top, box_width, box_height), pixels
+
+    @staticmethod
+    def _embroidery_preview_blocks(values, sections, point_colours, badge=None,
+                                   bounds=None):
+        """Return the preview blocks of one card part.
+
+        Block 0 shows every stitch, the following blocks one colour each in
+        ascending order; a single-colour part has only the composite block,
+        matching the header's block-count field.  *badge* marks the composite
+        block as part *badge* of a split design, and *bounds* keeps every part's
+        thumbnails on the scale of the complete design.
+        """
+        blocks = [MachineComm._rasterize_embroidery_preview(
+            values, point_colours, badge=badge, bounds=bounds)]
+        colours = sorted({colour for _start, colour in sections})
+        if len(colours) > 1:
+            for colour in colours:
+                blocks.append(MachineComm._rasterize_embroidery_preview(
+                    values, point_colours, only_colour=colour, bounds=bounds))
+        return blocks
 
     @staticmethod
     def encode_card_previews_embroidery(pattern):
@@ -2933,14 +3496,7 @@ class MachineComm:
         points, sections = MachineComm._embroidery_design(pattern)
         values, _origin = MachineComm._embroidery_values(points)
         point_colours = MachineComm._embroidery_colour_of_point(sections, len(points))
-
-        blocks = [MachineComm._rasterize_embroidery_preview(values, point_colours)]
-        colours = sorted({colour for _start, colour in sections})
-        if len(colours) > 1:
-            for colour in colours:
-                blocks.append(MachineComm._rasterize_embroidery_preview(
-                    values, point_colours, only_colour=colour))
-        return blocks
+        return MachineComm._embroidery_preview_blocks(values, sections, point_colours)
 
     @staticmethod
     def encode_card_pattern_embroidery(pattern):
@@ -3011,17 +3567,46 @@ class MachineComm:
                 "expects {1}."
             ).format(block_count, expected_blocks))
 
+        return MachineComm._build_embroidery_header(
+            card_no_bytes,
+            0x00,                       # a single-part design names no predecessor
+            first_y=vy[0],
+            last_y=vy[-1],
+            first_x=vx[0],
+            span_x=span_x,
+            span_y=span_y,
+            margin_x=(hoop_width - span_x) // 2,
+            margin_y=(hoop_height - span_y) // 2,
+            hoop_byte=hoop_byte,
+            colour_mask=MachineComm._embroidery_colour_mask(colours),
+            block_count=block_count,
+            pattern_size=pattern_size,
+            filename_length=filename_len,
+        )
+
+    @staticmethod
+    def _build_embroidery_header(card_no_bytes, previous_slot, *, first_y, last_y,
+                                 first_x, span_x, span_y, margin_x, margin_y,
+                                 hoop_byte, colour_mask, block_count,
+                                 pattern_size, filename_length):
+        """Assemble the 30-byte KN header of a hoop pattern from its fields.
+
+        The parts of a split design share the fields that place the design in
+        the hoop (span and margins); ``previous_slot`` carries the slot the
+        machine assigned to the part written before, which byte 5 records.  A
+        single-part design passes 0x00 there, which is what PC-Designer writes.
+        """
         return (
             bytes([0x00, 0x00]) + bytes(card_no_bytes) +
-            bytes([0xC0, 0x00, 0x03]) +
-            _u16be(vy[0]) + _u16be(vy[-1]) + _u16be(span_y) +
-            _u16be(vx[0]) + _u16be(span_x) +
-            _u16be(MachineComm._embroidery_colour_mask(colours)) +
+            # bank, previous-part slot, stitch type (0x03 = Embroidery)
+            bytes([0xC0, previous_slot & 0xFF, 0x03]) +
+            _u16be(first_y) + _u16be(last_y) + _u16be(span_y) +
+            _u16be(first_x) + _u16be(span_x) +
+            _u16be(colour_mask) +
             bytes([hoop_byte]) +
-            _u16be((hoop_height - span_y) // 2) +
-            _u16be((hoop_width - span_x) // 2) +
+            _u16be(margin_y) + _u16be(margin_x) +
             _u16be(MachineComm.EMBROIDERY_PREVIEW_SIZE) +
-            bytes([block_count]) + _u16be(pattern_size) + bytes([filename_len])
+            bytes([block_count]) + _u16be(pattern_size) + bytes([filename_length])
         )
 
     # ── P-Memory decoding/encoding ──
