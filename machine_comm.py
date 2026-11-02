@@ -38,6 +38,14 @@ def _s8(value):
     return value - 256 if value >= 128 else value
 
 
+# The 1475 CD echoes the slot's write header in its P-Memory index reply, so the
+# four bytes carry the same meaning encode_pmemory_header_1475cd() gives them.
+PMEMORY_HEADER_FIELDS_1475CD = {
+    0x00: ("y_min", "y_max", "dx_abs_max", "long_scale"),
+    0x01: ("y_min_norm", "y_max_norm", "span_x_mm", "long_scale"),
+}
+
+
 def _u16be_at(data, offset):
     """Read a big-endian unsigned 16-bit value from *data* at *offset*."""
     return int.from_bytes(data[offset:offset + 2], "big")
@@ -1729,7 +1737,7 @@ class MachineComm:
             CTRL_ETX + "KN" + 0x00 0x00 + <CardNo[2]>
             + <BANK> + 0x00 + <TYPE>
             + d0x_min_abs[2] + pn_x[2] + span_x[2] + y_min_to_bound[2]
-            + span_y[2] + 0x0000[2] + unknown_1 + 0x0000[2] + unknown_2 + dx_abs_max
+            + span_y[2] + 0x0000[2] or dy_0n + long_scale + 0x0000[2] or y_min_neg + y_min_symmetry + dx_abs_max
             + size_preview[2] + 0x01 + size_pattern[2] + size_name[1]
             + CTRL_ETX
 
@@ -2622,6 +2630,8 @@ class MachineComm:
         pn_x          = xs[-1]
         span_x        = max(xs) - min(xs)
         span_y        = max(ys) - min(ys)
+        
+        color_count = 1 # 9mm and MAXI always have 1 color
 
         # Calculate y_min_symmetry
         # It is based on y_min but with additional flag (MSB set) if the pattern is "top-heavy" (y_max farther from 27 than y_min)
@@ -2646,7 +2656,7 @@ class MachineComm:
         size_pattern = len(pattern_bytes)
         size_name    = len(name_bytes)   # includes null terminator
 
-        unknown_1 = 0x10 # allows longitudinal scaling in machine menu; 0x10 seems to give much freedom
+        long_scale = 0x10 # allows longitudinal scaling in machine menu; 0x10 seems to give much freedom
 
         type_byte_map = {'9mm': 0x01, 'MAXI': 0x02, 'Embroidery': 0x03}
         if stitch_type not in type_byte_map:
@@ -2679,12 +2689,12 @@ class MachineComm:
             _pack2(y_min_to_bound) +
             _pack2(span_y) +
             (_pack2(dy_0n) if stitch_type == "MAXI" else _pack2(0)) +
-            bytes([unknown_1]) +
+            bytes([long_scale]) +
             (_pack2(y_min_neg) if stitch_type == "MAXI" else _pack2(0)) +
             bytes([y_min_symmetry] if stitch_type == "9mm" else bytes([0])) +
             bytes([dx_abs_max]) +
             _pack2(size_preview) +
-            bytes([0x01]) +
+            bytes([color_count]) +
             _pack2(size_pattern) +
             bytes([size_name])
         )
@@ -3700,8 +3710,12 @@ class MachineComm:
             repeated num_slots times:
               [0:2]                 - stitch type (0x00 = 9mm, 0x01 = MAXI)
               [2:6]                 - number of stitches (2 bytes, hex)
-              [6:10]                - unknown (4 chars, ignored)
-              [6:14]                - unknown (8 chars, ignored) - only for PFAFF Creative 1475 CD, other models have only 4 chars total for the unknown field
+              [6:10] (for 75xx)     - 0x00 + long_scale
+              [6:14] (for 1475cd)   - the slot's write header, i.e. the four bytes
+                                      encode_pmemory_header_1475cd() sends in the
+                                      "PN" command: y_min, y_max, dx_abs_max,
+                                      long_scale (9mm) resp. y_min_norm,
+                                      y_max_norm, span_x_mm, long_scale (MAXI)
             last 4 chars            - total free memory (2 bytes, unsigned hex)
 
         Args:
@@ -3712,7 +3726,15 @@ class MachineComm:
             dict: {
                 'num_slots':   int,
                 'free_memory': int,
-                'slots': [{'type': '9mm' | 'MAXI', 'size': int}, ...],
+                'slots': [{
+                    'type':       '9mm' | 'MAXI' | None,
+                    'size':       int,
+                    'long_scale': int | None - header byte 3, the longitudinal
+                                  scaling flag,
+                    'header':     dict | None - the echoed write header keyed by
+                                  the field names above; set only on the 1475 CD
+                                  and only for occupied slots,
+                }, ...],
             }
 
         Raises:
@@ -3761,9 +3783,10 @@ class MachineComm:
                 _tr("Invalid slot count encoding: {0}").format(repr(text[0:2]))
             ) from exc
 
-        # The 1475 CD sends four extra unknown characters per slot.
+        # The 1475 CD sends four extra characters per slot instead.
         model = MachineComm._require_model(machine_model)
-        bytes_per_slot = 14 if model.pmemory_variant == PMEMORY_VARIANT_1475CD else 10
+        is_1475cd = model.pmemory_variant == PMEMORY_VARIANT_1475CD
+        bytes_per_slot = 14 if is_1475cd else 10
 
         expected_len = 2 + num_slots * bytes_per_slot + 4
         if len(text) != expected_len:
@@ -3779,8 +3802,12 @@ class MachineComm:
             try:
                 type_byte = int(slot_text[0:2], 16)
                 size = int(slot_text[2:6], 16)
-                # slot_text[6:10] - purpose unknown, ignored
-                # slot_text[6:14] - purpose unknown, ignored; 1475CD has 4 extra chars here compared to other models
+                if is_1475cd:
+                    header_bytes = [int(slot_text[6 + 2 * k:8 + 2 * k], 16)
+                                    for k in range(4)]
+                else:
+                    header_bytes = None
+                    long_scale = int(slot_text[8:10], 16)
             except ValueError as exc:
                 raise MachineCommError(
                     _tr("Invalid data for slot {0}: {1}").format(i + 1, repr(slot_text))
@@ -3795,7 +3822,17 @@ class MachineComm:
             else:
                 stitch_type = f"unknown(0x{type_byte:02X})"
 
-            slots.append({'type': stitch_type, 'size': size})
+            header = None
+            if header_bytes is not None:
+                # Unused slots keep whatever header the last write left behind,
+                # so only name the fields for slots that hold a pattern.
+                field_names = PMEMORY_HEADER_FIELDS_1475CD.get(type_byte)
+                long_scale = header_bytes[3]
+                if size and field_names is not None:
+                    header = dict(zip(field_names, header_bytes))
+
+            slots.append({'type': stitch_type, 'size': size,
+                          'long_scale': long_scale, 'header': header})
             offset += bytes_per_slot
 
         try:
@@ -3808,7 +3845,7 @@ class MachineComm:
         # Original SW shows 1 byte less than machine reports on 75xx models, reason unknown.
         # The 1475 CD does not need this adjustment.
         adjusted_free = (
-            free_memory if model.pmemory_variant == PMEMORY_VARIANT_1475CD
+            free_memory if is_1475cd
             else free_memory - 1
         )
 
@@ -3952,7 +3989,7 @@ class MachineComm:
                 f"{dx_abs_max     & 0xFF:02X}"   # byte  2   dx_abs_max
                 f"{0              & 0xFF:02X}"   # byte  3
                 f"{0              & 0xFF:02X}"   # byte  4
-                f"{16             & 0xFF:02X}"   # byte  5   unknown, allows longitudinal scaling
+                f"{16             & 0xFF:02X}"   # byte  5   long_scale, allow longitudinal scaling
                 f"{d0x_min_abs    & 0xFFFF:04X}" # bytes 6-7
                 f"{pn_x           & 0xFFFF:04X}" # bytes 8-9
                 f"{span_x         & 0xFFFF:04X}" # bytes 10-11
@@ -3969,7 +4006,7 @@ class MachineComm:
                 f"{dx_abs_max     & 0xFF:02X}"   # byte  2   dx_abs_max
                 f"{0              & 0xFF:02X}"   # byte  3
                 f"{0              & 0xFF:02X}"   # byte  4
-                f"{16             & 0xFF:02X}"   # byte  5   unknown, allows longitudinal scaling
+                f"{16             & 0xFF:02X}"   # byte  5   long_scale, allows longitudinal scaling
                 f"{d0x_min_abs    & 0xFFFF:04X}" # bytes 6-7
                 f"{pn_x           & 0xFFFF:04X}" # bytes 8-9
                 f"{span_x         & 0xFFFF:04X}" # bytes 10-11
@@ -4022,14 +4059,14 @@ class MachineComm:
                 f"{y_min          & 0xFF:02X}"   # byte  0   y_min
                 f"{y_max          & 0xFF:02X}"   # byte  1   y_max
                 f"{dx_abs_max     & 0xFF:02X}"   # byte  2   dx_abs_max
-                f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
+                f"{16             & 0xFF:02X}"   # byte  3   long_scale, allows longitudinal scaling
             ).encode('ascii')
         elif pattern.stitch_type == "MAXI":
             return (
                 f"{0              & 0xFF:02X}"   # byte  0   y_min_norm (0, normalised)
                 f"{span_y         & 0xFF:02X}"   # byte  1   y_max_norm
                 f"{span_x_mm      & 0xFF:02X}"   # byte  2   span_x_mm
-                f"{16             & 0xFF:02X}"   # byte  3   unknown, allows longitudinal scaling
+                f"{16             & 0xFF:02X}"   # byte  3   long_scale, allows longitudinal scaling
             ).encode('ascii')
         else:
             raise MachineCommError(
