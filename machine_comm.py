@@ -225,8 +225,10 @@ class MachineComm:
     # number is also drawn into the composite preview with a 5x7 font inside a
     # white box, so the card list shows which segment is which.  The box is
     # EMBROIDERY_BADGE_INSET pixels from the image border, and the digits keep
-    # EMBROIDERY_BADGE_PADDING pixels of white around them.
-    CARD_PART_NAME_MAX = 32
+    # EMBROIDERY_BADGE_PADDING pixels of white around them.  The font holds the
+    # digits upright; _preview_badge_pixels() turns them 90° counter-clockwise
+    # to match how the machine displays the stored preview.
+    CARD_PART_NAME_MAX = 24
     CARD_PART_NAME_SUFFIX = "-{0}"
     EMBROIDERY_BADGE_INSET = 1
     EMBROIDERY_BADGE_PADDING = 1
@@ -426,7 +428,7 @@ class MachineComm:
         re.IGNORECASE,
     )
 
-    def query_machine(self, retries=15, retry_delay=0.05, timeout=1.0):
+    def query_machine(self, retries=15, retry_delay=0.05, timeout=2.0):
         """Query the machine for its identification string.
 
         Sends CTRL_BEL repeatedly until the machine responds. The machine
@@ -439,7 +441,7 @@ class MachineComm:
         Args:
             retries (int): Maximum number of CTRL_BEL attempts. Default: 15.
             retry_delay (float): Seconds to wait between retries. Default: 0.05.
-            timeout (float): Read timeout in seconds per attempt. Default: 1.0.
+            timeout (float): Read timeout in seconds per attempt.
 
         Returns:
             dict: {
@@ -540,14 +542,14 @@ class MachineComm:
 
     # ── P-Memory commands ──
 
-    def query_pmemory_index(self, timeout=1.0):
+    def query_pmemory_index(self, timeout=2.0):
         """Query the machine P-Memory directory.
 
         Sends the "PI" command terminated with CTRL_ETX. Reads the response
         until CTRL_ETB is received, then reads the 2 trailing checksum bytes.
 
         Args:
-            timeout (float): Read timeout in seconds. Default: 1.0.
+            timeout (float): Read timeout in seconds.
 
         Returns:
             bytes: Raw response bytes (payload bytes up to and including CTRL_ETB,
@@ -584,7 +586,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def delete_pmemory_slot(self, slot_index, timeout=1.0):
+    def delete_pmemory_slot(self, slot_index, timeout=2.0):
         """Send a delete command for the given P-Memory slot.
 
         Sends "PL<xx>" + CTRL_ETX where <xx> is the zero-based slot index
@@ -592,7 +594,7 @@ class MachineComm:
 
         Args:
             slot_index (int): Zero-based index of the slot to delete.
-            timeout (float): Read timeout in seconds. Default: 1.0.
+            timeout (float): Read timeout in seconds.
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -620,7 +622,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_pmemory_slot(self, slot_index, slot_type, timeout=1.0, total_size=0, progress_callback=None):
+    def load_pmemory_slot(self, slot_index, slot_type, timeout=2.0, total_size=0, progress_callback=None):
         """Load a pattern from a P-Memory slot.
 
         Sends 'RM06<XX><T>' + CTRL_ETX, where XX is the zero-based slot index
@@ -633,7 +635,7 @@ class MachineComm:
         Args:
             slot_index (int): Zero-based index of the slot to read.
             slot_type (str): '9mm' or 'MAXI'.
-            timeout (float): Per-byte read timeout in seconds. Default: 1.0.
+            timeout (float): Per-byte read timeout in seconds.
 
         Returns:
             bytes: Concatenated hex-ASCII payload from all chunks.
@@ -726,7 +728,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot(self, slot_index, pattern, machine_model, chunk_size=250, timeout=2.0, progress_callback=None):
         """Dispatch to the appropriate send method based on machine_model.
 
         The P-Memory framing is a capability of the model, so the registry in
@@ -745,7 +747,7 @@ class MachineComm:
                                         chunk_size=chunk_size, timeout=timeout,
                                         progress_callback=progress_callback)
 
-    def send_pmemory_slot_75xx(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot_75xx(self, slot_index, pattern, chunk_size=250, timeout=2.0, progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -766,7 +768,7 @@ class MachineComm:
             slot_index (int): 0-based slot number to write to.
             pattern: StitchPattern instance (stitch_type + points).
             chunk_size (int): Stitch-data payload bytes per chunk. Default: 250.
-            timeout (float): Per-response read timeout in seconds. Default: 1.0.
+            timeout (float): Per-response read timeout in seconds.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable
                 called after each stitch-data chunk is acknowledged.
 
@@ -871,7 +873,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=1.0, progress_callback=None):
+    def send_pmemory_slot_1475cd(self, slot_index, pattern, chunk_size=250, timeout=2.0, progress_callback=None):
         """Write a pattern to a specific P-Memory slot in three phases.
 
         Phase 1 - Write command:
@@ -890,7 +892,7 @@ class MachineComm:
             slot_index (int): 0-based slot number to write to.
             pattern: StitchPattern instance (stitch_type + points).
             chunk_size (int): Stitch-data payload bytes per chunk. Default: 250.
-            timeout (float): Per-response read timeout in seconds. Default: 1.0.
+            timeout (float): Per-response read timeout in seconds.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable
                 called after each stitch-data chunk is acknowledged.
 
@@ -976,7 +978,7 @@ class MachineComm:
 
     # ── Memory Card commands ──
 
-    def query_card_index(self, timeout=1.0):
+    def query_card_index(self, timeout=3.0):
         """Query the machine memory card index.
 
         Sends "KI" + CTRL_ETX and reads the response.
@@ -993,7 +995,7 @@ class MachineComm:
             + CTRL_ETB + checksum
 
         Args:
-            timeout (float): Read timeout in seconds. Default: 2.0.
+            timeout (float): Read timeout in seconds.
 
         Returns:
             dict: {
@@ -1133,7 +1135,7 @@ class MachineComm:
             self._serial.timeout = saved_timeout
 
     def query_card_preview(self, card_no_bytes, slot_index, pattern_type,
-                           preview_number=0, timeout=1.0, max_retries=3):
+                           preview_number=0, timeout=3.0, max_retries=3):
         """Request and receive a preview image for one card pattern.
 
         Sends::
@@ -1190,7 +1192,7 @@ class MachineComm:
             preview_number (int): Which preview block to read: 0 for the
                 composite image, 1 .. N for the colour blocks of a hoop design.
                 Default: 0.
-            timeout (float): Per-read timeout in seconds. Default: 5.0.
+            timeout (float): Per-read timeout in seconds.
             max_retries (int): Maximum chunk retransmit attempts. Default: 3.
 
         Returns:
@@ -1417,7 +1419,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def load_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0, max_retries=3, total_size=0, progress_callback=None):
+    def load_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=5.0, max_retries=3, total_size=0, progress_callback=None):
         """Load (read) a pattern from a memory card slot.
 
         Sends::
@@ -1458,7 +1460,7 @@ class MachineComm:
             slot_index (int): Zero-based absolute slot index on the card (offset
                 already applied).
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
-            timeout (float): Per-read timeout in seconds. Default: 1.0.
+            timeout (float): Per-read timeout in seconds.
             max_retries (int): Maximum chunk retransmit attempts. Default: 3.
             total_size (int): Expected total payload size in bytes, used as the
                 ``total_bytes`` argument passed to *progress_callback*.  Pass
@@ -1644,7 +1646,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def delete_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=1.0):
+    def delete_card_slot(self, card_no_bytes, slot_index, pattern_type, timeout=5.0):
         """Delete a pattern from the memory card.
 
         Sends::
@@ -1672,7 +1674,7 @@ class MachineComm:
                 applied; use the ``'slot'`` value stored in the pattern dict
                 returned by :meth:`query_card_preview`).
             pattern_type (str): ``'9mm'``, ``'MAXI'``, or ``'Embroidery'``.
-            timeout (float): Read timeout in seconds.  Default: 5.0.
+            timeout (float): Read timeout in seconds.
 
         Raises:
             serial.SerialException: If the port is not open.
@@ -1725,7 +1727,7 @@ class MachineComm:
         finally:
             self._serial.timeout = saved_timeout
 
-    def send_card_slot(self, card_no_bytes, pattern, filename, chunk_size=128, timeout=1.0,
+    def send_card_slot(self, card_no_bytes, pattern, filename, chunk_size=128, timeout=10.0,
                        max_retries=3, progress_callback=None, parts=None):
         """Write a new pattern to the next free card slot (KN command).
 
@@ -1768,8 +1770,9 @@ class MachineComm:
         Args:
             card_no_bytes (bytes): Raw 2-byte card number from query_card().
             pattern: StitchPattern instance used to derive KN header parameters.
-            filename (str): Filename (max 32 characters).
-            timeout (float): Per-read timeout in seconds.  Default: 1.0.
+            filename (str): Filename (at most :attr:`CARD_PART_NAME_MAX`
+                characters).
+            timeout (float): Per-read timeout in seconds. 
             max_retries (int): Maximum number of retries for each chunk.  Default: 3.
             progress_callback: Optional ``(done_bytes, total_bytes)`` callable.
                 A split design reports progress over all of its parts.
@@ -1786,6 +1789,9 @@ class MachineComm:
             MachineCommError: On timeout, CTRL_NAK, checksum error, unexpected
                 response, or when the pattern payload exceeds the card slot
                 capacity and cannot be split.
+
+        Every failure after the transfer started ends with CTRL_EOT, so the
+        machine drops the half-written slot instead of waiting for more data.
         """
         self._require_open()
 
@@ -1828,8 +1834,29 @@ class MachineComm:
             data = filename_bytes + preview_bytes + stitch_data
             return self._write_card_transfer(header, data, chunk_size, max_retries,
                                             progress_callback)
+        except (MachineCommError, serial.SerialException):
+            # The machine may be halfway through a KN transfer and still waiting
+            # for data; CTRL_EOT is what tells it to drop the write.
+            self._abort_card_write()
+            raise
         finally:
             self._serial.timeout = saved_timeout
+
+    def _abort_card_write(self):
+        """Send CTRL_EOT so the machine abandons a card transfer that failed.
+
+        A KN write that stopped partway leaves the machine expecting the rest of
+        its data, so every failure of :meth:`send_card_slot` ends here.  The port
+        stays open - the caller decides when the session itself ends.
+        """
+        try:
+            self._serial.write(bytes([self.CTRL_EOT]))
+            self._logger.log_info("Card write aborted with CTRL_EOT")
+        except (serial.SerialException, OSError) as exc:
+            # Nothing useful is left to do: the caller is already handling the
+            # failure that brought us here.
+            self._logger.log_error(
+                f"Could not send CTRL_EOT after a failed card write: {exc}")
 
     def _send_card_parts(self, card_no_bytes, parts, chunk_size, max_retries,
                          progress_callback=None):
@@ -1889,6 +1916,11 @@ class MachineComm:
         CTRL_NAK is retransmitted.  After the last chunk CTRL_ETX commits the
         write.
 
+        A refusal is answered with ``CTRL_NAK + <error code>`` - two bytes, not
+        three - so the status byte is read on its own.  Reading the whole
+        acknowledgement up front would wait for a third byte that never arrives
+        and only then report the NAK the machine sent immediately.
+
         Args:
             header (bytes): The 30-byte KN header.
             data (bytes): ``<filename> + <previews> + <stitch payload>``.
@@ -1904,19 +1936,25 @@ class MachineComm:
         """
         self._serial.write(bytes([self.CTRL_ETX]) + b"KN" + header + bytes([self.CTRL_ETX]))
 
-        resp = self._serial.read(3)
-        if not resp:
+        # The status byte decides what follows: CTRL_ACK carries bank + slot,
+        # CTRL_NAK only its error code.  Reading both in one go would stall
+        # until the read timeout whenever the machine refuses the write.
+        status = self._serial.read(1)
+        if not status:
             raise MachineCommError(_tr("No response to card write command."))
-        if resp[0] == self.CTRL_NAK:
-            self._raise_card_write_nak(resp[1] if len(resp) > 1 else None)
-        if resp[0] != self.CTRL_ACK:
+        if status[0] == self.CTRL_NAK:
+            error_code = self._serial.read(1)
+            self._raise_card_write_nak(error_code[0] if error_code else None)
+        if status[0] != self.CTRL_ACK:
             raise MachineCommError(
-                _tr("Unexpected response 0x{0} to card write command.").format(f"{resp[0]:02X}"))
-        if len(resp) < 3:
+                _tr("Unexpected response 0x{0} to card write command.").format(f"{status[0]:02X}"))
+
+        assignment = self._serial.read(2)
+        if len(assignment) < 2:
             raise MachineCommError(
                 _tr("Incomplete acknowledgement to card write command ({0} byte(s) received, expected 3).").format(
-                    len(resp)))
-        assigned_slot = resp[2]
+                    1 + len(assignment)))
+        assigned_slot = assignment[1]
 
         total = len(data)
         done = 0
@@ -2833,8 +2871,10 @@ class MachineComm:
 
         Args:
             pattern: StitchPattern with a hoop ``stitch_type``.
-            filename (str): Card filename (at most 32 characters).  Parts after
-                the first get a "-#" suffix.
+            filename (str): Card filename (at most :attr:`CARD_PART_NAME_MAX`
+                characters, and shorter when the design needs several parts —
+                see :meth:`card_name_limit`).  Parts after the first get a "-#"
+                suffix.
             allow_split (bool | None): Overrides :attr:`CARD_SPLIT_ENABLED`.
 
         Returns:
@@ -2933,6 +2973,20 @@ class MachineComm:
         ).format(size, MachineComm.CARD_MAX_PAYLOAD))
 
     @staticmethod
+    def card_name_limit(part_count=1):
+        """Return the longest base name whose split parts all fit the name field.
+
+        A design that needs several card slots is stored as ``NAME``, ``NAME-2``,
+        ``NAME-3``, … so the base name has to stay short enough for the longest
+        suffix.  A single-part write, and every part index handled by
+        :meth:`_card_part_filename`, may use the whole field.
+        """
+        if part_count <= 1:
+            return MachineComm.CARD_PART_NAME_MAX
+        suffix = MachineComm.CARD_PART_NAME_SUFFIX.format(part_count)
+        return max(MachineComm.CARD_PART_NAME_MAX - len(suffix), 1)
+
+    @staticmethod
     def _card_part_filename(filename, part_index):
         """Return the NUL-terminated card name of part *part_index*.
 
@@ -2944,8 +2998,7 @@ class MachineComm:
             name = filename[:MachineComm.CARD_PART_NAME_MAX]
         else:
             suffix = MachineComm.CARD_PART_NAME_SUFFIX.format(part_index + 1)
-            keep = MachineComm.CARD_PART_NAME_MAX - len(suffix)
-            name = filename[:max(keep, 1)] + suffix
+            name = filename[:MachineComm.card_name_limit(part_index + 1)] + suffix
         return name.encode('latin-1', errors='replace') + b'\x00'
 
     @staticmethod
@@ -3522,14 +3575,21 @@ class MachineComm:
         of :attr:`EMBROIDERY_BADGE_FONT` with :attr:`EMBROIDERY_BADGE_PADDING`
         pixels of background around them; ``pixels`` are its border and glyphs,
         counted from the image's top-left corner.
+
+        Each digit is turned 90° counter-clockwise, so a font glyph of 5 x 7
+        becomes 7 pixels wide and 5 high.  The block is stored rotated by 180°
+        (see :meth:`_rasterize_embroidery_preview`), so this turn is what makes
+        the number read upright once the machine displays the slot.
         """
         text = str(int(number))
-        glyph_width, glyph_height = 5, 7
+        glyph_width, glyph_height = 5, 7        # EMBROIDERY_BADGE_FONT geometry
         spacing = 1                     # blank column between two digits
-        inner_width = glyph_width * len(text) + spacing * (len(text) - 1)
+        # Turned on its side the font's height becomes the glyph's width.
+        digit_width, digit_height = glyph_height, glyph_width
+        inner_width = digit_width * len(text) + spacing * (len(text) - 1)
         frame = 1 + MachineComm.EMBROIDERY_BADGE_PADDING
         box_width = inner_width + 2 * frame
-        box_height = glyph_height + 2 * frame
+        box_height = digit_height + 2 * frame
         left = top = MachineComm.EMBROIDERY_BADGE_INSET
 
         pixels = set()
@@ -3547,8 +3607,13 @@ class MachineComm:
             for row, bits in enumerate(glyph):
                 for column, bit in enumerate(bits):
                     if bit == "1":
-                        pixels.add((glyph_left + position * (glyph_width + spacing) + column,
-                                    glyph_top + row))
+                        # 90° counter-clockwise: (row, column) -> (column' = row,
+                        # row' = glyph_width - 1 - column), which sends the
+                        # glyph's bottom edge to the right-hand side.
+                        pixels.add((
+                            glyph_left + position * (digit_width + spacing) + row,
+                            glyph_top + (glyph_width - 1 - column),
+                        ))
         return (left, top, box_width, box_height), pixels
 
     @staticmethod
