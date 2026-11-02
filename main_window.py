@@ -48,6 +48,12 @@ EMBROIDERY_DESIGN_TYPES = ("small hoop", "large hoop")
 # larger hoop before it is rejected as unopenable.
 HOOP_PROMOTIONS = {"small hoop": "large hoop"}
 
+# Longest pattern name the machine stores on a memory card. It lives in
+# MachineComm because that is where the name is written into the card frame; a
+# design that is split across several slots also appends "-#" per part, which
+# has to fit into the same field (see MachineComm.card_name_limit).
+CARD_FILENAME_MAX = MachineComm.CARD_PART_NAME_MAX
+
 
 @dataclass(frozen=True)
 class DesignTypeRule:
@@ -3140,14 +3146,17 @@ class MainWindow(QMainWindow):
     def _machine_load_card(self):
         self._machine_query_and_show_card_memory(CardMemoryDialog.ACTION_LOAD)
 
-    def _ask_card_filename(self, default_text=""):
+    def _ask_card_filename(self, default_text="", max_length=CARD_FILENAME_MAX):
         """Show a dialog asking the user for a card pattern filename.
 
         Args:
             default_text: Optional text to prefill the input field.
+            max_length: Longest name accepted. A design that needs several card
+                slots gets a shorter limit, because every part carries a "-#"
+                suffix next to the name (see MachineComm.card_name_limit).
 
         Returns:
-            str | None: Entered filename (1–32 chars), or None if cancelled.
+            str | None: Entered filename (1–*max_length* chars), or None if cancelled.
         """
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Pattern Name"))
@@ -3157,18 +3166,20 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 12)
         layout.setSpacing(8)
 
-        lbl = QLabel(self.tr("Enter a name for this pattern (max 32 characters):"))
+        lbl = QLabel(self.tr(
+            "Enter a name for this pattern (max {0} characters):").format(max_length))
         layout.addWidget(lbl)
 
         edit = QLineEdit()
-        edit.setMaxLength(32)
+        edit.setMaxLength(max_length)
         edit.setPlaceholderText(self.tr("Pattern name"))
         # Prefill with latin-1 safe version of the default text
         if default_text:
-            edit.setText(default_text[:32])
+            edit.setText(default_text[:max_length])
         layout.addWidget(edit)
         # Allow alphanumeric, spaces, and special characters supported by the machine
-        regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}")
+        # regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}")
+        regex = QRegExp(rf"[A-Za-z0-9 _\-~$^%()@'!]{{1,{max_length}}}")
         edit.setValidator(QRegExpValidator(regex, edit))
         
         btn_row = QHBoxLayout()
@@ -3192,10 +3203,10 @@ class MainWindow(QMainWindow):
                 return None
             name = edit.text().strip()
             if name:
-                return name[:32]
+                return name[:max_length]
             QMessageBox.warning(
                 self, self.tr("Pattern Name"),
-                self.tr("Please enter a valid name (1-32 characters)."),
+                self.tr("Please enter a valid name (1-{0} characters).").format(max_length),
             )
 
     def _machine_send_card(self):
@@ -3224,24 +3235,22 @@ class MainWindow(QMainWindow):
             default_name = ""
             raw = ""
             if self._file_path:
-                raw = os.path.splitext(os.path.basename(self._file_path))[0][:32]
+                raw = os.path.splitext(os.path.basename(self._file_path))[0]
             elif self._machine_pattern_name:
-                raw = self._machine_pattern_name[:32]
+                raw = self._machine_pattern_name
             if raw:
                 # Encode as latin-1 and decode back to show a preview of how the
                 # name will look on the machine (characters not representable in
                 # latin-1 are replaced with '?' by the encode step).
-                try:
-                    default_name = raw.encode("latin-1", errors="replace").decode("latin-1")
-                except Exception:
-                    default_name = raw
+                default_name = raw[:CARD_FILENAME_MAX].encode(
+                    "latin-1", errors="replace").decode("latin-1")
             filename = self._ask_card_filename(default_name)
             if filename is None:
                 return  # user cancelled
         elif self._file_path:
-            filename = os.path.splitext(os.path.basename(self._file_path))[0][:32]
+            filename = os.path.splitext(os.path.basename(self._file_path))[0][:CARD_FILENAME_MAX]
         elif self._machine_pattern_name:
-            filename = self._machine_pattern_name[:32]
+            filename = self._machine_pattern_name[:CARD_FILENAME_MAX]
         else:
             filename = self._ask_card_filename()
             if filename is None:
@@ -3252,6 +3261,17 @@ class MainWindow(QMainWindow):
         if stitch_type in MachineComm.EMBROIDERY_HOOPS:
             try:
                 parts = self._machine_comm.plan_card_write(self._pattern, filename)
+                if len(parts) > 1:
+                    # The parts are stored as "NAME", "NAME-2", ..., so the name
+                    # has to leave room for the longest suffix. A shorter name
+                    # can move a cut point, hence the second plan.
+                    limit = MachineComm.card_name_limit(len(parts))
+                    if len(filename) > limit:
+                        self._log_info(
+                            f"Card name shortened to {limit} characters so the "
+                            f"{len(parts)} parts can carry their \"-#\" suffix")
+                        filename = filename[:limit]
+                        parts = self._machine_comm.plan_card_write(self._pattern, filename)
             except MachineCommError as exc:
                 self._log_error(str(exc))
                 QMessageBox.critical(self, self.tr("Send Card Stitch"), str(exc))
@@ -3304,12 +3324,14 @@ class MainWindow(QMainWindow):
         except MachineCommError as exc:
             self._log_error(str(exc))
             progress_dlg.close()
+            self._drop_card_dialog_cache()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, self.tr("Error"), str(exc))
             return
         except Exception as exc:
             self._log_error(str(exc))
             progress_dlg.close()
+            self._drop_card_dialog_cache()
             self._machine_comm.end_transmission()
             QMessageBox.critical(self, 
                 self.tr("Error"),
@@ -3320,9 +3342,9 @@ class MainWindow(QMainWindow):
         progress_dlg.setValue(100)
         progress_dlg.close()
 
-        # Invalidate the CardMemoryDialog cache — the card has changed
-        CardMemoryDialog._cached_card_info = None
-        CardMemoryDialog._cached_card_previews = None
+        # The card's content changed, so the next Memory Card dialog must read
+        # it again instead of reusing the previews cached from before the write.
+        self._drop_card_dialog_cache()
 
         # ── Verify by re-querying the card index ──────────────────────────
         try:
@@ -3378,6 +3400,16 @@ class MainWindow(QMainWindow):
                 + "\n" +
                 self.tr("Please verify the card contents."),
             )
+
+    def _drop_card_dialog_cache(self):
+        """Drop the card contents the Memory Card dialog cached.
+
+        A card write changes the card, and a failed write may have stored some
+        of its parts already, so the next dialog has to read the card again
+        rather than reuse previews the machine no longer matches.
+        """
+        CardMemoryDialog._cached_card_info = None
+        CardMemoryDialog._cached_card_previews = None
 
     def _confirm_card_split(self, part_count):
         """Ask whether an oversized embroidery design may be split.
