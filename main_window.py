@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
-    QLineEdit, QSpinBox, QProgressDialog, QApplication, QColorDialog,
+    QLineEdit, QSpinBox, QDoubleSpinBox, QProgressDialog, QApplication,
+    QColorDialog,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
@@ -1039,13 +1040,37 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.TopToolBarArea, self._selection_toolbar)
         self._selection_toolbar.setVisible(False)
 
-        # Compact sel-xform toolbar (shown while resize/rotate is active)
+        # Compact sel-xform toolbar (shown while resize/rotate is active). The
+        # drag handles and these numbers move the same transform, so each one
+        # refreshes the other through sel_xform_changed.
         self._sel_xform_toolbar = QToolBar(self.tr("Resize/Rotate"), self)
         self._sel_xform_toolbar.setMovable(False)
+        self._xform_spins_syncing = False
+        self._xform_scale_x_spin = self._make_xform_spin(
+            self.tr("Horizontal scale of the selection"), " %", 1.0, 1000.0)
+        self._xform_scale_y_spin = self._make_xform_spin(
+            self.tr("Vertical scale of the selection"), " %", 1.0, 1000.0)
+        self._xform_angle_spin = self._make_xform_spin(
+            self.tr("Rotation of the selection in degrees"), " °", 0.0, 360.0)
+        # No transform yet: the numbers name the selection as it is.
+        self._xform_scale_x_spin.setValue(100.0)
+        self._xform_scale_y_spin.setValue(100.0)
+        self._xform_scale_x_label = QLabel(self.tr("X:"))
+        self._xform_scale_y_label = QLabel(self.tr("Y:"))
+        self._xform_angle_label = QLabel(self.tr("Angle:"))
+        self._sel_xform_toolbar.addWidget(self._xform_scale_x_label)
+        self._sel_xform_toolbar.addWidget(self._xform_scale_x_spin)
+        self._sel_xform_toolbar.addWidget(self._xform_scale_y_label)
+        self._sel_xform_toolbar.addWidget(self._xform_scale_y_spin)
+        self._sel_xform_toolbar.addWidget(self._xform_angle_label)
+        self._sel_xform_toolbar.addWidget(self._xform_angle_spin)
+        self._sel_xform_toolbar.addSeparator()
         self._sel_xform_toolbar.addAction(self._act_sel_xform_ok)
         self._sel_xform_toolbar.addAction(self._act_sel_xform_cancel)
         self.addToolBar(Qt.TopToolBarArea, self._sel_xform_toolbar)
         self._sel_xform_toolbar.setVisible(False)
+        self._canvas.sel_xform_changed.connect(self._update_xform_spins)
+        self._update_xform_spins()
 
     def _make_selection_spin(self, tooltip):
         """Create a spin box that edits one end of the canvas selection."""
@@ -1058,6 +1083,49 @@ class MainWindow(QMainWindow):
         spin.setToolTip(tooltip)
         spin.valueChanged.connect(self._on_selection_spin_changed)
         return spin
+
+    def _make_xform_spin(self, tooltip, suffix, minimum, maximum):
+        """Create a spin box that sets one number of the resize/rotate transform."""
+        spin = QDoubleSpinBox()
+        spin.setDecimals(1)
+        spin.setRange(minimum, maximum)
+        spin.setSuffix(suffix)
+        spin.setFixedWidth(80)
+        spin.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # Apply a typed number only when editing is done, not on every keystroke.
+        spin.setKeyboardTracking(False)
+        spin.setToolTip(tooltip)
+        spin.valueChanged.connect(self._on_xform_spin_changed)
+        return spin
+
+    def _on_xform_spin_changed(self, _value):
+        """Apply the scale and rotation spin boxes to the transform."""
+        if self._xform_spins_syncing or not self._canvas._sel_xform_active:
+            return
+        # Read every box before applying: each setter refreshes the boxes from
+        # the canvas, which would otherwise revert the value still to be read.
+        scale_x = self._xform_scale_x_spin.value()
+        scale_y = self._xform_scale_y_spin.value()
+        angle = self._xform_angle_spin.value()
+        self._canvas.set_sel_xform_scale_percent(scale_x, scale_y)
+        self._canvas.set_sel_xform_angle(angle)
+
+    def _update_xform_spins(self):
+        """Show the transform state in the spin boxes.
+
+        The canvas clamps a scale that would collapse the selection, so the
+        boxes are re-read from it rather than trusting what was typed.
+        """
+        if not self._canvas._sel_xform_active:
+            return
+        scale_x, scale_y = self._canvas.get_sel_xform_scale_percent()
+        self._xform_spins_syncing = True
+        try:
+            self._xform_scale_x_spin.setValue(scale_x)
+            self._xform_scale_y_spin.setValue(scale_y)
+            self._xform_angle_spin.setValue(self._canvas.get_sel_xform_angle())
+        finally:
+            self._xform_spins_syncing = False
 
     def _selectable_stitch_indices(self):
         """Return the element indices a stitch selection may land on."""
@@ -2565,6 +2633,8 @@ class MainWindow(QMainWindow):
         if len(self._canvas.get_selected_indices()) < 2:
             return
         self._canvas.enter_sel_xform_mode()
+        # Start the numbers at the untransformed state the mode just captured.
+        self._update_xform_spins()
         self._selection_toolbar.setVisible(False)
         self._sel_xform_toolbar.setVisible(True)
         self._sel_xform_toolbar.setMaximumWidth(

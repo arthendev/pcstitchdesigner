@@ -23,6 +23,7 @@ class StitchCanvas(QWidget):
     cursor_moved = pyqtSignal(float, float)  # canvas x, y under cursor
     selection_changed = pyqtSignal()  # emitted when selection changes
     drag_finished = pyqtSignal()  # emitted after a stitch drag is committed
+    sel_xform_changed = pyqtSignal()  # emitted when the transform is adjusted
 
     MARGIN = 25  # pixel margin around the drawing area
 
@@ -365,6 +366,9 @@ class StitchCanvas(QWidget):
     # ── Selection resize/rotate transform ──
 
     _SEL_ROT_OFFSET = 16   # px from edge to rotation handle circle center
+    # Smallest half-extent a resize may produce, in canvas units. Keeps a
+    # selection from collapsing to a line or a point.
+    _SEL_XFORM_MIN_HALF = 0.5
 
     def enter_sel_xform_mode(self):
         """Enter resize/rotate mode for the current selection."""
@@ -451,6 +455,49 @@ class StitchCanvas(QWidget):
                 ny = max(0.0, min(float(self.pattern.CANVAS_HEIGHT), ny))
             result.append((idx, nx, ny))
         return result
+
+    # ── Sel-xform geometry helpers ──
+
+    def get_sel_xform_scale_percent(self):
+        """Return the transform's X/Y scale in percent (100.0 = original size)."""
+        if not self._sel_xform_active:
+            return 100.0, 100.0
+        scale_x = (self._sel_xform_nhw / self._sel_xform_orig_nhw * 100.0
+                   if self._sel_xform_orig_nhw else 100.0)
+        scale_y = (self._sel_xform_nhh / self._sel_xform_orig_nhh * 100.0
+                   if self._sel_xform_orig_nhh else 100.0)
+        return scale_x, scale_y
+
+    def set_sel_xform_scale_percent(self, x_percent=None, y_percent=None):
+        """Scale the transform to *x_percent* / *y_percent* of the original.
+
+        None leaves that axis alone. The extents are clamped to
+        ``_SEL_XFORM_MIN_HALF``, so the selection can never be scaled away.
+        """
+        if not self._sel_xform_active:
+            return
+        if x_percent is not None:
+            self._sel_xform_nhw = max(
+                self._SEL_XFORM_MIN_HALF,
+                self._sel_xform_orig_nhw * x_percent / 100.0)
+        if y_percent is not None:
+            self._sel_xform_nhh = max(
+                self._SEL_XFORM_MIN_HALF,
+                self._sel_xform_orig_nhh * y_percent / 100.0)
+        self.update()
+        self.sel_xform_changed.emit()
+
+    def get_sel_xform_angle(self):
+        """Return the transform rotation in degrees, 0-360 (clockwise on screen)."""
+        return self._sel_xform_angle if self._sel_xform_active else 0.0
+
+    def set_sel_xform_angle(self, degrees):
+        """Rotate the transform to *degrees*, clockwise on screen."""
+        if not self._sel_xform_active:
+            return
+        self._sel_xform_angle = float(degrees) % 360.0
+        self.update()
+        self.sel_xform_changed.emit()
 
     # ── Sel-xform geometry helpers ──
 
@@ -567,8 +614,10 @@ class StitchCanvas(QWidget):
             cx_px, cy_px = self._sel_xform_center_screen()
             cur_angle = math.degrees(
                 math.atan2(event.y() - cy_px, event.x() - cx_px))
-            self._sel_xform_angle = a0 + (cur_angle - self._sel_xform_drag_start_mouse_angle)
+            self._sel_xform_angle = (a0 + (cur_angle
+                                           - self._sel_xform_drag_start_mouse_angle)) % 360.0
             self.update()
+            self.sel_xform_changed.emit()
             return
 
         if h == 'MOVE':
@@ -588,7 +637,7 @@ class StitchCanvas(QWidget):
         local_dy = (-dx_s * sa + dy_s * ca) / self._scale
 
         dw_sign, dh_sign, constrain, mx, my = self._SEL_HANDLE_INFO[h]
-        MIN = 0.5
+        MIN = self._SEL_XFORM_MIN_HALF
         ratio = nhw0 / nhh0 if nhh0 > 0 else 1.0
         delta_nhw = dw_sign * local_dx
         delta_nhh = dh_sign * local_dy
@@ -614,6 +663,7 @@ class StitchCanvas(QWidget):
         self._sel_xform_cx_n = (ax - (alx_px * ca - aly_px * sa) - self.MARGIN) / self._scale
         self._sel_xform_cy_n = (ay - (alx_px * sa + aly_px * ca) - self.MARGIN) / self._scale
         self.update()
+        self.sel_xform_changed.emit()
 
     def _sel_xform_mouse_release(self, event):
         self._sel_xform_drag_handle = None
