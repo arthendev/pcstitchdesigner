@@ -226,8 +226,8 @@ class MachineComm:
     # white box, so the card list shows which segment is which.  The box is
     # EMBROIDERY_BADGE_INSET pixels from the image border, and the digits keep
     # EMBROIDERY_BADGE_PADDING pixels of white around them.  The font holds the
-    # digits upright; _preview_badge_pixels() turns them 90° counter-clockwise
-    # to match how the machine displays the stored preview.
+    # digits upright; _preview_badge_pixels() turns them 90° clockwise to match
+    # how the machine displays the stored preview.
     CARD_PART_NAME_MAX = 24
     CARD_PART_NAME_SUFFIX = "-{0}"
     EMBROIDERY_BADGE_INSET = 1
@@ -3576,7 +3576,7 @@ class MachineComm:
         pixels of background around them; ``pixels`` are its border and glyphs,
         counted from the image's top-left corner.
 
-        Each digit is turned 90° counter-clockwise, so a font glyph of 5 x 7
+        Each digit is turned 90° clockwise, so a font glyph of 5 x 7
         becomes 7 pixels wide and 5 high.  The block is stored rotated by 180°
         (see :meth:`_rasterize_embroidery_preview`), so this turn is what makes
         the number read upright once the machine displays the slot.
@@ -3607,12 +3607,13 @@ class MachineComm:
             for row, bits in enumerate(glyph):
                 for column, bit in enumerate(bits):
                     if bit == "1":
-                        # 90° counter-clockwise: (row, column) -> (column' = row,
-                        # row' = glyph_width - 1 - column), which sends the
-                        # glyph's bottom edge to the right-hand side.
+                        # 90° clockwise: (row, column) -> (column' = glyph_height
+                        # - 1 - row, row' = column), which sends the glyph's top
+                        # edge to the right-hand side.
                         pixels.add((
-                            glyph_left + position * (digit_width + spacing) + row,
-                            glyph_top + (glyph_width - 1 - column),
+                            glyph_left + position * (digit_width + spacing)
+                            + (glyph_height - 1 - row),
+                            glyph_top + column,
                         ))
         return (left, top, box_width, box_height), pixels
 
