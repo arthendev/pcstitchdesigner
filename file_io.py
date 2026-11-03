@@ -11,6 +11,7 @@ the file content, saving from the file extension:
   file_io_vcsm_9mm_max.py  .9mm, .max         magic "VCSM"
   file_io_dst.py           .dst               header record "LA:" (import only)
   file_io_jef.py           .jef               header layout (import only)
+  file_io_pec_pes.py       .pec, .pes         "#PEC0001" / "#PES" (import only)
 
 Conventions shared by all formats:
   * Every loader returns ``(pattern, info)``. PatternFileInfo reports what was
@@ -30,7 +31,7 @@ from typing import List, Optional, Tuple
 
 from PyQt5.QtCore import QCoreApplication
 
-from model import ELEM_STITCH, StitchPattern, elem_has_coords
+from model import ELEM_COLOR, ELEM_STITCH, StitchPattern, elem_has_coords
 
 # DEBUG print
 # 1: print details of each element record
@@ -88,6 +89,7 @@ def load_pattern(path):
     import file_io_vcsm_9mm_max
     import file_io_dst
     import file_io_jef
+    import file_io_pec_pes
 
     if file_io_vcsm_9mm_max.is_format(header):
         return file_io_vcsm_9mm_max.load(path)
@@ -97,6 +99,8 @@ def load_pattern(path):
         return file_io_dst.load(path)
     if file_io_jef.is_format(header):
         return file_io_jef.load(path)
+    if file_io_pec_pes.is_format(header):
+        return file_io_pec_pes.load(path)
     # JEF writers that pad the header do not match the layout signature, so a
     # file with the format's own extension is handed to it anyway; the reader
     # validates the header again.
@@ -110,7 +114,8 @@ def save_pattern(path, pattern, info=None, image_data=None):
 
     ``.9mm`` and ``.max`` paths are written by file_io_vcsm_9mm_max.save();
     every other writable extension is written by file_io_pcd_pcq_pcs.save().
-    Import-only formats (DST, JEF) raise ValueError — see :func:`can_save`.
+    Import-only formats (DST, JEF, PEC, PES) raise ValueError — see
+    :func:`can_save`.
 
     *image_data* is the template preview as a raster image (QPixmap), not
     encoded bytes: the writer that can store an image converts it to whatever
@@ -179,6 +184,20 @@ def place_in_hoop(elements, scale):
     return stitch_type, converted, warning
 
 
+def drop_trailing_color_changes(elements):
+    """Remove colour changes that no stitch follows; return how many.
+
+    A trailing change cannot be applied to anything, and the file and card
+    formats cannot represent one, so the readers drop it and report it as
+    not part of the parsed colour-change count.
+    """
+    dropped = 0
+    while elements and elements[-1][0] == ELEM_COLOR:
+        elements.pop()
+        dropped += 1
+    return dropped
+
+
 def note_max_length(path):
     """Return how many characters a note may have when saved to *path*.
 
@@ -201,13 +220,14 @@ def palette_size(path):
     different number of colors cannot be written before the palette is
     adjusted. The VCSM formats (.9mm/.max) store one thread color and no
     palette, so they impose no size; this returns None for them. DST carries
-    no colour table, and a JEF file holds only the threads it uses, so both
-    return None as well.
+    no colour table, and JEF, PEC and PES files hold only the threads they use,
+    so those return None as well.
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
     import file_io_dst
     import file_io_jef
+    import file_io_pec_pes
 
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         return None
@@ -215,17 +235,22 @@ def palette_size(path):
         return None
     if os.path.splitext(path)[1].lower() in file_io_jef.EXTENSIONS:
         return None
+    if os.path.splitext(path)[1].lower() in file_io_pec_pes.EXTENSIONS:
+        return None
     return file_io_pcd_pcq_pcs.PALETTE_SIZE
 
 
 def can_save(path):
     """Return False for import-only formats that save_pattern cannot write.
 
-    Only DST and JEF are import-only today; every other supported extension
-    has a writer (or is treated as a PCD file by convention).
+    Only DST, JEF, PEC and PES are import-only today; every other supported
+    extension has a writer (or is treated as a PCD file by convention).
     """
     import file_io_dst
     import file_io_jef
+    import file_io_pec_pes
 
     extension = os.path.splitext(path)[1].lower()
-    return extension not in file_io_dst.EXTENSIONS + file_io_jef.EXTENSIONS
+    import_only = (file_io_dst.EXTENSIONS + file_io_jef.EXTENSIONS
+                   + file_io_pec_pes.EXTENSIONS)
+    return extension not in import_only
