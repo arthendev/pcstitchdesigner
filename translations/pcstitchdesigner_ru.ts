@@ -385,6 +385,10 @@
         <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
         <translation>Файл вышивки содержит ровно {0} цветов нити, а в этом узоре {1}</translation>
     </message>
+    <message>
+        <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
+        <translation>Узор больше больших пялец; масштабирован до {0} %, чтобы поместиться.</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1889,6 +1893,30 @@
     <message>
         <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
         <translation>Дизайн больше одного сегмента карты (32 КБ) и не помещается в один слот карты памяти.</translation>
+    </message>
+    <message>
+        <source>Angle:</source>
+        <translation>Угол:</translation>
+    </message>
+    <message>
+        <source>Horizontal scale of the selection</source>
+        <translation>Горизонтальный масштаб выделения</translation>
+    </message>
+    <message>
+        <source>Rotation of the selection in degrees</source>
+        <translation>Поворот выделения в градусах</translation>
+    </message>
+    <message>
+        <source>Vertical scale of the selection</source>
+        <translation>Вертикальный масштаб выделения</translation>
+    </message>
+    <message>
+        <source>X:</source>
+        <translation>X:</translation>
+    </message>
+    <message>
+        <source>Y:</source>
+        <translation>Y:</translation>
     </message>
 </context>
 <context>

@@ -385,6 +385,10 @@
         <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
         <translation>En broderifil gemmer nøjagtigt {0} trådfarver, men dette mønster har {1}</translation>
     </message>
+    <message>
+        <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
+        <translation>Mønsteret er større end den store ramme; skaleret til {0} % for at passe.</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1889,6 +1893,30 @@
     <message>
         <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
         <translation>Designet er større end et kortsegment (32 kB) og passer ikke i en enkelt kortplads på hukommelseskortet.</translation>
+    </message>
+    <message>
+        <source>Angle:</source>
+        <translation>Vinkel:</translation>
+    </message>
+    <message>
+        <source>Horizontal scale of the selection</source>
+        <translation>Vandret skalering af markeringen</translation>
+    </message>
+    <message>
+        <source>Rotation of the selection in degrees</source>
+        <translation>Rotation af markeringen i grader</translation>
+    </message>
+    <message>
+        <source>Vertical scale of the selection</source>
+        <translation>Lodret skalering af markeringen</translation>
+    </message>
+    <message>
+        <source>X:</source>
+        <translation>X:</translation>
+    </message>
+    <message>
+        <source>Y:</source>
+        <translation>Y:</translation>
     </message>
 </context>
 <context>

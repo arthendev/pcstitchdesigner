@@ -385,6 +385,10 @@
         <source>An embroidery file stores exactly {0} thread colours, but this pattern has {1}</source>
         <translation>Un file di ricamo memorizza esattamente {0} colori del filo, ma questo motivo ne ha {1}</translation>
     </message>
+    <message>
+        <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
+        <translation>Il motivo è più grande del telaio grande; ridimensionato al {0}% per rientrare.</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1889,6 +1893,30 @@
     <message>
         <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
         <translation>Il motivo è più grande di un segmento della scheda (32 kB) e non entra in un singolo slot della scheda di memoria.</translation>
+    </message>
+    <message>
+        <source>Angle:</source>
+        <translation>Angolo:</translation>
+    </message>
+    <message>
+        <source>Horizontal scale of the selection</source>
+        <translation>Scala orizzontale della selezione</translation>
+    </message>
+    <message>
+        <source>Rotation of the selection in degrees</source>
+        <translation>Rotazione della selezione in gradi</translation>
+    </message>
+    <message>
+        <source>Vertical scale of the selection</source>
+        <translation>Scala verticale della selezione</translation>
+    </message>
+    <message>
+        <source>X:</source>
+        <translation>X:</translation>
+    </message>
+    <message>
+        <source>Y:</source>
+        <translation>Y:</translation>
     </message>
 </context>
 <context>
