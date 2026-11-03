@@ -318,6 +318,14 @@
         <translation>Файл JEF заканчивается посередине записи стежка</translation>
     </message>
     <message>
+        <source>The PEC file contains no stitches</source>
+        <translation>Файл PEC не содержит стежков</translation>
+    </message>
+    <message>
+        <source>The PEC file ends in the middle of a stitch record</source>
+        <translation>Файл PEC заканчивается посередине записи стежка</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Неожиданные завершающие байты в конце файла DST</translation>
     </message>
@@ -622,18 +630,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>Ожидался CTRL_ACK для начала первого блока, получено 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading SIZE in first chunk.</source>
-        <translation>Истекло время ожидания при чтении SIZE в первом блоке.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME_SIZE in first chunk.</source>
-        <translation>Истекло время ожидания при чтении NAME_SIZE в первом блоке.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME in first chunk.</source>
-        <translation>Истекло время ожидания при чтении NAME в первом блоке.</translation>
     </message>
     <message>
         <source>Timeout reading PayloadSize in first chunk.</source>
@@ -948,12 +944,48 @@
         <translation>Файл узора слишком велик и не может быть сохранён на карте памяти: требуется {0} байт, но слот карты вмещает не более {1} байт. Разделите дизайн на части.</translation>
     </message>
     <message>
-        <source>Timeout reading the pattern descriptor in first chunk.</source>
-        <translation>Тайм-аут при чтении дескриптора узора в первом блоке.</translation>
-    </message>
-    <message>
         <source>Unknown machine model: {0}</source>
         <translation>Неизвестная модель машины: {0}</translation>
+    </message>
+    <message>
+        <source>Internal error: card part {0} needs {1} bytes, but a card slot holds at most {2} bytes.</source>
+        <translation>Внутренняя ошибка: часть {0} требует {1} байт, но слот карты вмещает не более {2} байт.</translation>
+    </message>
+    <message>
+        <source>Only embroidery designs can be split into card parts: {0}</source>
+        <translation>На части карты можно разделить только узоры вышивки: {0}</translation>
+    </message>
+    <message>
+        <source>Preview number {0} does not fit in one byte.</source>
+        <translation>Номер предпросмотра {0} не помещается в один байт.</translation>
+    </message>
+    <message>
+        <source>The design cannot be split into card segments: a single stitch already needs more space than a card slot holds.</source>
+        <translation>Дизайн нельзя разделить на сегменты карты: один стежок уже требует больше места, чем вмещает слот карты.</translation>
+    </message>
+    <message>
+        <source>Timeout reading length of name field.</source>
+        <translation>Истекло время ожидания при чтении длины поля имени.</translation>
+    </message>
+    <message>
+        <source>Timeout reading pattern name.</source>
+        <translation>Истекло время ожидания при чтении имени узора.</translation>
+    </message>
+    <message>
+        <source>Timeout reading size of pattern.</source>
+        <translation>Истекло время ожидания при чтении размера узора.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour count.</source>
+        <translation>Истекло время ожидания при чтении количества цветов.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour mask.</source>
+        <translation>Истекло время ожидания при чтении маски цветов.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the hoop byte.</source>
+        <translation>Истекло время ожидания при чтении байта пялец.</translation>
     </message>
 </context>
 <context>
@@ -1367,8 +1399,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1515,16 +1547,8 @@
         <translation>Имя узора</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 32 characters):</source>
-        <translation>Введите имя для этого узора (не более 32 символов):</translation>
-    </message>
-    <message>
         <source>Pattern name</source>
         <translation>Имя узора</translation>
-    </message>
-    <message>
-        <source>Please enter a valid name (1-32 characters).</source>
-        <translation>Введите допустимое имя (от 1 до 32 символов).</translation>
     </message>
     <message>
         <source>OK</source>
@@ -1567,8 +1591,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1842,6 +1866,30 @@
         <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
         <translation>Файл задаёт {0} цветов нити, но формат PCS обычно использует {1}.</translation>
     </message>
+    <message>
+        <source>Do you want to split the design?</source>
+        <translation>Разделить дизайн?</translation>
+    </message>
+    <message>
+        <source>Enter a name for this pattern (max {0} characters):</source>
+        <translation>Введите имя для этого узора (не более {0} символов):</translation>
+    </message>
+    <message>
+        <source>It can be split into {0} parts, each stored as a separate pattern on the card.</source>
+        <translation>Его можно разделить на {0} частей, каждая из которых сохраняется на карте как отдельный узор.</translation>
+    </message>
+    <message>
+        <source>Pattern "{0}" was split into {1} parts and successfully written to the memory card.</source>
+        <translation>Узор «{0}» разделён на {1} частей и успешно записан на карту памяти.</translation>
+    </message>
+    <message>
+        <source>Please enter a valid name (1-{0} characters).</source>
+        <translation>Введите допустимое имя (от 1 до {0} символов).</translation>
+    </message>
+    <message>
+        <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
+        <translation>Дизайн больше одного сегмента карты (32 КБ) и не помещается в один слот карты памяти.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1957,8 +2005,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2001,8 +2049,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

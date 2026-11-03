@@ -318,6 +318,14 @@
         <translation>JEF-filen slutar mitt i en stygnpost</translation>
     </message>
     <message>
+        <source>The PEC file contains no stitches</source>
+        <translation>PEC-filen innehåller inga stygn</translation>
+    </message>
+    <message>
+        <source>The PEC file ends in the middle of a stitch record</source>
+        <translation>PEC-filen slutar mitt i en stygnpost</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Oväntade avslutande byte i slutet av DST-filen</translation>
     </message>
@@ -622,18 +630,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK förväntades för att starta det första blocket, fick 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading SIZE in first chunk.</source>
-        <translation>Tidsgränsen överskreds vid läsning av SIZE i det första blocket.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME_SIZE in first chunk.</source>
-        <translation>Tidsgränsen överskreds vid läsning av NAME_SIZE i det första blocket.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME in first chunk.</source>
-        <translation>Tidsgränsen överskreds vid läsning av NAME i det första blocket.</translation>
     </message>
     <message>
         <source>Timeout reading PayloadSize in first chunk.</source>
@@ -948,12 +944,48 @@
         <translation>Mönsterfilen är för stor och kan inte lagras på minneskortet: {0} byte behövs, men en kortplats rymmer högst {1} byte. Dela upp designen i mindre delar.</translation>
     </message>
     <message>
-        <source>Timeout reading the pattern descriptor in first chunk.</source>
-        <translation>Tidsgränsen överskreds vid läsning av mönsterbeskrivningen i första blocket.</translation>
-    </message>
-    <message>
         <source>Unknown machine model: {0}</source>
         <translation>Okänd maskinmodell: {0}</translation>
+    </message>
+    <message>
+        <source>Internal error: card part {0} needs {1} bytes, but a card slot holds at most {2} bytes.</source>
+        <translation>Internt fel: kortdel {0} behöver {1} byte, men en kortplats rymmer högst {2} byte.</translation>
+    </message>
+    <message>
+        <source>Only embroidery designs can be split into card parts: {0}</source>
+        <translation>Endast broderimönster kan delas upp i kortdelar: {0}</translation>
+    </message>
+    <message>
+        <source>Preview number {0} does not fit in one byte.</source>
+        <translation>Förhandsgranskningsnummer {0} får inte plats i en byte.</translation>
+    </message>
+    <message>
+        <source>The design cannot be split into card segments: a single stitch already needs more space than a card slot holds.</source>
+        <translation>Designen kan inte delas upp i kortsegment: ett enda stygn behöver redan mer plats än en kortplats rymmer.</translation>
+    </message>
+    <message>
+        <source>Timeout reading length of name field.</source>
+        <translation>Tidsgränsen överskreds vid läsning av längden på namnfältet.</translation>
+    </message>
+    <message>
+        <source>Timeout reading pattern name.</source>
+        <translation>Tidsgränsen överskreds vid läsning av mönsternamnet.</translation>
+    </message>
+    <message>
+        <source>Timeout reading size of pattern.</source>
+        <translation>Tidsgränsen överskreds vid läsning av mönstrets storlek.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour count.</source>
+        <translation>Tidsgränsen överskreds vid läsning av antalet färger.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour mask.</source>
+        <translation>Tidsgränsen överskreds vid läsning av färgmasken.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the hoop byte.</source>
+        <translation>Tidsgränsen överskreds vid läsning av ram-byten.</translation>
     </message>
 </context>
 <context>
@@ -1367,8 +1399,8 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1515,16 +1547,8 @@
         <translation>Mönsternamn</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 32 characters):</source>
-        <translation>Ange ett namn för mönstret (max 32 tecken):</translation>
-    </message>
-    <message>
         <source>Pattern name</source>
         <translation>Mönsternamn</translation>
-    </message>
-    <message>
-        <source>Please enter a valid name (1-32 characters).</source>
-        <translation>Ange ett giltigt namn (1-32 tecken).</translation>
     </message>
     <message>
         <source>OK</source>
@@ -1567,8 +1591,8 @@
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1842,6 +1866,30 @@
         <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
         <translation>Filen definierar {0} trådfärger, men ett PCS-format använder vanligtvis {1}.</translation>
     </message>
+    <message>
+        <source>Do you want to split the design?</source>
+        <translation>Vill du dela upp designen?</translation>
+    </message>
+    <message>
+        <source>Enter a name for this pattern (max {0} characters):</source>
+        <translation>Ange ett namn för mönstret (max {0} tecken):</translation>
+    </message>
+    <message>
+        <source>It can be split into {0} parts, each stored as a separate pattern on the card.</source>
+        <translation>Det kan delas upp i {0} delar, som var och en lagras som ett separat mönster på kortet.</translation>
+    </message>
+    <message>
+        <source>Pattern "{0}" was split into {1} parts and successfully written to the memory card.</source>
+        <translation>Mönstret ”{0}” delades upp i {1} delar och skrevs till minneskortet.</translation>
+    </message>
+    <message>
+        <source>Please enter a valid name (1-{0} characters).</source>
+        <translation>Ange ett giltigt namn (1-{0} tecken).</translation>
+    </message>
+    <message>
+        <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
+        <translation>Designen är större än ett kortsegment (32 kB) och får inte plats i en enda kortplats på minneskortet.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1957,8 +2005,8 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2001,8 +2049,8 @@
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

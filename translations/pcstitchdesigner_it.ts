@@ -318,6 +318,14 @@
         <translation>Il file JEF termina nel mezzo di un record di punto</translation>
     </message>
     <message>
+        <source>The PEC file contains no stitches</source>
+        <translation>Il file PEC non contiene punti</translation>
+    </message>
+    <message>
+        <source>The PEC file ends in the middle of a stitch record</source>
+        <translation>Il file PEC termina nel mezzo di un record di punto</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Byte finali inattesi alla fine del file DST</translation>
     </message>
@@ -622,18 +630,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>Previsto CTRL_ACK per avviare il primo blocco, ottenuto 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading SIZE in first chunk.</source>
-        <translation>Timeout durante la lettura di SIZE nel primo blocco.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME_SIZE in first chunk.</source>
-        <translation>Timeout durante la lettura di NAME_SIZE nel primo blocco.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME in first chunk.</source>
-        <translation>Timeout durante la lettura di NAME nel primo blocco.</translation>
     </message>
     <message>
         <source>Timeout reading PayloadSize in first chunk.</source>
@@ -948,12 +944,48 @@
         <translation>Il file del motivo è troppo grande e non può essere memorizzato sulla scheda di memoria: servono {0} byte, ma uno slot della scheda contiene al massimo {1} byte. Dividi il motivo in parti più piccole.</translation>
     </message>
     <message>
-        <source>Timeout reading the pattern descriptor in first chunk.</source>
-        <translation>Timeout durante la lettura del descrittore del motivo nel primo blocco.</translation>
-    </message>
-    <message>
         <source>Unknown machine model: {0}</source>
         <translation>Modello di macchina sconosciuto: {0}</translation>
+    </message>
+    <message>
+        <source>Internal error: card part {0} needs {1} bytes, but a card slot holds at most {2} bytes.</source>
+        <translation>Errore interno: la parte {0} richiede {1} byte, ma uno slot della scheda contiene al massimo {2} byte.</translation>
+    </message>
+    <message>
+        <source>Only embroidery designs can be split into card parts: {0}</source>
+        <translation>Solo i motivi di ricamo possono essere divisi in parti della scheda: {0}</translation>
+    </message>
+    <message>
+        <source>Preview number {0} does not fit in one byte.</source>
+        <translation>Il numero di anteprima {0} non entra in un byte.</translation>
+    </message>
+    <message>
+        <source>The design cannot be split into card segments: a single stitch already needs more space than a card slot holds.</source>
+        <translation>Il motivo non può essere diviso in segmenti della scheda: un singolo punto richiede già più spazio di quanto ne contenga uno slot della scheda.</translation>
+    </message>
+    <message>
+        <source>Timeout reading length of name field.</source>
+        <translation>Timeout durante la lettura della lunghezza del campo nome.</translation>
+    </message>
+    <message>
+        <source>Timeout reading pattern name.</source>
+        <translation>Timeout durante la lettura del nome del motivo.</translation>
+    </message>
+    <message>
+        <source>Timeout reading size of pattern.</source>
+        <translation>Timeout durante la lettura delle dimensioni del motivo.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour count.</source>
+        <translation>Timeout durante la lettura del numero di colori.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour mask.</source>
+        <translation>Timeout durante la lettura della maschera dei colori.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the hoop byte.</source>
+        <translation>Timeout durante la lettura del byte del telaio.</translation>
     </message>
 </context>
 <context>
@@ -1367,8 +1399,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1515,16 +1547,8 @@
         <translation>Nome del motivo</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 32 characters):</source>
-        <translation>Immettere un nome per questo motivo (max 32 caratteri):</translation>
-    </message>
-    <message>
         <source>Pattern name</source>
         <translation>Nome del motivo</translation>
-    </message>
-    <message>
-        <source>Please enter a valid name (1-32 characters).</source>
-        <translation>Immettere un nome valido (1-32 caratteri).</translation>
     </message>
     <message>
         <source>OK</source>
@@ -1567,8 +1591,8 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1842,6 +1866,30 @@
         <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
         <translation>Il file definisce {0} colori del filo, ma un formato PCS ne usa in genere {1}.</translation>
     </message>
+    <message>
+        <source>Do you want to split the design?</source>
+        <translation>Vuoi dividere il motivo?</translation>
+    </message>
+    <message>
+        <source>Enter a name for this pattern (max {0} characters):</source>
+        <translation>Immettere un nome per questo motivo (max {0} caratteri):</translation>
+    </message>
+    <message>
+        <source>It can be split into {0} parts, each stored as a separate pattern on the card.</source>
+        <translation>Può essere diviso in {0} parti, ciascuna memorizzata come motivo separato sulla scheda.</translation>
+    </message>
+    <message>
+        <source>Pattern "{0}" was split into {1} parts and successfully written to the memory card.</source>
+        <translation>Il motivo «{0}» è stato diviso in {1} parti e scritto correttamente sulla scheda di memoria.</translation>
+    </message>
+    <message>
+        <source>Please enter a valid name (1-{0} characters).</source>
+        <translation>Immettere un nome valido (1-{0} caratteri).</translation>
+    </message>
+    <message>
+        <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
+        <translation>Il motivo è più grande di un segmento della scheda (32 kB) e non entra in un singolo slot della scheda di memoria.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1957,8 +2005,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2001,8 +2049,8 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

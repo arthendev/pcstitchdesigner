@@ -318,6 +318,14 @@
         <translation>Die JEF-Datei endet mitten in einem Stichdatensatz</translation>
     </message>
     <message>
+        <source>The PEC file contains no stitches</source>
+        <translation>Die PEC-Datei enthält keine Stiche</translation>
+    </message>
+    <message>
+        <source>The PEC file ends in the middle of a stitch record</source>
+        <translation>Die PEC-Datei endet mitten in einem Stichdatensatz</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Unerwartete zusätzliche Bytes am Ende der DST-Datei</translation>
     </message>
@@ -622,18 +630,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>CTRL_ACK zum Starten des ersten Blocks erwartet, 0x{0} empfangen.</translation>
-    </message>
-    <message>
-        <source>Timeout reading SIZE in first chunk.</source>
-        <translation>Zeitüberschreitung beim Lesen der Größe im ersten Block.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME_SIZE in first chunk.</source>
-        <translation>Zeitüberschreitung beim Lesen der Namensgröße im ersten Block.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME in first chunk.</source>
-        <translation>Zeitüberschreitung beim Lesen des Namens im ersten Block.</translation>
     </message>
     <message>
         <source>Timeout reading PayloadSize in first chunk.</source>
@@ -948,12 +944,48 @@
         <translation>Die Musterdatei ist zu groß und kann nicht auf der Speicherkarte gespeichert werden: {0} Byte werden benötigt, ein Kartenplatz fasst jedoch höchstens {1} Byte. Teilen Sie das Design in kleinere Teile auf.</translation>
     </message>
     <message>
-        <source>Timeout reading the pattern descriptor in first chunk.</source>
-        <translation>Zeitüberschreitung beim Lesen des Muster-Deskriptors im ersten Block.</translation>
-    </message>
-    <message>
         <source>Unknown machine model: {0}</source>
         <translation>Unbekanntes Maschinenmodell: {0}</translation>
+    </message>
+    <message>
+        <source>Internal error: card part {0} needs {1} bytes, but a card slot holds at most {2} bytes.</source>
+        <translation>Interner Fehler: Kartenteil {0} benötigt {1} Byte, ein Kartenplatz fasst jedoch höchstens {2} Byte.</translation>
+    </message>
+    <message>
+        <source>Only embroidery designs can be split into card parts: {0}</source>
+        <translation>Nur Stickmuster können in Kartenteile aufgeteilt werden: {0}</translation>
+    </message>
+    <message>
+        <source>Preview number {0} does not fit in one byte.</source>
+        <translation>Vorschau-Nummer {0} passt nicht in ein Byte.</translation>
+    </message>
+    <message>
+        <source>The design cannot be split into card segments: a single stitch already needs more space than a card slot holds.</source>
+        <translation>Das Design kann nicht in Kartensegmente aufgeteilt werden: Ein einzelner Stich benötigt bereits mehr Platz, als ein Kartenplatz bietet.</translation>
+    </message>
+    <message>
+        <source>Timeout reading length of name field.</source>
+        <translation>Zeitüberschreitung beim Lesen der Länge des Namensfelds.</translation>
+    </message>
+    <message>
+        <source>Timeout reading pattern name.</source>
+        <translation>Zeitüberschreitung beim Lesen des Musternamens.</translation>
+    </message>
+    <message>
+        <source>Timeout reading size of pattern.</source>
+        <translation>Zeitüberschreitung beim Lesen der Mustergröße.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour count.</source>
+        <translation>Zeitüberschreitung beim Lesen der Farbanzahl.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour mask.</source>
+        <translation>Zeitüberschreitung beim Lesen der Farbmaske.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the hoop byte.</source>
+        <translation>Zeitüberschreitung beim Lesen des Rahmen-Bytes.</translation>
     </message>
 </context>
 <context>
@@ -1367,8 +1399,8 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Stickdateiformate (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1515,16 +1547,8 @@
         <translation>Mustername</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 32 characters):</source>
-        <translation>Einen Namen für dieses Muster eingeben (max. 32 Zeichen):</translation>
-    </message>
-    <message>
         <source>Pattern name</source>
         <translation>Mustername</translation>
-    </message>
-    <message>
-        <source>Please enter a valid name (1-32 characters).</source>
-        <translation>Bitte geben Sie einen gültigen Namen ein (1-32 Zeichen).</translation>
     </message>
     <message>
         <source>OK</source>
@@ -1567,8 +1591,8 @@
         <translation>9mm-Muster (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1842,6 +1866,30 @@
         <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
         <translation>Die Datei definiert {0} Fadenfarben, ein PCS-Format enthält jedoch normalerweise {1}.</translation>
     </message>
+    <message>
+        <source>Do you want to split the design?</source>
+        <translation>Möchten Sie das Design aufteilen?</translation>
+    </message>
+    <message>
+        <source>Enter a name for this pattern (max {0} characters):</source>
+        <translation>Einen Namen für dieses Muster eingeben (max. {0} Zeichen):</translation>
+    </message>
+    <message>
+        <source>It can be split into {0} parts, each stored as a separate pattern on the card.</source>
+        <translation>Es kann in {0} Teile aufgeteilt werden, die jeweils als eigenes Muster auf der Karte gespeichert werden.</translation>
+    </message>
+    <message>
+        <source>Pattern "{0}" was split into {1} parts and successfully written to the memory card.</source>
+        <translation>Muster „{0}“ wurde in {1} Teile aufgeteilt und erfolgreich auf die Speicherkarte geschrieben.</translation>
+    </message>
+    <message>
+        <source>Please enter a valid name (1-{0} characters).</source>
+        <translation>Bitte geben Sie einen gültigen Namen ein (1-{0} Zeichen).</translation>
+    </message>
+    <message>
+        <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
+        <translation>Das Design ist größer als ein Kartensegment (32 kB) und passt nicht in einen einzelnen Speicherkartenplatz.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1957,8 +2005,8 @@
         <translation>Stichmuster öffnen</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Stickdateiformate (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2001,8 +2049,8 @@
         <translation>9mm-Muster (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

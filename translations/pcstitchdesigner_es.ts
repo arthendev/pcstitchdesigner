@@ -318,6 +318,14 @@
         <translation>El archivo JEF termina en medio de un registro de puntada</translation>
     </message>
     <message>
+        <source>The PEC file contains no stitches</source>
+        <translation>El archivo PEC no contiene puntadas</translation>
+    </message>
+    <message>
+        <source>The PEC file ends in the middle of a stitch record</source>
+        <translation>El archivo PEC termina en medio de un registro de puntada</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Bytes finales inesperados al final del archivo DST</translation>
     </message>
@@ -622,18 +630,6 @@
     <message>
         <source>Expected CTRL_ACK to start first chunk, got 0x{0}.</source>
         <translation>Se esperaba CTRL_ACK para iniciar el primer bloque, se obtuvo 0x{0}.</translation>
-    </message>
-    <message>
-        <source>Timeout reading SIZE in first chunk.</source>
-        <translation>Se agotó el tiempo de espera al leer SIZE en el primer bloque.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME_SIZE in first chunk.</source>
-        <translation>Se agotó el tiempo de espera al leer NAME_SIZE en el primer bloque.</translation>
-    </message>
-    <message>
-        <source>Timeout reading NAME in first chunk.</source>
-        <translation>Se agotó el tiempo de espera al leer NAME en el primer bloque.</translation>
     </message>
     <message>
         <source>Timeout reading PayloadSize in first chunk.</source>
@@ -948,12 +944,48 @@
         <translation>El archivo del patrón es demasiado grande y no se puede almacenar en la tarjeta de memoria: se necesitan {0} bytes, pero una ranura de la tarjeta admite como máximo {1} bytes. Divida el diseño en partes más pequeñas.</translation>
     </message>
     <message>
-        <source>Timeout reading the pattern descriptor in first chunk.</source>
-        <translation>Se agotó el tiempo al leer el descriptor del patrón en el primer bloque.</translation>
-    </message>
-    <message>
         <source>Unknown machine model: {0}</source>
         <translation>Modelo de máquina desconocido: {0}</translation>
+    </message>
+    <message>
+        <source>Internal error: card part {0} needs {1} bytes, but a card slot holds at most {2} bytes.</source>
+        <translation>Error interno: la parte {0} necesita {1} bytes, pero una ranura de la tarjeta admite como máximo {2} bytes.</translation>
+    </message>
+    <message>
+        <source>Only embroidery designs can be split into card parts: {0}</source>
+        <translation>Solo los diseños de bordado se pueden dividir en partes de tarjeta: {0}</translation>
+    </message>
+    <message>
+        <source>Preview number {0} does not fit in one byte.</source>
+        <translation>El número de vista previa {0} no cabe en un byte.</translation>
+    </message>
+    <message>
+        <source>The design cannot be split into card segments: a single stitch already needs more space than a card slot holds.</source>
+        <translation>El diseño no se puede dividir en segmentos de tarjeta: una sola puntada ya necesita más espacio del que cabe en una ranura de la tarjeta.</translation>
+    </message>
+    <message>
+        <source>Timeout reading length of name field.</source>
+        <translation>Se agotó el tiempo de espera al leer la longitud del campo de nombre.</translation>
+    </message>
+    <message>
+        <source>Timeout reading pattern name.</source>
+        <translation>Se agotó el tiempo de espera al leer el nombre del patrón.</translation>
+    </message>
+    <message>
+        <source>Timeout reading size of pattern.</source>
+        <translation>Se agotó el tiempo de espera al leer el tamaño del patrón.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour count.</source>
+        <translation>Se agotó el tiempo de espera al leer el número de colores.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the colour mask.</source>
+        <translation>Se agotó el tiempo de espera al leer la máscara de color.</translation>
+    </message>
+    <message>
+        <source>Timeout reading the hoop byte.</source>
+        <translation>Se agotó el tiempo de espera al leer el byte del bastidor.</translation>
     </message>
 </context>
 <context>
@@ -1367,8 +1399,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Archivos de bordado (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1515,16 +1547,8 @@
         <translation>Nombre del patrón</translation>
     </message>
     <message>
-        <source>Enter a name for this pattern (max 32 characters):</source>
-        <translation>Introduzca un nombre para este patrón (máx. 32 caracteres):</translation>
-    </message>
-    <message>
         <source>Pattern name</source>
         <translation>Nombre del patrón</translation>
-    </message>
-    <message>
-        <source>Please enter a valid name (1-32 characters).</source>
-        <translation>Introduzca un nombre válido (1-32 caracteres).</translation>
     </message>
     <message>
         <source>OK</source>
@@ -1567,8 +1591,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1842,6 +1866,30 @@
         <source>The file defines {0} thread colours, but a PCS format typically uses {1}.</source>
         <translation>El archivo define {0} colores de hilo, pero un formato PCS suele usar {1}.</translation>
     </message>
+    <message>
+        <source>Do you want to split the design?</source>
+        <translation>¿Desea dividir el diseño?</translation>
+    </message>
+    <message>
+        <source>Enter a name for this pattern (max {0} characters):</source>
+        <translation>Introduzca un nombre para este patrón (máx. {0} caracteres):</translation>
+    </message>
+    <message>
+        <source>It can be split into {0} parts, each stored as a separate pattern on the card.</source>
+        <translation>Se puede dividir en {0} partes, cada una almacenada como un patrón independiente en la tarjeta.</translation>
+    </message>
+    <message>
+        <source>Pattern "{0}" was split into {1} parts and successfully written to the memory card.</source>
+        <translation>El patrón «{0}» se dividió en {1} partes y se escribió correctamente en la tarjeta de memoria.</translation>
+    </message>
+    <message>
+        <source>Please enter a valid name (1-{0} characters).</source>
+        <translation>Introduzca un nombre válido (1-{0} caracteres).</translation>
+    </message>
+    <message>
+        <source>The design is larger than one card segment (32 kB) and does not fit into a single memory card slot.</source>
+        <translation>El diseño es más grande que un segmento de tarjeta (32 kB) y no cabe en una sola ranura de la tarjeta de memoria.</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -1957,8 +2005,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef)</source>
-        <translation>Archivos de bordado (*.pcs *.dst *.jef)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2001,8 +2049,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
