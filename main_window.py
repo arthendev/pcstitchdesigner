@@ -2,6 +2,7 @@
 
 import os
 import sys
+import unicodedata
 from dataclasses import dataclass
 
 from PyQt5.QtWidgets import (
@@ -53,6 +54,79 @@ HOOP_PROMOTIONS = {"small hoop": "large hoop"}
 # design that is split across several slots also appends "-#" per part, which
 # has to fit into the same field (see MachineComm.card_name_limit).
 CARD_FILENAME_MAX = MachineComm.CARD_PART_NAME_MAX
+
+# Characters a card pattern name may hold: ASCII letters and digits plus the
+# punctuation the machine's name field supports. The name dialog validates typed
+# names against this set and reduces a proposed name to it, so one source decides
+# what a name can contain.
+CARD_NAME_ALLOWED_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789"
+    " _-~$^%()@'!"
+)
+
+
+def _regex_char_class(characters):
+    """Return *characters* escaped for use inside a regular-expression class.
+
+    Only the characters that are special inside a class need the backslash; the
+    rest stand for themselves.
+    """
+    return "".join("\\" + ch if ch in "\\]^-" else ch for ch in characters)
+
+
+# Letters that carry no accent mark of their own, so Unicode decomposition cannot
+# reduce them to an ASCII letter.  The name field holds no character outside
+# ASCII, so each of these has to name the letters it stands for.
+_ASCII_FOLD_EXTRA = str.maketrans({
+    "ß": "ss", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE",
+    "ø": "o", "Ø": "O", "đ": "d", "Đ": "D", "ð": "d", "Ð": "D",
+    "ł": "l", "Ł": "L", "ħ": "h", "Ħ": "H", "ı": "i",
+    "þ": "th", "Þ": "Th", "ŋ": "n", "Ŋ": "N", "ƒ": "f", "ĸ": "k",
+})
+
+
+def _fold_to_ascii(text):
+    """Return *text* with accented and special letters replaced by ASCII ones.
+
+    Compatibility decomposition splits a letter such as "ü" into "u" plus a
+    combining mark, and dropping the marks leaves the plain letter: "Blümchen"
+    becomes "Blumchen", "Zażółć" becomes "Zazolc".  Letters that carry no
+    decomposition ("ß", "ø", "ł") are expanded by hand first, so a name keeps
+    the sound of the letter instead of losing it altogether.
+
+    Args:
+        text (str): Text to convert, e.g. a file name without its extension.
+
+    Returns:
+        str: *text* with the letters every name map can carry, in ASCII.
+    """
+    decomposed = unicodedata.normalize("NFKD", text.translate(_ASCII_FOLD_EXTRA))
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+def _sanitize_card_name(text, max_length):
+    """Return *text* reduced to what a card pattern name may hold.
+
+    A file name can contain characters the machine's name field has no room for,
+    and the name dialog's validator rejects the whole value when it does — which
+    would leave the input box impossible to edit.  An accented letter is folded
+    to its plain form first ("Blümchen" keeps reading "Blumchen"), and whatever
+    the name field still cannot hold is dropped; the result is cut to
+    *max_length*.
+
+    Args:
+        text (str): Text to clean, e.g. a file name without its extension.
+        max_length (int): Longest name the dialog accepts.
+
+    Returns:
+        str: The characters of *text* a card name may hold, at most *max_length*.
+    """
+    return "".join(
+        ch for ch in _fold_to_ascii(text)
+        if ch in CARD_NAME_ALLOWED_CHARS)[:max_length]
+
 
 
 @dataclass(frozen=True)
@@ -3173,13 +3247,16 @@ class MainWindow(QMainWindow):
         edit = QLineEdit()
         edit.setMaxLength(max_length)
         edit.setPlaceholderText(self.tr("Pattern name"))
-        # Prefill with latin-1 safe version of the default text
         if default_text:
-            edit.setText(default_text[:max_length])
+            # The proposal comes from a file name, which may hold characters the
+            # machine cannot store; the validator would reject them and block
+            # typing, so only the allowed characters are offered.
+            edit.setText(_sanitize_card_name(default_text, max_length))
         layout.addWidget(edit)
         # Allow alphanumeric, spaces, and special characters supported by the machine
-        # regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}")
-        regex = QRegExp(rf"[A-Za-z0-9 _\-~$^%()@'!]{{1,{max_length}}}")
+        regex = QRegExp(
+            f"[{_regex_char_class(CARD_NAME_ALLOWED_CHARS)}]{{1,{max_length}}}")
+        # regex = QRegExp("[A-Za-z0-9 _\\-~$^%()@'!äöüÖÄÜß]{1,32}") # Old method
         edit.setValidator(QRegExpValidator(regex, edit))
         
         btn_row = QHBoxLayout()
@@ -3231,26 +3308,36 @@ class MainWindow(QMainWindow):
 
         if always_ask:
             # Build a default name from the file path or the pattern name
-            # stored on the card, if the document has a name.
+            # stored on the card, if the document has a name.  Accents are
+            # folded and unstorable characters dropped, so the proposal is
+            # already a name the machine can hold.
             default_name = ""
             raw = ""
             if self._file_path:
                 raw = os.path.splitext(os.path.basename(self._file_path))[0]
             elif self._machine_pattern_name:
                 raw = self._machine_pattern_name
-            if raw:
-                # Encode as latin-1 and decode back to show a preview of how the
-                # name will look on the machine (characters not representable in
-                # latin-1 are replaced with '?' by the encode step).
-                default_name = raw[:CARD_FILENAME_MAX].encode(
-                    "latin-1", errors="replace").decode("latin-1")
+            default_name = _sanitize_card_name(raw, CARD_FILENAME_MAX)
             filename = self._ask_card_filename(default_name)
             if filename is None:
                 return  # user cancelled
         elif self._file_path:
-            filename = os.path.splitext(os.path.basename(self._file_path))[0][:CARD_FILENAME_MAX]
+            filename = _sanitize_card_name(
+                os.path.splitext(os.path.basename(self._file_path))[0],
+                CARD_FILENAME_MAX)
+            if not filename:
+                # Nothing storable is left of the file name (e.g. only symbols),
+                # so the user has to name the pattern.
+                filename = self._ask_card_filename()
+                if filename is None:
+                    return  # user cancelled
         elif self._machine_pattern_name:
-            filename = self._machine_pattern_name[:CARD_FILENAME_MAX]
+            filename = _sanitize_card_name(
+                self._machine_pattern_name, CARD_FILENAME_MAX)
+            if not filename:
+                filename = self._ask_card_filename()
+                if filename is None:
+                    return  # user cancelled
         else:
             filename = self._ask_card_filename()
             if filename is None:
