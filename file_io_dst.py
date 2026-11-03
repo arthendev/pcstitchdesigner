@@ -184,21 +184,17 @@ def load(path):
 
     color_changes -= file_io.drop_trailing_color_changes(all_elems)
 
-    # DST coordinates are relative to the design origin, so the design is
-    # centred in the smallest hoop that holds it.
-    pattern.stitch_type, converted, warning = file_io.place_in_hoop(
-        all_elems, DST_TO_CANVAS)
-    if warning:
-        info.warnings.append(warning)
-
-    info.stitch_type = pattern.stitch_type
+    # DST coordinates are deltas from the design origin. Only the units are
+    # converted here: the hoop is chosen by file_io.load_pattern(), after the
+    # size in the file has been reported.
+    info.needs_hoop_placement = True
     info.stitch_count = stitches
     info.has_color_palette = False
     info.color_count = 0
     info.color_changes = color_changes
 
-    pattern._load_elements(converted)
+    pattern._load_elements(file_io.to_canvas_units(all_elems, DST_TO_CANVAS))
     if file_io.DEBUG:
-        print(f"DST design placed in {pattern.stitch_type}; {stitches} stitches, "
-              f"{jumps} jumps, {color_changes} colour changes")
+        print(f"DST design read; {stitches} stitches, {jumps} jumps, "
+              f"{color_changes} colour changes")
     return pattern, info

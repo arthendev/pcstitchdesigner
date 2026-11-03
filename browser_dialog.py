@@ -207,7 +207,7 @@ class PatternBrowserDialog(QFileDialog):
             return
 
         try:
-            pattern, _file_info = file_io.load_pattern(path)
+            pattern, file_info = file_io.load_pattern(path)
         except Exception as exc:
             self._preview_widget.clear()
             self._size_label.setText(self.tr("Size: -"))
@@ -222,7 +222,13 @@ class PatternBrowserDialog(QFileDialog):
             pattern.ensure_palette(self._config.default_palette())
 
         self._preview_widget.set_pattern(pattern)
-        width_mm, height_mm = pattern.get_stitch_size_mm()
+        # Imported designs are fitted into a hoop when loaded, and an oversized
+        # one is scaled down for that. The size label keeps naming the size the
+        # file stores, so the browser never misreports a design as that small.
+        if file_info.source_size_mm is not None:
+            width_mm, height_mm = file_info.source_size_mm
+        else:
+            width_mm, height_mm = pattern.get_stitch_size_mm()
         self._size_label.setText(self.tr("Size: {0:.2f} x {1:.2f} mm").format(width_mm, height_mm))
         # Name the design class the way the formats are grouped: hoop designs
         # are embroidery, everything else is named after its stitch type.

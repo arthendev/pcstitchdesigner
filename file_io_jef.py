@@ -284,22 +284,18 @@ def load(path):
 
     color_changes -= file_io.drop_trailing_color_changes(all_elems)
 
-    # JEF coordinates are relative to the design origin, so the design is
-    # centred in the smallest hoop that holds it — the same placement the DST
-    # reader uses.
-    pattern.stitch_type, converted, warning = file_io.place_in_hoop(
-        all_elems, JEF_TO_CANVAS)
-    if warning:
-        info.warnings.append(warning)
-
-    info.stitch_type = pattern.stitch_type
+    # JEF coordinates are deltas from the design origin, so only the units are
+    # converted here. The hoop is chosen by file_io.load_pattern(), after the
+    # size in the file has been reported — the same placement the DST reader
+    # relies on.
+    info.needs_hoop_placement = True
     info.stitch_count = stitches
     info.has_color_palette = bool(colors)
     info.color_count = len(colors)
     info.color_changes = color_changes
 
-    pattern._load_elements(converted)
+    pattern._load_elements(file_io.to_canvas_units(all_elems, JEF_TO_CANVAS))
     if file_io.DEBUG:
-        print(f"JEF design placed in {pattern.stitch_type}; {stitches} stitches, "
-              f"{jumps} jumps, {color_changes} colour changes")
+        print(f"JEF design read; {stitches} stitches, {jumps} jumps, "
+              f"{color_changes} colour changes")
     return pattern, info
