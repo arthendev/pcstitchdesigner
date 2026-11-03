@@ -1197,7 +1197,8 @@ class MachineComm:
 
         Returns:
             dict: {
-                'name':         str  - pattern name (ASCII),
+                'name':         str  - pattern name, cut at its NUL terminator
+                                and at most CARD_PART_NAME_MAX characters,
                 'size':         int  - total stitch data size in bytes on card,
                 'pattern_type': str  - pattern type,
                 'slot':         int  - zero-based slot index,
@@ -1332,7 +1333,7 @@ class MachineComm:
                 expected_cs = self.checksum(cs_data)
 
                 if received_cs == expected_cs:
-                    name = name_raw.rstrip(b'\x00').decode('latin-1', errors='replace')
+                    name = MachineComm.clean_card_name(name_raw)
                     size = int.from_bytes(size_bytes, 'big')
                     all_payload.extend(chunk_payload)
                     self._serial.write(bytes([self.CTRL_ACK]))
@@ -2985,6 +2986,25 @@ class MachineComm:
             return MachineComm.CARD_PART_NAME_MAX
         suffix = MachineComm.CARD_PART_NAME_SUFFIX.format(part_count)
         return max(MachineComm.CARD_PART_NAME_MAX - len(suffix), 1)
+
+    @staticmethod
+    def clean_card_name(raw_name):
+        """Return the card name carried by a reply, cut at its terminator.
+
+        A KB reply sends the name field as ``name_size`` bytes.  A slot written
+        by other software can hold NULs in the middle of that field, or bytes
+        past the name itself, so the reply cannot be trusted to be one clean
+        C string.  The name ends at the first NUL and never runs past
+        :attr:`CARD_PART_NAME_MAX` characters, which is all a write can store.
+
+        Args:
+            raw_name (bytes): The raw name field of the reply.
+
+        Returns:
+            str: The name as the card list should show it.
+        """
+        text = raw_name.split(b"\x00", 1)[0][:MachineComm.CARD_PART_NAME_MAX]
+        return text.decode('latin-1', errors='replace')
 
     @staticmethod
     def _card_part_filename(filename, part_index):
