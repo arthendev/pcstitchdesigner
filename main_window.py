@@ -366,6 +366,7 @@ class MainWindow(QMainWindow):
         self._act_open.triggered.connect(self._file_open)
 
         self._act_browser = QAction(self.tr("&Browser…"), self)
+        self._act_browser.setShortcut("Ctrl+Shift+O")
         self._act_browser.triggered.connect(self._file_browser)
 
         self._act_save = QAction(self.tr("&Save"), self)
