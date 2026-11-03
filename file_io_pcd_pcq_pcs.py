@@ -143,20 +143,6 @@ def _split_coordinate(value):
     return divmod(total, FRACTION_SCALE)
 
 
-def _drop_trailing_colour_changes(all_elems):
-    """Remove trailing colour-change records; return how many were dropped.
-
-    A colour change as the last record has no stitch to apply to.  PC-Designer
-    never writes one, so such records are ignored instead of becoming an
-    empty trailing section in the pattern.
-    """
-    dropped = 0
-    while all_elems and all_elems[-1][0] == ELEM_COLOR:
-        all_elems.pop()
-        dropped += 1
-    return dropped
-
-
 def save(path, pattern, info=None):
     """Save a StitchPattern in the PCD/PCQ/PCS binary format.
 
@@ -442,7 +428,7 @@ def load_v31(path):
     info.stitch_count = stitch_records
     info.has_color_palette = False # this format doesn't have a color palette
     info.color_count = len(pattern.colors)
-    extra_records -= _drop_trailing_colour_changes(all_elems)
+    extra_records -= file_io.drop_trailing_color_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 
@@ -699,7 +685,7 @@ def _load_standard(path):
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
     info.color_count = len(pattern.colors)
-    extra_records -= _drop_trailing_colour_changes(all_elems)
+    extra_records -= file_io.drop_trailing_color_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 
@@ -847,7 +833,7 @@ def _load_nonstandard(path):
     info.stitch_count = stitch_records
     info.has_color_palette = bool(pattern.colors)
     info.color_count = len(pattern.colors)
-    extra_records -= _drop_trailing_colour_changes(all_elems)
+    extra_records -= file_io.drop_trailing_color_changes(all_elems)
     info.color_changes = extra_records
     info.sections_count = sections
 

@@ -1,4 +1,4 @@
-"""Tajima DST embroidery reader (.dst files) — import only.
+""" DST embroidery reader (.dst files) — import only.
 
 File format:
   Header: fixed 512 bytes of ``\\r``-separated ASCII records, e.g. ``LA:``
@@ -44,7 +44,7 @@ _HEADER_SIGNATURES = (b"LA:", b"\x01\x00\x00")
 
 
 def is_format(header):
-    """Return True when *header* starts like a Tajima DST file."""
+    """Return True when *header* starts like a DST file."""
     return len(header) >= 3 and header[:3] in _HEADER_SIGNATURES
 
 
@@ -102,17 +102,8 @@ def _command(b2):
     return "stitch"
 
 
-def _drop_trailing_color_changes(elements):
-    """Remove colour changes that no stitch follows; return how many."""
-    dropped = 0
-    while elements and elements[-1][0] == ELEM_COLOR:
-        elements.pop()
-        dropped += 1
-    return dropped
-
-
 def load(path):
-    """Load a Tajima DST file as a hoop pattern.
+    """Load a DST file as a hoop pattern.
 
     DST carries no thread table, so the pattern is left without a palette; the
     application supplies the default machine palette for embroidery designs.
@@ -191,7 +182,7 @@ def load(path):
             "File appears to be truncated: only {0} of {1} records could be read"
         ).format(parsed_records, expected))
 
-    color_changes -= _drop_trailing_color_changes(all_elems)
+    color_changes -= file_io.drop_trailing_color_changes(all_elems)
 
     # DST coordinates are relative to the design origin, so the design is
     # centred in the smallest hoop that holds it.

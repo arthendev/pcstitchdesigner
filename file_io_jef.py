@@ -1,4 +1,4 @@
-"""Janome JEF embroidery reader (.jef files) — import only.
+"""JEF embroidery reader (.jef files) — import only.
 
 File format:
   Header: the first 0x74 (116) bytes describe the design:
@@ -64,7 +64,7 @@ THREAD_TABLE_SIZE = 8
 MAX_THREADS = 256
 
 # Stitch stream commands, recognised by the second byte of a 0x80 0x?? record.
-# Janome writers use the neighbouring values for the same meaning, so the sets
+# Writers use the neighbouring values for the same meaning, so the sets
 # cover the variants libembroidery accepts.
 COLOR_CHANGE_COMMANDS = (0x01, 0x03, 0x05)
 JUMP_COMMANDS = (0x02, 0x04, 0x06)
@@ -76,11 +76,11 @@ JEF_TO_CANVAS = JEF_UNIT_MM / StitchPattern.STITCH_RES_MM
 
 EXTENSIONS = (".jef",)
 
-# Janome's fixed thread table, as used by the writer that creates these files.
+# Fixed thread table, as used by the writer that creates these files.
 # Index 0 is a placeholder (rendered black); each following entry is the thread
 # a colour-change record can select.
 JEF_COLORS = (
-    (0, 0, 0),        # 0  placeholder — "unknown" in the Janome table
+    (0, 0, 0),        # 0  placeholder — "unknown"
     (0, 0, 0),        # 1  black
     (255, 255, 255),  # 2  white
     (255, 255, 23),   # 3  yellow
@@ -163,7 +163,7 @@ JEF_COLORS = (
 
 
 def is_format(header):
-    """Return True when *header* starts like a Janome JEF file.
+    """Return True when *header* starts like a JEF file.
 
     JEF has no magic number, so the layout itself is the signature: the
     constant marker at 0x04 plus a stitch-stream offset that matches the
@@ -186,17 +186,8 @@ def _signed(byte):
     return byte - 256 if byte > 127 else byte
 
 
-def _drop_trailing_color_changes(elements):
-    """Remove colour changes that no stitch follows; return how many."""
-    dropped = 0
-    while elements and elements[-1][0] == ELEM_COLOR:
-        elements.pop()
-        dropped += 1
-    return dropped
-
-
 def load(path):
-    """Load a Janome JEF file as a hoop pattern.
+    """Load a JEF file as a hoop pattern.
 
     The thread table the file carries becomes the pattern palette, so the
     design keeps the thread colours it names.
@@ -232,7 +223,7 @@ def load(path):
 
     if file_io.DEBUG:
         print(f"\n\nReading JEF pattern: {thread_count} threads, "
-              f"stitch data at {data_offset:#06x}, Janome hoop code {hoop_code}")
+              f"stitch data at {data_offset:#06x}, hoop code {hoop_code}")
 
     body = data[data_offset:]
     all_elems = []
@@ -291,7 +282,7 @@ def load(path):
         info.warnings.append(_tr(
             "The JEF file ends in the middle of a stitch record"))
 
-    color_changes -= _drop_trailing_color_changes(all_elems)
+    color_changes -= file_io.drop_trailing_color_changes(all_elems)
 
     # JEF coordinates are relative to the design origin, so the design is
     # centred in the smallest hoop that holds it — the same placement the DST
