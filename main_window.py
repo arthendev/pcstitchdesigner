@@ -1502,7 +1502,8 @@ class MainWindow(QMainWindow):
         overwrite the file with data it cannot represent, so the user has to
         choose a new name through Save As.
 
-        Import-only formats (DST, JEF) are never a save target, whatever the design.
+        Import-only formats (DST, JEF, PEC, PES) are never a save target,
+        whatever the design.
         """
         if self._file_path is None:
             return False
@@ -1812,11 +1813,11 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(
             self, self.tr("Open Stitch Pattern"), "",
             ";;".join([
-                self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef)"),
+                self.tr("All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)"),
                 self.tr("Stitch Files (*.pcd *.pcq *.9mm *.max)"),
                 self.tr("9mm Stitch Files (*.pcd *.9mm)"),
                 self.tr("MAXI Stitch Files (*.pcq *.max)"),
-                self.tr("Embroidery Files (*.pcs *.dst *.jef)"),
+                self.tr("Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)"),
                 self.tr("All Files (*)"),
             ]),
         )
