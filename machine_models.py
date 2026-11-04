@@ -67,6 +67,15 @@ MODELS = (
         card_p_muster=False,
     ),
     MachineModel(
+        name="PFAFF Creative 7562",
+        ident_markers=("7562",),
+        p_memory=False,
+        m_memory=True,
+        memory_cards=True,
+        card_embroidery=True,
+        card_p_muster=False,
+    ),
+    MachineModel(
         name="PFAFF Creative 7550",
         # "7550 CD" is what the ident string and the original software use;
         # bare "7550" covers units that omit the CD suffix.
