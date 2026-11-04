@@ -9,8 +9,8 @@ from PyQt5.QtWidgets import (
     QMainWindow, QScrollArea, QAction, QActionGroup,
     QFileDialog, QMessageBox, QToolBar, QLabel, QMenu, QDialog,
     QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy, QFrame,
-    QLineEdit, QSpinBox, QDoubleSpinBox, QProgressDialog, QApplication,
-    QColorDialog,
+    QLineEdit, QSpinBox, QDoubleSpinBox, QAbstractSpinBox, QProgressDialog,
+    QApplication, QColorDialog,
 )
 from PyQt5.QtCore import QRegExp, Qt, QUrl, QPoint, QEvent, QTimer, QLocale
 from PyQt5.QtGui import QIcon, QKeyEvent, QCursor, QRegExpValidator, QPixmap, QColor
@@ -177,6 +177,33 @@ DESIGN_TYPE_RULES = (
     DesignTypeRule("_act_center_design", EMBROIDERY_DESIGN_TYPES),
 )
 
+
+class WrappingDoubleSpinBox(QDoubleSpinBox):
+    """A double spin box whose arrow steps wrap around the range ends.
+
+    The rotation angle uses it: stepping down from 0° continues at 359°
+    instead of stopping, so a selection can be turned in both directions.
+    """
+
+    def stepEnabled(self):
+        """Report both arrows as usable, even at the range ends.
+
+        Qt disables the arrow that would leave the range, and a disabled arrow
+        never reaches :meth:`stepBy` — which is exactly the step that wraps.
+        """
+        return QAbstractSpinBox.StepUpEnabled | QAbstractSpinBox.StepDownEnabled
+
+    def stepBy(self, steps):
+        if steps == 0:
+            return
+        span = self.maximum() - self.minimum()
+        if span <= 0:
+            super().stepBy(steps)
+            return
+        # 0° and 360° name the same rotation, so the range repeats over its span.
+        value = self.value() + steps * self.singleStep()
+        wrapped = self.minimum() + (value - self.minimum()) % span
+        self.setValue(round(wrapped, self.decimals()))
 
 
 class MainWindow(QMainWindow):
@@ -1053,7 +1080,8 @@ class MainWindow(QMainWindow):
         self._xform_scale_y_spin = self._make_xform_spin(
             self.tr("Vertical scale of the selection"), " %", 1.0, 1000.0)
         self._xform_angle_spin = self._make_xform_spin(
-            self.tr("Rotation of the selection in degrees"), " °", 0.0, 360.0)
+            self.tr("Rotation of the selection in degrees"), " °", 0.0, 360.0,
+            wrap=True)
         # No transform yet: the numbers name the selection as it is.
         self._xform_scale_x_spin.setValue(100.0)
         self._xform_scale_y_spin.setValue(100.0)
@@ -1086,9 +1114,13 @@ class MainWindow(QMainWindow):
         spin.valueChanged.connect(self._on_selection_spin_changed)
         return spin
 
-    def _make_xform_spin(self, tooltip, suffix, minimum, maximum):
-        """Create a spin box that sets one number of the resize/rotate transform."""
-        spin = QDoubleSpinBox()
+    def _make_xform_spin(self, tooltip, suffix, minimum, maximum, wrap=False):
+        """Create a spin box that sets one number of the resize/rotate transform.
+
+        *wrap* lets the arrow steps continue past the ends of the range instead
+        of stopping there; the angle needs that so both rotation directions work.
+        """
+        spin = WrappingDoubleSpinBox() if wrap else QDoubleSpinBox()
         spin.setDecimals(1)
         spin.setRange(minimum, maximum)
         spin.setSuffix(suffix)
