@@ -718,16 +718,29 @@ class StitchCanvas(QWidget):
         scroll_area.verticalScrollBar().setValue(int(new_sy - vy))
 
     def set_view_orientation(self, orientation):
-        """Set view orientation: 'default' or 'sewing_direction' (90° CW)."""
+        """Set view orientation: 'default' or 'sewing_direction'.
+
+        The sewing view is a quarter turn, clockwise for 9 mm / MAXI patterns
+        and counter-clockwise for hoop designs — see
+        :meth:`_sewing_view_anticlockwise`.
+        """
         if self._template_image is not None and orientation != self._view_orientation:
-            H = self.pattern.CANVAS_HEIGHT
-            if orientation == "sewing_direction":
+            width, height = self.pattern.CANVAS_WIDTH, self.pattern.CANVAS_HEIGHT
+            if self._sewing_view_anticlockwise():
+                # 90° CCW: (u, v) -> (v, W - u) in template space.
+                if orientation == "sewing_direction":
+                    self._tpl_cx, self._tpl_cy = (self._tpl_cy, width - self._tpl_cx)
+                    self._tpl_angle -= 90.0
+                else:
+                    self._tpl_cx, self._tpl_cy = (width - self._tpl_cy, self._tpl_cx)
+                    self._tpl_angle += 90.0
+            elif orientation == "sewing_direction":
                 # default → sewing: 90° CW rotation of the template position/angle
-                self._tpl_cx, self._tpl_cy = H - self._tpl_cy, self._tpl_cx
+                self._tpl_cx, self._tpl_cy = height - self._tpl_cy, self._tpl_cx
                 self._tpl_angle += 90.0
             else:
                 # sewing → default: 90° CCW rotation
-                self._tpl_cx, self._tpl_cy = self._tpl_cy, H - self._tpl_cx
+                self._tpl_cx, self._tpl_cy = self._tpl_cy, height - self._tpl_cx
                 self._tpl_angle -= 90.0
         self._view_orientation = orientation
         self._update_size()
@@ -867,11 +880,24 @@ class StitchCanvas(QWidget):
 
     # ── Coordinate transforms ──
 
+    def _sewing_view_anticlockwise(self):
+        """True when the sewing-direction view turns counter-clockwise.
+
+        9 mm / MAXI patterns are sewn along the hoop's long side, so their
+        sewing view is a 90° clockwise turn. A hoop design is sewn in the hoop's
+        own orientation, so its sewing view is the opposite turn.
+        """
+        return is_embroidery_type(self.pattern.stitch_type)
+
     def canvas_to_screen(self, cx, cy):
         """Transform canvas coordinates to screen coordinates."""
         if self._view_orientation == "default":
             sx = self.MARGIN + cx * self._scale
             sy = self.MARGIN + (self.pattern.CANVAS_HEIGHT - cy) * self._scale
+        elif self._sewing_view_anticlockwise():
+            # 90° CCW: (0,0) moves to the bottom-right, canvas +x points up.
+            sx = self.MARGIN + (self.pattern.CANVAS_HEIGHT - cy) * self._scale
+            sy = self.MARGIN + (self.pattern.CANVAS_WIDTH - cx) * self._scale
         else:  # sewing_direction (90° CW rotation)
             # After 90° CW: (0,0) moves to top-left
             sx = self.MARGIN + cy * self._scale
@@ -883,6 +909,10 @@ class StitchCanvas(QWidget):
         if self._view_orientation == "default":
             cx = (sx - self.MARGIN) / self._scale
             cy = self.pattern.CANVAS_HEIGHT - (sy - self.MARGIN) / self._scale
+        elif self._sewing_view_anticlockwise():
+            # Reverse the 90° CCW turn.
+            cx = self.pattern.CANVAS_WIDTH - (sy - self.MARGIN) / self._scale
+            cy = self.pattern.CANVAS_HEIGHT - (sx - self.MARGIN) / self._scale
         else:  # sewing_direction (90° CW rotation)
             # Reverse 90° CW: cx = (sy - MARGIN) / scale, cy = (sx - MARGIN) / scale
             cx = (sy - self.MARGIN) / self._scale

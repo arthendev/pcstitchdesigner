@@ -141,15 +141,12 @@ class DesignTypeRule:
             the defaults are requested; ``None`` keeps the user's choice.
         force: checkable state forced while the target is unavailable;
             ``None`` leaves the state alone (plain, non-checkable actions).
-        reset: MainWindow method called when the target becomes unavailable, so
-            the window cannot stay in a mode its design type does not support.
     """
 
     target: str
     types: tuple
     restore: bool = None
     force: bool = None
-    reset: str = None
 
 
 # Everything that is only offered for some design types. Extend this table when
@@ -166,10 +163,10 @@ DESIGN_TYPE_RULES = (
     DesignTypeRule("_act_convert_auto_stitches", STITCH_DESIGN_TYPES),
     DesignTypeRule("_act_auto_stitch_align_grid", STITCH_DESIGN_TYPES,
                    restore=False, force=False),
-    # Stitch grid and sewing-direction view belong to the 9 mm / MAXI patterns.
-    DesignTypeRule("_act_orientation_sewing", STITCH_DESIGN_TYPES,
-                   force=False, reset="_on_orientation_default"),
-    DesignTypeRule("_act_toggle_orientation", STITCH_DESIGN_TYPES, force=False),
+    # The view orientation is offered for every design type. The canvas turns
+    # hoop designs the other way than 9 mm / MAXI patterns, and a view chosen
+    # for one class cannot carry over to the other, so
+    # _apply_design_type_rules() resets it when the class changes.
     # Embroidery designs are stitched in thread colors, so only they show the
     # color palette bar and can have colour-change markers edited.
     DesignTypeRule("_palette_bar", EMBROIDERY_DESIGN_TYPES),
@@ -226,6 +223,11 @@ class MainWindow(QMainWindow):
         
         # View orientation state
         self._view_orientation = "default"  # "default" or "sewing_direction"
+        # Whether the orientation belongs to an embroidery design. The sewing
+        # view turns the two classes in opposite directions, so a change of
+        # class resets it (see _apply_design_type_rules).
+        self._orientation_is_embroidery = is_embroidery_type(
+            self._pattern.stitch_type)
 
         # Template editing state
         self._tpl_saved_state = None  # saved before entering resize/rotate mode
@@ -1520,12 +1522,19 @@ class MainWindow(QMainWindow):
                 snapping, for example).
         """
         stitch_type = self._pattern.stitch_type
+        # A sewing-direction view is worth keeping while the design stays in the
+        # same class (9 mm ↔ MAXI, small ↔ large hoop). Switching between the
+        # sewing patterns and embroidery changes which way the view is turned,
+        # so the window goes back to the default view instead.
+        embroidery_view = is_embroidery_type(stitch_type)
+        if embroidery_view != self._orientation_is_embroidery:
+            self._orientation_is_embroidery = embroidery_view
+            self._on_orientation_default()
         for rule in DESIGN_TYPE_RULES:
             widget = getattr(self, rule.target)
             if not isinstance(widget, QAction):
                 continue    # panels query _design_type_allows() themselves
             available = stitch_type in rule.types
-            was_enabled = widget.isEnabled()
             widget.setEnabled(available)
             if available:
                 # Only a defaults run overrides the user's choice.
@@ -1533,8 +1542,6 @@ class MainWindow(QMainWindow):
                     widget.setChecked(rule.restore)
             elif rule.force is not None:
                 widget.setChecked(rule.force)
-            if not available and was_enabled and rule.reset:
-                getattr(self, rule.reset)()
         # Option states feed the canvas directly; setChecked() does not run the
         # triggered handlers that normally push them across.
         self._canvas.snap_normal_to_grid = self._act_std_stitch_align_grid.isChecked()
