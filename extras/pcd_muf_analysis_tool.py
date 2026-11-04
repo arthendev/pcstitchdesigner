@@ -1368,6 +1368,8 @@ def save_pattern_binary(path, points, stitch_type):
                                 0, x_int.to_bytes(3, 'little'),
                                 0, y_int.to_bytes(3, 'little'),
                                 control))
+        # 13 zero bytes — placeholder for the template image name
+        f.write(b'\x00' * 13)
 
 
 def _compute_absolute_points(dxdy_bytes, pattern_y0):
