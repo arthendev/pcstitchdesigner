@@ -12,12 +12,13 @@ the file content, saving from the file extension:
   file_io_dst.py           .dst               header record "LA:" (import only)
   file_io_jef.py           .jef               header layout (import only)
   file_io_pec_pes.py       .pec, .pes         "#PEC0001" / "#PES" (import only)
+  file_io_hus.py           .hus               magic 0x00C8 (import only)
 
 Conventions shared by all formats:
   * Every loader returns ``(pattern, info)``. PatternFileInfo reports what was
     actually read, so callers can compare it with what the header claims.
-  * Import-only formats (DST, JEF, PEC, PES) store stitches around the design
-    origin. Their readers only convert units and set
+  * Import-only formats (DST, JEF, PEC, PES, HUS) store stitches around the
+    design origin. Their readers only convert units and set
     ``info.needs_hoop_placement``; ``load_pattern()`` picks the hoop afterwards
     and records the size the file stores in ``info.source_size_mm``.
   * A file that ends before its declared record count is still loaded: the
@@ -69,9 +70,10 @@ class PatternFileInfo:
     tension: Optional[float] = None  # thread tension, e.g. 2.5
     thread_color: Optional[Tuple[int, int, int]] = None  # (R, G, B) thread colour
     template_image_data: Optional[bytes] = None  # embedded template image bytes
-    # Import-only formats (DST/JEF/PEC/PES) store stitches as deltas from the
-    # design origin, so the design only gains a hoop when load_pattern() places
-    # it. source_size_mm is the size the file itself stores, before that fitting.
+    # Import-only formats (DST/JEF/PEC/PES/HUS) store stitches as deltas from
+    # the design origin, so the design only gains a hoop when load_pattern()
+    # places it. source_size_mm is the size the file itself stores, before that
+    # fitting.
     needs_hoop_placement: bool = False
     source_size_mm: Optional[Tuple[float, float]] = None
     warnings: List[str] = field(default_factory=list)
@@ -101,6 +103,7 @@ def load_pattern(path):
     import file_io_dst
     import file_io_jef
     import file_io_pec_pes
+    import file_io_hus
 
     if file_io_vcsm_9mm_max.is_format(header):
         return _finish_load(*file_io_vcsm_9mm_max.load(path))
@@ -112,6 +115,8 @@ def load_pattern(path):
         return _finish_load(*file_io_jef.load(path))
     if file_io_pec_pes.is_format(header):
         return _finish_load(*file_io_pec_pes.load(path))
+    if file_io_hus.is_format(header):
+        return _finish_load(*file_io_hus.load(path))
     # JEF writers that pad the header do not match the layout signature, so a
     # file with the format's own extension is handed to it anyway; the reader
     # validates the header again.
@@ -156,7 +161,7 @@ def save_pattern(path, pattern, info=None, image_data=None):
 
     ``.9mm`` and ``.max`` paths are written by file_io_vcsm_9mm_max.save();
     every other writable extension is written by file_io_pcd_pcq_pcs.save().
-    Import-only formats (DST, JEF, PEC, PES) raise ValueError — see
+    Import-only formats (DST, JEF, PEC, PES, HUS) raise ValueError — see
     :func:`can_save`.
 
     *image_data* is the template preview as a raster image (QPixmap), not
@@ -323,14 +328,15 @@ def palette_size(path):
     different number of colors cannot be written before the palette is
     adjusted. The VCSM formats (.9mm/.max) store one thread color and no
     palette, so they impose no size; this returns None for them. DST carries
-    no colour table, and JEF, PEC and PES files hold only the threads they use,
-    so those return None as well.
+    no colour table, and JEF, PEC, PES and HUS files hold only the threads they
+    use, so those return None as well.
     """
     import file_io_pcd_pcq_pcs
     import file_io_vcsm_9mm_max
     import file_io_dst
     import file_io_jef
     import file_io_pec_pes
+    import file_io_hus
 
     if os.path.splitext(path)[1].lower() in file_io_vcsm_9mm_max.EXTENSIONS:
         return None
@@ -340,20 +346,24 @@ def palette_size(path):
         return None
     if os.path.splitext(path)[1].lower() in file_io_pec_pes.EXTENSIONS:
         return None
+    if os.path.splitext(path)[1].lower() in file_io_hus.EXTENSIONS:
+        return None
     return file_io_pcd_pcq_pcs.PALETTE_SIZE
 
 
 def can_save(path):
     """Return False for import-only formats that save_pattern cannot write.
 
-    Only DST, JEF, PEC and PES are import-only today; every other supported
-    extension has a writer (or is treated as a PCD file by convention).
+    Only DST, JEF, PEC, PES and HUS are import-only today; every other
+    supported extension has a writer (or is treated as a PCD file by
+    convention).
     """
     import file_io_dst
     import file_io_jef
     import file_io_pec_pes
+    import file_io_hus
 
     extension = os.path.splitext(path)[1].lower()
     import_only = (file_io_dst.EXTENSIONS + file_io_jef.EXTENSIONS
-                   + file_io_pec_pes.EXTENSIONS)
+                   + file_io_pec_pes.EXTENSIONS + file_io_hus.EXTENSIONS)
     return extension not in import_only
