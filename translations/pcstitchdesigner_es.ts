@@ -326,6 +326,18 @@
         <translation>El archivo PEC termina en medio de un registro de puntada</translation>
     </message>
     <message>
+        <source>The HUS file contains no stitches</source>
+        <translation>El archivo HUS no contiene puntadas</translation>
+    </message>
+    <message>
+        <source>Unsupported HUS command 0x{0:02X}; reading stopped</source>
+        <translation>Comando HUS no admitido 0x{0:02X}; se detuvo la lectura</translation>
+    </message>
+    <message>
+        <source>The HUS file ends in the middle of a stitch record</source>
+        <translation>El archivo HUS termina en medio de un registro de puntada</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Bytes finales inesperados al final del archivo DST</translation>
     </message>
@@ -1403,8 +1415,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1595,8 +1607,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -2033,8 +2045,8 @@
         <translation>Abrir patrón de puntadas</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Archivos de bordado (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2077,8 +2089,8 @@
         <translation>Archivos de puntadas de 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Todos los archivos admitidos (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

@@ -326,6 +326,18 @@
         <translation>Il file PEC termina nel mezzo di un record di punto</translation>
     </message>
     <message>
+        <source>The HUS file contains no stitches</source>
+        <translation>Il file HUS non contiene punti</translation>
+    </message>
+    <message>
+        <source>Unsupported HUS command 0x{0:02X}; reading stopped</source>
+        <translation>Comando HUS non supportato 0x{0:02X}; lettura interrotta</translation>
+    </message>
+    <message>
+        <source>The HUS file ends in the middle of a stitch record</source>
+        <translation>Il file HUS termina nel mezzo di un record di punto</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Byte finali inattesi alla fine del file DST</translation>
     </message>
@@ -1403,8 +1415,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1595,8 +1607,8 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -2033,8 +2045,8 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2077,8 +2089,8 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

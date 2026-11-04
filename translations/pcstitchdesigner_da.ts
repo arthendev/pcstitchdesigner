@@ -326,6 +326,18 @@
         <translation>PEC-filen slutter midt i en stingpost</translation>
     </message>
     <message>
+        <source>The HUS file contains no stitches</source>
+        <translation>HUS-filen indeholder ingen sting</translation>
+    </message>
+    <message>
+        <source>Unsupported HUS command 0x{0:02X}; reading stopped</source>
+        <translation>Ikke-understøttet HUS-kommando 0x{0:02X}; læsningen stoppede</translation>
+    </message>
+    <message>
+        <source>The HUS file ends in the middle of a stitch record</source>
+        <translation>HUS-filen slutter midt i en stingpost</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Uventede efterfølgende bytes i slutningen af DST-filen</translation>
     </message>
@@ -1403,8 +1415,8 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1595,8 +1607,8 @@
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -2033,8 +2045,8 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2077,8 +2089,8 @@
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

@@ -326,6 +326,18 @@
         <translation>Le fichier PEC se termine au milieu d'un enregistrement de point</translation>
     </message>
     <message>
+        <source>The HUS file contains no stitches</source>
+        <translation>Le fichier HUS ne contient aucun point</translation>
+    </message>
+    <message>
+        <source>Unsupported HUS command 0x{0:02X}; reading stopped</source>
+        <translation>Commande HUS non prise en charge 0x{0:02X} ; lecture interrompue</translation>
+    </message>
+    <message>
+        <source>The HUS file ends in the middle of a stitch record</source>
+        <translation>Le fichier HUS se termine au milieu d'un enregistrement de point</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Octets finaux inattendus à la fin du fichier DST</translation>
     </message>
@@ -1403,8 +1415,8 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1595,8 +1607,8 @@
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -2033,8 +2045,8 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2077,8 +2089,8 @@
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>

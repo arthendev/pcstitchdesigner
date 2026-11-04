@@ -326,6 +326,18 @@
         <translation>Файл PEC заканчивается посередине записи стежка</translation>
     </message>
     <message>
+        <source>The HUS file contains no stitches</source>
+        <translation>Файл HUS не содержит стежков</translation>
+    </message>
+    <message>
+        <source>Unsupported HUS command 0x{0:02X}; reading stopped</source>
+        <translation>Неподдерживаемая команда HUS 0x{0:02X}; чтение остановлено</translation>
+    </message>
+    <message>
+        <source>The HUS file ends in the middle of a stitch record</source>
+        <translation>Файл HUS заканчивается посередине записи стежка</translation>
+    </message>
+    <message>
         <source>Unexpected trailing bytes at the end of the DST file</source>
         <translation>Неожиданные завершающие байты в конце файла DST</translation>
     </message>
@@ -1403,8 +1415,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -1595,8 +1607,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -2033,8 +2045,8 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>All Files (*)</source>
@@ -2077,8 +2089,8 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
