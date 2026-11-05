@@ -14,10 +14,14 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
 
 - Creating custom stitch patterns ("P-Designs", both 9mm and MAXI-stitches)
 - Import and export from/to stitch file formats:
-  - *.PCD (9 mm stitches)
-  - *.PCQ (MAXI stitches)
+  - *.PCD and *.9MM (9 mm stitches)
+  - *.PCQ and *.MAX (MAXI stitches)
+  - *.PCS (embroidery designs)
+- Import of third-party embroidery formats (read-only):
+  -  *.DST, *.JEF, *.PEC, *.PES, *.HUS, *.VIP and *.VP3
 - Transfer stitch patterns to and from supported sewing machines
   - Pfaff Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
+  - Pfaff Creative 7560/7562 (memory cards only; embroidery designs can be stored on a card)
   - Pfaff Creative 7550
   - Pfaff Creative 1475 CD
 - Compatibility with modern 64-bit operating systems
@@ -26,7 +30,7 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
 ## Hardware requirements
 
 - Compatible sewing machine
-  - Creative 7570, 7550 or 1475 CD
+  - Creative 7570, 7560, 7550 or 1475 CD
 - Interface cable
   - [compatible USB cable](https://github.com/arthendev/pcstitchdesigner/wiki/Machine-Communication)
   - original COM cable should eventually work but was not tested yet
