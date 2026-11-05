@@ -45,9 +45,6 @@ Colours: every thread slot names an index into the 64-colour table
 that name the same thread (Wilcom writes them without de-duplicating) share
 one palette entry.
 
-Import only: the palette and hoop coordinates do not fit the sewing formats, so
-file_io.save_pattern() refuses .pec and .pes paths.
-
 Information sources:
   https://edutechwiki.unige.ch/en/Embroidery_format_PEC
   https://edutechwiki.unige.ch/en/Embroidery_format_PES

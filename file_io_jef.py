@@ -34,9 +34,6 @@ the stream offset has to equal 0x74 + 8 × thread count. file_io.load_pattern()
 also accepts a .jef file whose header does not match that layout, because some
 writers pad the header; this module validates the header again on load.
 
-Import only: the pattern palette and hoop coordinates of a hoop design do not
-fit the sewing formats, so file_io.save_pattern() refuses .jef paths.
-
 Information sources:
   https://edutechwiki.unige.ch/en/Embroidery_format_JEF
   https://github.com/EmbroidePy/pyembroidery/blob/main/pyembroidery/JefReader.py

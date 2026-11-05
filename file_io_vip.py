@@ -35,9 +35,6 @@ File format:
   number per thread, then the name record: a 32-bit character
 count followed by UTF-16 text.
 
-Import only: the palette and hoop coordinates do not fit the sewing formats, so
-file_io.save_pattern() refuses .vip paths.
-
 Information source:
   https://www.jasonweiler.com/HUSandVIPFileFormatInfo.html
   https://github.com/Embroidermodder/Embroidermodder/blob/main/src/libembroidery/format-vip.c

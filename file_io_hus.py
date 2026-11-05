@@ -32,9 +32,6 @@ Compression:
 
 The thread table is the fixed 29-colour palette below (HUS_COLORS).
 
-Import only: the palette and hoop coordinates do not fit the sewing formats, so
-file_io.save_pattern() refuses .hus paths.
-
 Information sources:
   https://edutechwiki.unige.ch/en/Embroidery_format_HUS
   https://github.com/EmbroidePy/pyembroidery/blob/main/pyembroidery/HusReader.py
