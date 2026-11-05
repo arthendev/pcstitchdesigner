@@ -401,6 +401,18 @@
         <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
         <translation>Il motivo è più grande del telaio grande; ridimensionato al {0}% per rientrare.</translation>
     </message>
+    <message>
+        <source>The VIP file contains no stitches</source>
+        <translation>Il file VIP non contiene punti</translation>
+    </message>
+    <message>
+        <source>The VIP file ends in the middle of a stitch record</source>
+        <translation>Il file VIP termina nel mezzo di un record di punto</translation>
+    </message>
+    <message>
+        <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
+        <translation>Comando VIP non supportato 0x{0:02X}; lettura interrotta</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1415,10 +1427,6 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Tutti i file (*)</translation>
     </message>
@@ -1605,10 +1613,6 @@
     <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
-    </message>
-    <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1930,6 +1934,14 @@
         <source>Y:</source>
         <translation>Y:</translation>
     </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2045,10 +2057,6 @@
         <translation>Apri motivo</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Tutti i file (*)</translation>
     </message>
@@ -2089,10 +2097,6 @@
         <translation>File di punti 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
         <translation>File di punti MAXI (*.pcq *.max)</translation>
     </message>
@@ -2107,6 +2111,14 @@
     <message>
         <source>Stitches: {0}</source>
         <translation>Punti: {0}</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Tutti i file supportati (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
     </message>
 </context>
 <context>

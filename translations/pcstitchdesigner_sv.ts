@@ -401,6 +401,18 @@
         <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
         <translation>Mönstret är större än den stora ramen; skalat till {0} % för att passa.</translation>
     </message>
+    <message>
+        <source>The VIP file contains no stitches</source>
+        <translation>VIP-filen innehåller inga stygn</translation>
+    </message>
+    <message>
+        <source>The VIP file ends in the middle of a stitch record</source>
+        <translation>VIP-filen slutar mitt i en stygnpost</translation>
+    </message>
+    <message>
+        <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
+        <translation>VIP-kommando 0x{0:02X} stöds inte; läsningen avbröts</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1415,10 +1427,6 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Alla filer (*)</translation>
     </message>
@@ -1605,10 +1613,6 @@
     <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
-    </message>
-    <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1930,6 +1934,14 @@
         <source>Y:</source>
         <translation>Y:</translation>
     </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2045,10 +2057,6 @@
         <translation>Öppna stygnmönster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Alla filer (*)</translation>
     </message>
@@ -2089,10 +2097,6 @@
         <translation>9mm-stygnfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
         <translation>MAXI-stygnfiler (*.pcq *.max)</translation>
     </message>
@@ -2107,6 +2111,14 @@
     <message>
         <source>Stitches: {0}</source>
         <translation>Stygn: {0}</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Alla filer som stöds (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
     </message>
 </context>
 <context>

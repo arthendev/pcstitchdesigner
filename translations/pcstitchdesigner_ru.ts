@@ -401,6 +401,18 @@
         <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
         <translation>Узор больше больших пялец; масштабирован до {0} %, чтобы поместиться.</translation>
     </message>
+    <message>
+        <source>The VIP file contains no stitches</source>
+        <translation>Файл VIP не содержит стежков</translation>
+    </message>
+    <message>
+        <source>The VIP file ends in the middle of a stitch record</source>
+        <translation>Файл VIP заканчивается посередине записи стежка</translation>
+    </message>
+    <message>
+        <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
+        <translation>Неподдерживаемая команда VIP 0x{0:02X}; чтение остановлено</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1415,10 +1427,6 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Все файлы (*)</translation>
     </message>
@@ -1605,10 +1613,6 @@
     <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
-    </message>
-    <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1930,6 +1934,14 @@
         <source>Y:</source>
         <translation>Y:</translation>
     </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2045,10 +2057,6 @@
         <translation>Открыть узор</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Все файлы (*)</translation>
     </message>
@@ -2089,10 +2097,6 @@
         <translation>Файлы узоров 9 мм (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
         <translation>Файлы узоров MAXI (*.pcq *.max)</translation>
     </message>
@@ -2107,6 +2111,14 @@
     <message>
         <source>Stitches: {0}</source>
         <translation>Стежки: {0}</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
     </message>
 </context>
 <context>

@@ -401,6 +401,18 @@
         <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
         <translation>Mønsteret er større end den store ramme; skaleret til {0} % for at passe.</translation>
     </message>
+    <message>
+        <source>The VIP file contains no stitches</source>
+        <translation>VIP-filen indeholder ingen sting</translation>
+    </message>
+    <message>
+        <source>The VIP file ends in the middle of a stitch record</source>
+        <translation>VIP-filen slutter midt i en stingpost</translation>
+    </message>
+    <message>
+        <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
+        <translation>Ikke-understøttet VIP-kommando 0x{0:02X}; læsningen stoppede</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1415,10 +1427,6 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Alle filer (*)</translation>
     </message>
@@ -1605,10 +1613,6 @@
     <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
-    </message>
-    <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1930,6 +1934,14 @@
         <source>Y:</source>
         <translation>Y:</translation>
     </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2045,10 +2057,6 @@
         <translation>Åbn stingmønster</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Alle filer (*)</translation>
     </message>
@@ -2089,10 +2097,6 @@
         <translation>9mm-stingfiler (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
         <translation>MAXI-stingfiler (*.pcq *.max)</translation>
     </message>
@@ -2107,6 +2111,14 @@
     <message>
         <source>Stitches: {0}</source>
         <translation>Sting: {0}</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
     </message>
 </context>
 <context>

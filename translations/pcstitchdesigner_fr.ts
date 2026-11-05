@@ -401,6 +401,18 @@
         <source>Pattern is larger than the large hoop; scaled to {0}% to fit</source>
         <translation>Le motif est plus grand que le grand cerceau ; mis à l'échelle à {0} % pour tenir.</translation>
     </message>
+    <message>
+        <source>The VIP file contains no stitches</source>
+        <translation>Le fichier VIP ne contient aucun point</translation>
+    </message>
+    <message>
+        <source>The VIP file ends in the middle of a stitch record</source>
+        <translation>Le fichier VIP se termine au milieu d'un enregistrement de point</translation>
+    </message>
+    <message>
+        <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
+        <translation>Commande VIP non prise en charge 0x{0:02X} ; lecture interrompue</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1415,10 +1427,6 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Tous les fichiers (*)</translation>
     </message>
@@ -1605,10 +1613,6 @@
     <message>
         <source>9mm Stitch Files (*.pcd *.9mm)</source>
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
-    </message>
-    <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
     </message>
     <message>
         <source>File loaded with warnings</source>
@@ -1930,6 +1934,14 @@
         <source>Y:</source>
         <translation>Y :</translation>
     </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
@@ -2045,10 +2057,6 @@
         <translation>Ouvrir un motif</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation>Tous les fichiers (*)</translation>
     </message>
@@ -2089,10 +2097,6 @@
         <translation>Fichiers de points 9mm (*.pcd *.9mm)</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</source>
-        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus)</translation>
-    </message>
-    <message>
         <source>MAXI Stitch Files (*.pcq *.max)</source>
         <translation>Fichiers de points MAXI (*.pcq *.max)</translation>
     </message>
@@ -2107,6 +2111,14 @@
     <message>
         <source>Stitches: {0}</source>
         <translation>Points : {0}</translation>
+    </message>
+    <message>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Tous les fichiers pris en charge (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+    </message>
+    <message>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
+        <translation>Fichiers de broderie (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
     </message>
 </context>
 <context>
