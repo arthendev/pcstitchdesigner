@@ -413,6 +413,18 @@
         <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
         <translation>Неподдерживаемая команда VIP 0x{0:02X}; чтение остановлено</translation>
     </message>
+    <message>
+        <source>The VP3 file contains no stitches</source>
+        <translation>Файл VP3 не содержит стежков</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a colour block</source>
+        <translation>Файл VP3 заканчивается посередине цветового блока</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a stitch record</source>
+        <translation>Файл VP3 заканчивается посередине записи стежка</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1935,12 +1947,12 @@
         <translation>Y:</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>
@@ -2113,12 +2125,12 @@
         <translation>Стежки: {0}</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Все поддерживаемые файлы (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Файлы вышивки (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>

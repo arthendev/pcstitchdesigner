@@ -413,6 +413,18 @@
         <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
         <translation>Ikke-understøttet VIP-kommando 0x{0:02X}; læsningen stoppede</translation>
     </message>
+    <message>
+        <source>The VP3 file contains no stitches</source>
+        <translation>VP3-filen indeholder ingen sting</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a colour block</source>
+        <translation>VP3-filen slutter midt i en farveblok</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a stitch record</source>
+        <translation>VP3-filen slutter midt i en stingpost</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1935,12 +1947,12 @@
         <translation>Y:</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>
@@ -2113,12 +2125,12 @@
         <translation>Sting: {0}</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle understøttede filer (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Broderifiler (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>

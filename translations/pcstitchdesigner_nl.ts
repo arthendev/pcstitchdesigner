@@ -413,6 +413,18 @@
         <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
         <translation>Niet-ondersteunde VIP-opdracht 0x{0:02X}; lezen gestopt</translation>
     </message>
+    <message>
+        <source>The VP3 file contains no stitches</source>
+        <translation>Het VP3-bestand bevat geen steken</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a colour block</source>
+        <translation>Het VP3-bestand eindigt midden in een kleurblok</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a stitch record</source>
+        <translation>Het VP3-bestand eindigt midden in een steekrecord</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1935,12 +1947,12 @@
         <translation>Y:</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Borduurbestanden (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Borduurbestanden (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>
@@ -2113,12 +2125,12 @@
         <translation>Steken: {0}</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle ondersteunde bestanden (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Borduurbestanden (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Borduurbestanden (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>

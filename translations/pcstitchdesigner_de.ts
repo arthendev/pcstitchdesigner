@@ -413,6 +413,18 @@
         <source>Unsupported VIP command 0x{0:02X}; reading stopped</source>
         <translation>Nicht unterstützter VIP-Befehl 0x{0:02X}; Lesen abgebrochen</translation>
     </message>
+    <message>
+        <source>The VP3 file contains no stitches</source>
+        <translation>Die VP3-Datei enthält keine Stiche</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a colour block</source>
+        <translation>Die VP3-Datei endet mitten in einem Farbblock</translation>
+    </message>
+    <message>
+        <source>The VP3 file ends in the middle of a stitch record</source>
+        <translation>Die VP3-Datei endet mitten in einem Stichdatensatz</translation>
+    </message>
 </context>
 <context>
     <name>GeneralTab</name>
@@ -1935,12 +1947,12 @@
         <translation>Y:</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>
@@ -2113,12 +2125,12 @@
         <translation>Stiche: {0}</translation>
     </message>
     <message>
-        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>All Supported Files (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Alle unterstützten Formate (*.pcd *.pcq *.pcs *.9mm *.max *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
     <message>
-        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</source>
-        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip)</translation>
+        <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
+        <translation>Stickdateiformate (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
 </context>
 <context>
