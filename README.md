@@ -8,7 +8,7 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
 
 ## Main window of the application
 
-<img width="1235" height="688" alt="main_window_overview_2" src="https://github.com/user-attachments/assets/cf4f44c2-4fb1-4b20-bebe-3bf5e51c3af6" />
+<img width="1202" height="732" alt="main_window_overview_2" src="https://github.com/user-attachments/assets/3c2034ea-6278-433e-9e9e-7b45cebc63d3" />
 
 ## Available Features
 
