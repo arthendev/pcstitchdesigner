@@ -20,7 +20,8 @@ from model import (StitchPattern, ELEM_STITCH, ELEM_AUTO, ELEM_SECTION,
                    ELEM_COLOR, elem_has_coords, is_embroidery_type)
 from canvas import StitchCanvas
 from tools import (PanTool, AddPointTool, MovePointTool, DeletePointTool,
-                   SelectPointTool, SelectSectionTool, SelectAreaTool)
+                   SelectPointTool, SelectSectionTool, SelectAreaTool,
+                   MeasurementRulerTool)
 import file_io
 from config import Config
 from version import APP_VERSION
@@ -267,6 +268,7 @@ class MainWindow(QMainWindow):
         self._add_tool = AddPointTool()
         self._move_tool = MovePointTool()
         self._delete_tool = DeletePointTool()
+        self._measure_tool = MeasurementRulerTool()
 
         # Scroll area as central widget
         self._scroll = QScrollArea()
@@ -604,6 +606,11 @@ class MainWindow(QMainWindow):
         self._act_delete.setCheckable(True)
         self._act_delete.triggered.connect(self._on_tool_delete)
 
+        self._act_measure = QAction(QIcon(os.path.join(_icons, "ruler.svg")),
+                                    self.tr("Measure Distance"), self)
+        self._act_measure.setCheckable(True)
+        self._act_measure.triggered.connect(self._on_tool_measure)
+
         self._tool_group = QActionGroup(self)
         self._tool_group.setExclusive(True)
         self._tool_group.addAction(self._act_pan)
@@ -613,6 +620,7 @@ class MainWindow(QMainWindow):
         self._tool_group.addAction(self._act_add)
         self._tool_group.addAction(self._act_move)
         self._tool_group.addAction(self._act_delete)
+        self._tool_group.addAction(self._act_measure)
 
         self._act_zoom_in = QAction(QIcon(os.path.join(_icons, "zoom_in.svg")),
                                     self.tr("Zoom In"), self)
@@ -918,6 +926,8 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self._act_add)
         tools_menu.addAction(self._act_move)
         tools_menu.addAction(self._act_delete)
+        tools_menu.addSeparator()
+        tools_menu.addAction(self._act_measure)
 
         view_menu = mb.addMenu(self.tr("&View"))
         orientation_menu = view_menu.addMenu(self.tr("View &Orientation"))
@@ -1006,6 +1016,8 @@ class MainWindow(QMainWindow):
         tb.addAction(self._act_add)
         tb.addAction(self._act_move)
         tb.addAction(self._act_delete)
+        tb.addSeparator()
+        tb.addAction(self._act_measure)
         tb.addSeparator()
         tb.addAction(self._act_zoom_in)
         tb.addAction(self._act_zoom_out)
@@ -1285,6 +1297,12 @@ class MainWindow(QMainWindow):
         self._cancel_sel_xform_if_active()
         self._canvas.set_tool(self._delete_tool)
         self._tool_label.setText(self.tr("Tool: Delete Stitch Points"))
+        self._show_selection_toolbar()
+
+    def _on_tool_measure(self):
+        self._cancel_sel_xform_if_active()
+        self._canvas.set_tool(self._measure_tool)
+        self._tool_label.setText(self.tr("Tool: Measure Distance"))
         self._show_selection_toolbar()
 
     # ── Design selection ──

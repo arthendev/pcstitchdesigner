@@ -1146,3 +1146,189 @@ class DeletePointTool(BaseTool):
             canvas.update()
             canvas.notify_change()
             canvas.drag_finished.emit()
+
+
+class MeasurementRulerTool(BaseTool):
+    """Measure the distance between two points on the canvas.
+
+    Press to anchor the ruler, drag to the second point and release. The
+    measurement stays on screen after the release so it can be read at leisure:
+    the next press starts a new one and Escape clears it. Nothing is written to
+    the pattern, so the tool cannot change the design.
+
+    The endpoints snap to the nearest stitch point when the cursor is close
+    enough, which makes "measure from this stitch to that one" exact. Without a
+    nearby stitch they snap to the grid when the design's normal-stitch
+    alignment is on, exactly like the Add and Move tools do. Holding Shift locks
+    the free end to the nearest axis.
+    """
+
+    name = "Measure Distance"
+    # Screen-space snap radius for grabbing a stitch point. Smaller than the
+    # move tools' radius: a ruler should only snap when the user is already on
+    # the point, not steal a measurement that deliberately stops beside it.
+    SNAP_RADIUS_PX = 10
+    TICK_PX = 8  # half length of the perpendicular end tick
+
+    def __init__(self):
+        """Initialize the tool with the ruler cursor."""
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", "ruler.svg")
+        pixmap = QPixmap(icon_path)
+        if not pixmap.isNull():
+            # Hot spot is the tip of the ruler's lower-left end.
+            self.cursor = QCursor(pixmap, hotX=3, hotY=17)
+        else:
+            self.cursor = Qt.CrossCursor
+        self._start = None      # canvas coords of the anchored end
+        self._end = None        # canvas coords of the free end
+        self._dragging = False
+
+    def _clamped_point(self, canvas, cx, cy):
+        """Return (*cx*, *cy*) clamped to the canvas, grid-snapped when enabled."""
+        width, height = canvas.pattern.CANVAS_WIDTH, canvas.pattern.CANVAS_HEIGHT
+        if canvas.snap_normal_to_grid:
+            return (max(0, min(width, int(round(cx)))),
+                    max(0, min(height, int(round(cy)))))
+        return (max(0.0, min(float(width), cx)),
+                max(0.0, min(float(height), cy)))
+
+    def _point_at(self, canvas, event):
+        """Return the canvas point an event maps to, snapped like the move tools."""
+        cx, cy = canvas.screen_to_canvas(event.x(), event.y())
+        index = find_nearest_coord_index(
+            canvas.pattern, cx, cy, self.SNAP_RADIUS_PX / canvas.get_scale())
+        if index is not None:
+            return canvas.pattern.elements[index][1], canvas.pattern.elements[index][2]
+        return self._clamped_point(canvas, cx, cy)
+
+    def _constrain_to_axis(self, point):
+        """Return *point* locked to the horizontal or vertical axis from the start."""
+        if self._start is None:
+            return point
+        dx = point[0] - self._start[0]
+        dy = point[1] - self._start[1]
+        if abs(dx) >= abs(dy):
+            return point[0], self._start[1]
+        return self._start[0], point[1]
+
+    def clear(self, canvas):
+        """Remove the measurement and redraw."""
+        self._start = None
+        self._end = None
+        self._dragging = False
+        canvas.update()
+
+    def mouse_press(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        point = self._point_at(canvas, event)
+        self._start = point
+        self._end = point
+        self._dragging = True
+        canvas.update()
+
+    def mouse_move(self, canvas, event):
+        if not self._dragging:
+            return
+        point = self._point_at(canvas, event)
+        if event.modifiers() & Qt.ShiftModifier:
+            point = self._constrain_to_axis(point)
+        self._end = point
+        canvas.update()
+
+    def mouse_release(self, canvas, event):
+        if event.button() != Qt.LeftButton:
+            return
+        # Keep the measurement visible: the user still has to read it.
+        self._dragging = False
+        canvas.update()
+
+    def key_press(self, canvas, event):
+        """Escape drops the measurement."""
+        if event.key() == Qt.Key_Escape:
+            self.clear(canvas)
+            event.accept()
+            return True
+        return False
+
+    def on_deselect(self, canvas):
+        """Drop the measurement when another tool takes over."""
+        self.clear(canvas)
+
+    def paint_overlay(self, canvas, painter):
+        """Draw the ruler, its end ticks and the measured distance."""
+        if self._start is None or self._end is None:
+            return
+
+        ax, ay = canvas.canvas_to_screen(*self._start)
+        bx, by = canvas.canvas_to_screen(*self._end)
+        dx, dy = bx - ax, by - ay
+        screen_length = math.hypot(dx, dy)
+
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing)
+        pen = QPen(QColor(0, 90, 200), 2)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawLine(int(round(ax)), int(round(ay)),
+                         int(round(bx)), int(round(by)))
+
+        # End ticks run perpendicular to the ruler so the measured span lines up
+        # with the design even when the ruler is not horizontal.
+        nx, ny = 0.0, -1.0
+        if screen_length > 0:
+            nx, ny = -dy / screen_length, dx / screen_length
+            for px, py in ((ax, ay), (bx, by)):
+                painter.drawLine(
+                    int(round(px - nx * self.TICK_PX)),
+                    int(round(py - ny * self.TICK_PX)),
+                    int(round(px + nx * self.TICK_PX)),
+                    int(round(py + ny * self.TICK_PX)))
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(0, 90, 200))
+        for px, py in ((ax, ay), (bx, by)):
+            painter.drawEllipse(int(round(px)) - 3, int(round(py)) - 3, 6, 6)
+
+        canvas_length = math.hypot(self._end[0] - self._start[0],
+                                   self._end[1] - self._start[1])
+        if canvas_length > 0:
+            self._paint_readout(canvas, painter, ax, ay, bx, by, nx, ny,
+                                canvas_length)
+        painter.restore()
+
+    def _paint_readout(self, canvas, painter, ax, ay, bx, by, nx, ny,
+                       canvas_length):
+        """Draw the distance label beside the middle of the ruler."""
+        pattern = canvas.pattern
+        res = pattern.STITCH_RES_MM
+        distance_mm = canvas_length * res
+        dx_mm = abs(self._end[0] - self._start[0]) * res
+        dy_mm = abs(self._end[1] - self._start[1]) * res
+
+        lines = [f"{distance_mm:.2f} mm",
+                 f"\u0394x {dx_mm:.2f}   \u0394y {dy_mm:.2f} mm"]
+        metrics = painter.fontMetrics()
+        text_w = max(metrics.width(line) for line in lines)
+        text_h = metrics.height() * len(lines)
+
+        # Put the label on the upper side of the line, then keep it inside the
+        # widget so a measurement near an edge stays readable.
+        if ny > 0:
+            nx, ny = -nx, -ny
+        box_x = (ax + bx) / 2.0 + nx * 16 - text_w / 2.0
+        box_y = (ay + by) / 2.0 + ny * 16 - text_h / 2.0
+        box_x = max(2.0, min(canvas.width() - text_w - 2.0, box_x))
+        box_y = max(2.0, min(canvas.height() - text_h - 2.0, box_y))
+
+        pad = 4
+        painter.setPen(QPen(QColor(0, 90, 200), 1))
+        painter.setBrush(QColor(255, 255, 255, 225))
+        painter.drawRoundedRect(int(box_x) - pad, int(box_y) - pad,
+                                int(text_w) + 2 * pad, int(text_h) + 2 * pad,
+                                4, 4)
+        painter.setPen(QPen(QColor(0, 60, 140)))
+        baseline = int(box_y) + metrics.ascent()
+        for i, line in enumerate(lines):
+            painter.drawText(int(box_x), baseline + i * metrics.height(), line)
