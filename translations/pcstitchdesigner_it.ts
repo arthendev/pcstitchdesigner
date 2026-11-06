@@ -1954,6 +1954,14 @@
         <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
         <translation>File di ricamo (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
+    <message>
+        <source>Measure Distance</source>
+        <translation>Misura distanza</translation>
+    </message>
+    <message>
+        <source>Tool: Measure Distance</source>
+        <translation>Strumento: Misura distanza</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>

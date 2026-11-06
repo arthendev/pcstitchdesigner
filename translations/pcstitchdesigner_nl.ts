@@ -1954,6 +1954,14 @@
         <source>Embroidery Files (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</source>
         <translation>Borduurbestanden (*.pcs *.dst *.jef *.pec *.pes *.hus *.vip *.vp3)</translation>
     </message>
+    <message>
+        <source>Measure Distance</source>
+        <translation>Afstand meten</translation>
+    </message>
+    <message>
+        <source>Tool: Measure Distance</source>
+        <translation>Gereedschap: Afstand meten</translation>
+    </message>
 </context>
 <context>
     <name>PMemoryDialog</name>
