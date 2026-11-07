@@ -10,6 +10,13 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
 
 <img width="1202" height="732" alt="main_window_overview_2" src="https://github.com/user-attachments/assets/3c2034ea-6278-433e-9e9e-7b45cebc63d3" />
 
+## Embroidery
+
+Since version 0.9.3 also embroidery designs can be opened, edited and transferred to compatible sewing machines (Creative 7570, 7560 and 7562).
+
+<img height="250" src="https://github.com/user-attachments/assets/7be96877-96a0-450d-a0ca-7c7d42eba53a" />
+<img height="250" src="https://github.com/user-attachments/assets/4091c544-1392-4ad3-8471-de8e4544c61d" />
+
 ## Available Features
 
 - Creating custom stitch patterns ("P-Designs", both 9mm and MAXI-stitches)
@@ -17,8 +24,7 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
   - *.PCD and *.9MM (9 mm stitches)
   - *.PCQ and *.MAX (MAXI stitches)
   - *.PCS (embroidery designs)
-- Import of third-party embroidery formats (read-only):
-  -  *.DST, *.JEF, *.PEC, *.PES, *.HUS, *.VIP and *.VP3
+- Import of third-party embroidery formats (read-only)
 - Transfer stitch patterns to and from supported sewing machines
   - Pfaff Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
   - Pfaff Creative 7560/7562 (memory cards only; embroidery designs can be stored on a card)
@@ -47,17 +53,6 @@ On Linux or macOS: download and unpack the sources and run pc_designer.py with y
 ## User Manual
 
 [Online Documentation](https://github.com/arthendev/pcstitchdesigner/wiki) is available
-
-## Planned Features
-
-The following features are planned for future releases:
-
-- Creation and transfer of stitch sequences ("M-Designs")
-- Embroidery Design Support
-  - Loading embroidery design files (already done)
-  - Transferring embroidery designs to and from the sewing machine
-  - Support for Creative 7560
-- Rework of keyboard shortcuts
 
 ## Donations
 
