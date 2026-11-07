@@ -24,8 +24,7 @@ Since version 0.9.3 also embroidery designs can be opened, edited and transferre
   - *.PCD and *.9MM (9 mm stitches)
   - *.PCQ and *.MAX (MAXI stitches)
   - *.PCS (embroidery designs)
-- Import of third-party embroidery formats (read-only):
-  -  *.DST, *.JEF, *.PEC, *.PES, *.HUS, *.VIP and *.VP3
+- Import of third-party embroidery formats (read-only)
 - Transfer stitch patterns to and from supported sewing machines
   - Pfaff Creative 7570 (both internal memory and [memory cards](https://github.com/arthendev/pcstitchdesigner/wiki/Memory-Card) are supported)
   - Pfaff Creative 7560/7562 (memory cards only; embroidery designs can be stored on a card)
