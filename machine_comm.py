@@ -2195,10 +2195,12 @@ class MachineComm:
 
         Positions are distances from the origin towards the bottom-left in
         payload units (~1/10 mm), so a point is
-        ``(origin - V) / EMBROIDERY_SCALE`` in canvas units.  The design is then
-        centred in its hoop, which is where the machine's own header margins put
-        it; the fractional part is kept because embroidery resolution is finer
-        than one canvas unit.
+        ``(origin - V) / EMBROIDERY_SCALE`` in canvas units.  That already is
+        the design's place in the hoop: the origin group stores the corner the
+        design was positioned against, so a design the user moved off centre on
+        the machine loads off centre.  Only a payload without an origin group
+        has no reference point and is centred instead.  The fractional part is
+        kept because embroidery resolution is finer than one canvas unit.
 
         A colour change is a block of its own: a jump marker, an absolute
         resync to the last stitch of the colour that ends, a tie-off, and then
@@ -2311,7 +2313,8 @@ class MachineComm:
 
         # Without an origin group the values carry no reference point; using the
         # extent maximum keeps the design at least unmirrored.
-        if origin is None:
+        has_origin = origin is not None
+        if not has_origin:
             origin = (max(value[0] for value in values),
                       max(value[1] for value in values))
 
@@ -2319,16 +2322,20 @@ class MachineComm:
         points = [((origin[0] - vx) / scale, (origin[1] - vy) / scale)
                   for vx, vy in values]
 
-        xs = [point[0] for point in points]
-        ys = [point[1] for point in points]
         if hoop not in MachineComm.EMBROIDERY_HOOPS:
-            # Missing or unrecognised hoop byte: derive it from the design size.
+            # Missing or unrecognised hoop byte: derive it from the design's
+            # size and the position the origin gives it.
             hoop = MachineComm._embroidery_hoop_for(points)
         canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[hoop]
 
-        offset_x = (canvas_w - (max(xs) - min(xs))) / 2.0 - min(xs)
-        offset_y = (canvas_h - (max(ys) - min(ys))) / 2.0 - min(ys)
-        points = [(px + offset_x, py + offset_y) for px, py in points]
+        if not has_origin:
+            # Nothing says where the design belongs, so centre it - the only
+            # placement that cannot make a correctly stored design wrong.
+            xs = [point[0] for point in points]
+            ys = [point[1] for point in points]
+            offset_x = (canvas_w - (max(xs) - min(xs))) / 2.0 - min(xs)
+            offset_y = (canvas_h - (max(ys) - min(ys))) / 2.0 - min(ys)
+            points = [(px + offset_x, py + offset_y) for px, py in points]
 
         elements = []
         previous_colour = 1
@@ -2493,16 +2500,24 @@ class MachineComm:
     def _embroidery_hoop_for(points):
         """Return the smallest hoop canvas that holds *points*.
 
-        A design that exceeds every hoop falls back to the largest one; the
-        machine refuses such writes, so this only affects third-party cards.
+        *points* are placed in hoop coordinates, so the design's position counts
+        as well as its size: a small design decentred towards a corner may only
+        fit the larger hoop.  The tolerance absorbs the sub-unit residue of the
+        payload's integer units, so a design that exactly fills a hoop still
+        matches it.  A design that exceeds every hoop falls back to the largest
+        one; the machine refuses such writes, so this only affects third-party
+        cards.
         """
         xs = [point[0] for point in points]
         ys = [point[1] for point in points]
-        span_x = max(xs) - min(xs)
-        span_y = max(ys) - min(ys)
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        tolerance = 1.0 / MachineComm.EMBROIDERY_SCALE
         for stitch_type in ("small hoop", "large hoop"):
             canvas_w, canvas_h = StitchPattern.CANVAS_SIZES[stitch_type]
-            if span_x <= canvas_w and span_y <= canvas_h:
+            if (min_x >= -tolerance and min_y >= -tolerance
+                    and max_x <= canvas_w + tolerance
+                    and max_y <= canvas_h + tolerance):
                 return stitch_type
         return "large hoop"
 
