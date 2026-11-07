@@ -12,7 +12,7 @@ It serves as a modern alternative to "PC Designer 2.2", a legacy software origin
 
 ## Embroidery
 
-Since version 0.9.3 also embroidery designs can be opened, edited and transferred to compatible sewing mecahines (Creative 7570, 7560 and 7562).
+Since version 0.9.3 also embroidery designs can be opened, edited and transferred to compatible sewing machines (Creative 7570, 7560 and 7562).
 
 <img height="250" src="https://github.com/user-attachments/assets/7be96877-96a0-450d-a0ca-7c7d42eba53a" />
 <img height="250" src="https://github.com/user-attachments/assets/4091c544-1392-4ad3-8471-de8e4544c61d" />
